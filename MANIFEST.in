@@ -1,0 +1,11 @@
+# description
+include README.rst
+
+# version
+include wc_kb/VERSION
+
+# license
+include LICENSE
+
+# requirements
+include requirements.txt

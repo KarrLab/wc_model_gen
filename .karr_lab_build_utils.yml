@@ -1,0 +1,6 @@
+downstream_dependencies:
+  - mycoplasma_pneumoniae
+
+email_notifications:
+  - jonrkarr@gmail.com
+  - balazs.szigeti@mssm.edu

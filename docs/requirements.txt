@@ -1,0 +1,6 @@
+robpol86_sphinxcontrib_googleanalytics
+sphinx >= 1.7
+sphinx_rtd_theme
+sphinxcontrib_addmetahtml
+sphinxcontrib_bibtex
+sphinxcontrib_spelling
