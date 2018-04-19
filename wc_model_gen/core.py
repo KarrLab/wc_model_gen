@@ -17,9 +17,9 @@ class ModelGenerator(object):
     """ Generating a model instance (:obj:`wc_lang.Model`)
 
     Attributes:
-        component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
-        options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
-            optional arguments to the methods
+        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+        components (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
+        options (:obj:`dict`, optional): options
     """
 
     DEFAULT_COMPONENTS = ()  # todo: run default components
@@ -27,19 +27,17 @@ class ModelGenerator(object):
     def __init__(self, knowledge_base, components=None, options=None):
         """
         Args:
-            component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
-            options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
-                optional arguments to the methods
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`, optional): model component generators
+            options (:obj:`dict`, optional): options
         """
 
         self.knowledge_base = knowledge_base
         self.components = components or self.DEFAULT_COMPONENTS
         self.options = options or {}
 
-    def run(self, id=None, version=None):
-        """ Generate a wc_lang model from a :obj:`wc_kb` knowledge base
-        Args:
-            id (:obj:`str`): model id
+    def run(self):
+        """ Generate a :obj:`wc_lang` model from a :obj:`wc_kb` knowledge base    
 
         Returns:
             :obj:`wc_lang.Model`: model
@@ -64,6 +62,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         model (:obj:`wc_lang.Model`): model
+        options (:obj:`dict`, optional): options
     """
 
     def __init__(self, knowledge_base, model, options=None):
@@ -71,7 +70,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.Model`): model
-            model (:obj:`dict`, optional): options
+            options (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
         self.model = model
