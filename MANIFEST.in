@@ -2,7 +2,7 @@
 include README.rst
 
 # version
-include wc_kb/VERSION
+include wc_model_gen/VERSION
 
 # license
 include LICENSE
