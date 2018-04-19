@@ -32,9 +32,6 @@ docs/_build
 .cache/
 .pytest_cache/
 
-# passwords
-tests/fixtures/secret/
-
 # IDE configuration
 .idea/
 .spyderproject
