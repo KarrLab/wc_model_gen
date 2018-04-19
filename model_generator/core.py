@@ -13,25 +13,22 @@ import wc_kb
 import wc_lang.core
 
 class ModelGenerator(object):
-    """ Machinery for generating a model (an instance of :obj:`wc_lang.core.Model`) from a knowledge base
-    (an instance of :obj:`wc_kb.KnowledgeBase`)
+    """ Generating a model instance (:obj:`wc_lang.core.Model`)
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
         options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
             optional arguments to the methods
     """
 
-    # Compartments + parameters are neccessary for a valid wc_lang model
+    DEFAULT_MODEL_COMPONENTS = () # todo: run default components
     DEFAULT_MODEL_GENERATOR_VERSION = '0.0.1'
-    DEFAULT_MODEL_COMPONENTS = () #(CompartmentsGenerator, ParametersGenerator)
+    DEFAULT_MODEL_VERSION = '0.0.1'
     DEFAULT_MODEL_ID = 'test_model'
 
     def __init__(self, knowledge_base, components=None, options=None, version=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
             options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
                 optional arguments to the methods
@@ -42,7 +39,7 @@ class ModelGenerator(object):
         self.version = version or self.DEFAULT_MODEL_GENERATOR_VERSION
         self.options = options or {}
 
-    def run(self, id=None):
+    def run(self, id=None, version=None):
         """ Generate a wc_lang model from a wc_kb knowledge base
         Args:
             id (:obj:`str`): model id
@@ -53,7 +50,10 @@ class ModelGenerator(object):
 
         model = wc_lang.core.Model()
         model.id = id or self.DEFAULT_MODEL_ID
+        model.version = version or self.DEFAULT_MODEL_VERSION
+
         return model
+
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Base class for model component generator classes
@@ -74,5 +74,5 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
 
     @abc.abstractmethod
     def run(self):
-        """ Run the generator """
+        """ Generate species associated with submodel """
         pass  # pragma: no cover
