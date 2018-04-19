@@ -1,7 +1,10 @@
 `wc_model_gen` documentation
 =======================
 
-Tools for building and describing knowledge bases for whole-cell models
+Framework for systematically and scalably designing whole-cell models from large datasets such as |wc_kb|_
+
+.. |wc_kb| replace:: ``wc_kb``
+.. _wc_kb: https://github.com/KarrLab/wc_model_gen
 
 Contents
 --------
