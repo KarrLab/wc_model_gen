@@ -22,12 +22,9 @@ class ModelGenerator(object):
             optional arguments to the methods
     """
 
-    DEFAULT_MODEL_COMPONENTS = ()  # todo: run default components
-    DEFAULT_MODEL_GENERATOR_VERSION = '0.0.1'
-    DEFAULT_MODEL_VERSION = '0.0.1'
-    DEFAULT_MODEL_ID = 'test_model'
+    DEFAULT_COMPONENTS = ()  # todo: run default components
 
-    def __init__(self, knowledge_base, components=None, options=None, version=None):
+    def __init__(self, knowledge_base, components=None, options=None):
         """
         Args:
             component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
@@ -36,8 +33,7 @@ class ModelGenerator(object):
         """
 
         self.knowledge_base = knowledge_base
-        self.components = components or self.DEFAULT_MODEL_COMPONENTS
-        self.version = version or self.DEFAULT_MODEL_GENERATOR_VERSION
+        self.components = components or self.DEFAULT_COMPONENTS
         self.options = options or {}
 
     def run(self, id=None, version=None):
@@ -48,11 +44,17 @@ class ModelGenerator(object):
         Returns:
             :obj:`wc_lang.Model`: model
         """
-
         model = wc_lang.Model()
-        model.id = id or self.DEFAULT_MODEL_ID
-        model.version = version or self.DEFAULT_MODEL_VERSION
+        model.id = self.options.get('id', None)
+        model.version = self.options.get('version', None)
 
+        # run component generators
+        component_options = self.options.get('component', {})
+        for component in self.components:
+            options = component_options.get(component.__name__, {})
+            component(self.knowledge_base, model, options=options).run()
+
+        # return model
         return model
 
 
@@ -64,14 +66,16 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         model (:obj:`wc_lang.Model`): model
     """
 
-    def __init__(self, knowledge_base, model):
+    def __init__(self, knowledge_base, model, options=None):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.Model`): model
+            model (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
         self.model = model
+        self.options = options
 
     @abc.abstractmethod
     def run(self):
