@@ -11,10 +11,11 @@ import wc_model_gen
 import unittest
 import wc_kb
 
+
 class TestModelGenerator(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.knowledge_base = kb = wc_kb.KnowledgeBase()
+        cls.knowledge_base = wc_kb.KnowledgeBase()
 
     def test_ModelGenerator_constructor(self):
         generator = wc_model_gen.ModelGenerator(self.knowledge_base)
