@@ -1,6 +1,6 @@
 import pkg_resources
 
-with open(pkg_resources.resource_filename('model_generator', 'VERSION'), 'r') as file:
+with open(pkg_resources.resource_filename('wc_model_gen', 'VERSION'), 'r') as file:
     __version__ = file.read().strip()
 # :obj:`str`: version
 

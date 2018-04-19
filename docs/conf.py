@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 #
-# model_generator documentation build configuration file, created by
+# wc_model_gen documentation build configuration file, created by
 # sphinx-quickstart on Mon Jul 25 14:25:43 2016.
 #
 # This file is execfile()d with the current directory set to its
@@ -62,7 +62,7 @@ source_suffix = '.rst'
 master_doc = 'index'
 
 # General information about the project.
-project = u'model_generator'
+project = u'wc_model_gen'
 copyright = u'{}, Karr Lab'.format(datetime.datetime.now().year)
 author = u'Karr Lab'
 
@@ -71,7 +71,7 @@ author = u'Karr Lab'
 # built documents.
 #
 # The short X.Y version.
-filename = os.path.join(os.path.dirname(__file__), '..', 'model_generator', 'VERSION')
+filename = os.path.join(os.path.dirname(__file__), '..', 'wc_model_gen', 'VERSION')
 with open(filename, 'r') as file:
     version = file.read()
 # The full version, including alpha/beta/rc tags.
@@ -155,9 +155,9 @@ def linkcode_resolve(domain, info):
         return None
     rel_filename = info['module'].replace('.', '/')
     if os.path.isfile(os.path.join(os.path.dirname(__file__), '..', rel_filename + '.py')):
-        return "https://github.com/KarrLab/model_generator/blob/master/{}.py".format(rel_filename)
+        return "https://github.com/KarrLab/wc_model_gen/blob/master/{}.py".format(rel_filename)
     else:
-        return "https://github.com/KarrLab/model_generator/blob/master/{}/__init__.py".format(rel_filename)
+        return "https://github.com/KarrLab/wc_model_gen/blob/master/{}/__init__.py".format(rel_filename)
 
 
 # -- napoleon options -----------------------------------------------------
@@ -194,7 +194,7 @@ html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
 # The name for this set of Sphinx documents.
 # "<project> v<release> documentation" by default.
 #
-# html_title = u'model_generator v0.01'
+# html_title = u'wc_model_gen v0.01'
 
 # A shorter title for the navigation bar.  Default is the same as html_title.
 #
@@ -294,7 +294,7 @@ html_show_copyright = True
 # html_search_scorer = 'scorer.js'
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'model_generator_doc'
+htmlhelp_basename = 'wc_model_gen_doc'
 
 # -- Options for LaTeX output ---------------------------------------------
 
@@ -320,7 +320,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'model_generator.tex', u'model_generator documentation',
+    (master_doc, 'wc_model_gen.tex', u'wc_model_gen documentation',
      u'Karr Lab', 'manual'),
 ]
 
@@ -362,7 +362,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'model_generator', u'model_generator documentation',
+    (master_doc, 'wc_model_gen', u'wc_model_gen documentation',
      [author], 1)
 ]
 
@@ -377,8 +377,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'model_generator', u'model_generator documentation',
-     author, 'model_generator', 'Language for describing whole-cell models',
+    (master_doc, 'wc_model_gen', u'wc_model_gen documentation',
+     author, 'wc_model_gen', 'Language for describing whole-cell models',
      'Miscellaneous'),
 ]
 
@@ -406,5 +406,5 @@ googleanalytics_id = 'UA-86340737-1'
 
 # -- if RTD, redirect to https://docs.karrlab.org  ------------------------
 
-addmetahtml_content = '<meta http-equiv="refresh" content="0; url=https://docs.karrlab.org/model_generator" />'
+addmetahtml_content = '<meta http-equiv="refresh" content="0; url=https://docs.karrlab.org/wc_model_gen" />'
 addmetahtml_enabled = os.getenv('READTHEDOCS', '') == 'True'

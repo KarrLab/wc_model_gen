@@ -1,4 +1,4 @@
-`model_generator` documentation
+`wc_model_gen` documentation
 =======================
 
 Tools for building and describing knowledge bases for whole-cell models

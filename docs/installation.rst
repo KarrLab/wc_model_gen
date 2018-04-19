@@ -11,4 +11,4 @@ Latest revision from GitHub
 ---------------------------
 Run the following command to install the latest version from GitHub::
 
-    pip install git+git://github.com/KarrLab/model_generator.git#egg=model_generator
+    pip install git+git://github.com/KarrLab/wc_model_gen.git#egg=wc_model_gen

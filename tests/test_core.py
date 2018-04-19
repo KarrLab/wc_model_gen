@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-import model_generator
+import wc_model_gen
 import unittest
 import wc_kb
 
@@ -17,7 +17,7 @@ class TestModelGenerator(unittest.TestCase):
         cls.knowledge_base = kb = wc_kb.KnowledgeBase()
 
     def test_ModelGenerator_constructor(self):
-        generator = model_generator.ModelGenerator(self.knowledge_base)
+        generator = wc_model_gen.ModelGenerator(self.knowledge_base)
 
         self.assertEqual(generator.knowledge_base, self.knowledge_base)
         self.assertEqual(generator.version, '0.0.1')
@@ -25,16 +25,16 @@ class TestModelGenerator(unittest.TestCase):
         self.assertEqual(generator.options, {})
 
     def test_ModelGenerator_run(self):
-        generator = model_generator.ModelGenerator(self.knowledge_base)
+        generator = wc_model_gen.ModelGenerator(self.knowledge_base)
         model = generator.run()
 
         self.assertEqual(model.id, 'test_model')
 
     def test_ModelComponentGenerator_constructor(self):
-        generator = model_generator.ModelGenerator(self.knowledge_base)
+        generator = wc_model_gen.ModelGenerator(self.knowledge_base)
         model = generator.run()
 
-        class component_z_generator(model_generator.ModelComponentGenerator):
+        class component_z_generator(wc_model_gen.ModelComponentGenerator):
             def run(self): pass
 
         component_z = component_z_generator(self.knowledge_base, model)
