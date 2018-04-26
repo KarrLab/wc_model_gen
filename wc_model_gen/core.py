@@ -10,73 +10,83 @@
 import abc
 import six
 import wc_kb
-import wc_lang
+import wc_lang.core
 
-
-class ModelGenerator(object):
-    """ Generating a model instance (:obj:`wc_lang.Model`)
+class InitalizeModel(object):
+    """ Generating a model instance (:obj:`wc_lang.core.Model`)
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-        components (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
-        options (:obj:`dict`, optional): options
+        component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
+        options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
+            optional arguments to the methods
     """
 
-    DEFAULT_COMPONENTS = ()  # todo: run default components
+    DEFAULT_MODEL_COMPONENTS = [] # eg. components = [mycoplasma_pneumoniae.model_gen.CompartmentsGenerator]
+    DEFAULT_MODEL_GENERATOR_VERSION = '0.0.1'
+    DEFAULT_MODEL_VERSION = '0.0.1'
+    DEFAULT_MODEL_ID = 'test_model'
 
-    def __init__(self, knowledge_base, components=None, options=None):
+    def __init__(self, knowledge_base, components=None, options=None, version=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-            component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`, optional): model component generators
-            options (:obj:`dict`, optional): options
+            component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
+            options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
+                optional arguments to the methods
         """
 
         self.knowledge_base = knowledge_base
-        self.components = components or self.DEFAULT_COMPONENTS
+        self.components = components or self.DEFAULT_MODEL_COMPONENTS
+        self.version = version or self.DEFAULT_MODEL_GENERATOR_VERSION
         self.options = options or {}
 
-    def run(self):
-        """ Generate a :obj:`wc_lang` model from a :obj:`wc_kb` knowledge base    
+    def run(self, id=None, version=None):
+        """ Generate a wc_lang model from a wc_kb knowledge base
+        Args:
+            id (:obj:`str`): model id
 
         Returns:
-            :obj:`wc_lang.Model`: model
+            :obj:`wc_lang.core.Model`: model
         """
-        model = wc_lang.Model()
-        model.id = self.options.get('id', None)
-        model.version = self.options.get('version', None)
 
-        # run component generators
-        component_options = self.options.get('component', {})
-        for component in self.components:
-            options = component_options.get(component.__name__, {})
-            component(self.knowledge_base, model, options=options).run()
+        model = wc_lang.core.Model()
+        model.id = id or self.DEFAULT_MODEL_ID
+        model.version = version or self.DEFAULT_MODEL_VERSION
 
-        # return model
+        for gen_cls in self.components:
+            gen = gen_cls(self.knowledge_base, model, **self.options.get(gen_cls.__name__, {}))
+            gen.run()
+
         return model
 
 
-class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
+class SubmodelGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Base class for model component generator classes
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-        model (:obj:`wc_lang.Model`): model
-        options (:obj:`dict`, optional): options
+        model (:obj:`wc_lang.core.Model`): model
     """
 
-    def __init__(self, knowledge_base, model, options=None):
+    def __init__(self, knowledge_base, model):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-            model (:obj:`wc_lang.Model`): model
-            options (:obj:`dict`, optional): options
+            model (:obj:`wc_lang.core.Model`): model
         """
         self.knowledge_base = knowledge_base
         self.model = model
-        self.options = options
 
     @abc.abstractmethod
-    def run(self):
+    def generate_species(self):
         """ Generate species associated with submodel """
+        pass  # pragma: no cover
+
+    @abc.abstractmethod
+    def generate_reactions(self):
+        """ Generate reactions associated with submodel """
+        pass  # pragma: no cover
+
+    @abc.abstractmethod
+    def generate_rate_laws(self):
+        """ Generate rate laws associated with submodel """
         pass  # pragma: no cover

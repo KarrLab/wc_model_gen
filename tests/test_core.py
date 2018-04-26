@@ -13,39 +13,48 @@ import wc_kb
 import wc_lang
 
 
-class TestModelGenerator(unittest.TestCase):
+class TestInitalizeModel(unittest.TestCase):
     def setUp(self):
         self.knowledge_base = wc_kb.KnowledgeBase()
 
-    def test_ModelGenerator_constructor(self):
-        generator = wc_model_gen.ModelGenerator(self.knowledge_base)
+    def test_InitalizeModel(self):
+        generator = wc_model_gen.InitalizeModel(self.knowledge_base)
 
         self.assertEqual(generator.knowledge_base, self.knowledge_base)
-        self.assertEqual(generator.components, ())
+        self.assertEqual(generator.components, [])
         self.assertEqual(generator.options, {})
 
-    def test_ModelGenerator_run(self):
-        generator = wc_model_gen.ModelGenerator(self.knowledge_base, options={
+    def test_InitalizeModel_run(self):
+        generator = wc_model_gen.InitalizeModel(self.knowledge_base, options={
             'id': 'test_model',
         })
         model = generator.run()
 
         self.assertEqual(model.id, 'test_model')
-        self.assertEqual(model.version, None)
+        self.assertEqual(model.version, '0.0.1')
 
-    def test_ModelGenerator_run_with_components(self):
-        class TestComponentGenerator1(wc_model_gen.ModelComponentGenerator):
+    def test_InitalizeModel_run_with_components(self):
+        class TestComponentGenerator1(wc_model_gen.SubmodelGenerator):
             def run(self):
-                self.model.compartments.create(id=self.options['compartment_id'])
+                self.model.compartments.create(id='c', name='Cytosol')
+            def generate_species(self): pass
+            def generate_reactions(self): pass
+            def generate_rate_laws(self): pass
 
-        class TestComponentGenerator2(wc_model_gen.ModelComponentGenerator):
-            def run(self): 
-                self.model.compartments.create(name=self.options['compartment_name'])
 
-        components = (
-            TestComponentGenerator1, 
+        class TestComponentGenerator2(wc_model_gen.SubmodelGenerator):
+            def run(self):
+                self.model.compartments.create(id='m', name='Membrane')
+            def generate_species(self): pass
+            def generate_reactions(self): pass
+            def generate_rate_laws(self): pass
+
+        components = [
+            TestComponentGenerator1,
             TestComponentGenerator2,
-            )
+            ]
+
+        """ WIP
         options = {
             'id': 'test_model',
             'version': '0.0.1',
@@ -58,19 +67,23 @@ class TestModelGenerator(unittest.TestCase):
                 },
             },
         }
-        gen = wc_model_gen.ModelGenerator(self.knowledge_base, components=components, options=options)
-        model = gen.run()
+        """
+        kb = wc_kb.KnowledgeBase()
+        print(type(kb))
+        model = wc_model_gen.InitalizeModel(kb,components=components).run()
 
-        self.assertEqual(model.id, 'test_model')
-        self.assertIsInstance(model.compartments.get_one(id='c'), wc_lang.Compartment)
-        self.assertIsInstance(model.compartments.get_one(name='m'), wc_lang.Compartment)
+        print(model.compartments[0].id)
 
-    def test_ModelComponentGenerator_constructor(self):
-        generator = wc_model_gen.ModelGenerator(self.knowledge_base)
-        model = generator.run()
+        self.assertIsInstance(model.compartments.get_one(id='c'), wc_lang.core.Compartment)
+        self.assertIsInstance(model.compartments.get_one(name='Membrane'), wc_lang.core.Compartment)
 
-        class component_z_generator(wc_model_gen.ModelComponentGenerator):
-            def run(self): pass
+    def test_SubmodelGenerator(self):
+        model = wc_model_gen.InitalizeModel(self.knowledge_base).run()
+
+        class component_z_generator(wc_model_gen.SubmodelGenerator):
+            def generate_species(self): pass
+            def generate_reactions(self): pass
+            def generate_rate_laws(self): pass
 
         component_z = component_z_generator(self.knowledge_base, model)
 
