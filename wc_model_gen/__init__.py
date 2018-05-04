@@ -5,5 +5,6 @@ with open(pkg_resources.resource_filename('wc_model_gen', 'VERSION'), 'r') as fi
 # :obj:`str`: version
 
 # API
-from .core import (InitalizeModel,
+from .core import (ModelGenerator,
+                   ModelComponentGenerator,
                    SubmodelGenerator)

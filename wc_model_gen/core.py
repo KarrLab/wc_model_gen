@@ -1,4 +1,4 @@
-""" Base classes for generating wc_lang-formatted models from a knowledge base.
+""" Base classes for generating :obj:`wc_lang`-formatted models from a knowledge base.
 
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
@@ -12,69 +12,104 @@ import six
 import wc_kb
 import wc_lang.core
 
-class InitalizeModel(object):
-    """ Generating a model instance (:obj:`wc_lang.core.Model`)
+
+class ModelGenerator(object):
+    """ Generator for models (:obj:`wc_lang.core.Model`)
 
     Attributes:
+        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
         options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
             optional arguments to the methods
     """
 
-    DEFAULT_MODEL_COMPONENTS = [] # eg. components = [mycoplasma_pneumoniae.model_gen.CompartmentsGenerator]
-    DEFAULT_MODEL_GENERATOR_VERSION = '0.0.1'
-    DEFAULT_MODEL_VERSION = '0.0.1'
-    DEFAULT_MODEL_ID = 'test_model'
+    DEFAULT_COMPONENT_GENERATORS = ()
 
-    def __init__(self, knowledge_base, components=None, options=None, version=None):
+    def __init__(self, knowledge_base, component_generators=None, options=None):
         """
         Args:
-            component_generators (:obj:`tuple` of :obj:`ModelComponentGenerator`): model component generators
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            component_generators (:obj:`list` of :obj:`ModelComponentGenerator`, optional): model component generators
             options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
                 optional arguments to the methods
         """
 
         self.knowledge_base = knowledge_base
-        self.components = components or self.DEFAULT_MODEL_COMPONENTS
-        self.version = version or self.DEFAULT_MODEL_GENERATOR_VERSION
+        if not component_generators:
+            component_generators = list(self.DEFAULT_COMPONENT_GENERATORS)
+        self.component_generators = component_generators
         self.options = options or {}
 
-    def run(self, id=None, version=None):
-        """ Generate a wc_lang model from a wc_kb knowledge base
-        Args:
-            id (:obj:`str`): model id
+    def run(self):
+        """ Generate a :obj:`wc_lang` model from a :obj:`wc_kb` knowledge base
 
         Returns:
             :obj:`wc_lang.core.Model`: model
         """
 
         model = wc_lang.core.Model()
-        model.id = id or self.DEFAULT_MODEL_ID
-        model.version = version or self.DEFAULT_MODEL_VERSION
+        model.id = self.options.get('id', None)
+        model.version = self.options.get('version', None)
 
-        for gen_cls in self.components:
-            gen = gen_cls(self.knowledge_base, model, **self.options.get(gen_cls.__name__, {}))
-            gen.run()
+        component_options = self.options.get('component', {})
+        for component_generator in self.component_generators:
+            options = component_options.get(component_generator.__name__, {})
+            component_generator(self.knowledge_base, model, options=options).run()
 
         return model
 
 
-class SubmodelGenerator(six.with_metaclass(abc.ABCMeta, object)):
+class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Base class for model component generator classes
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         model (:obj:`wc_lang.core.Model`): model
+        options (:obj:`dict`, optional): options
     """
 
-    def __init__(self, knowledge_base, model):
+    def __init__(self, knowledge_base, model, options=None):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.core.Model`): model
+            options (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
         self.model = model
+        self.options = options
+
+    @abc.abstractmethod
+    def run(self):
+        """ Generate model components """
+        pass  # pragma: no cover
+
+
+class SubmodelGenerator(ModelComponentGenerator):
+    """ Base class for model component generator classes
+
+    Attributes:
+        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+        model (:obj:`wc_lang.core.Model`): model
+        options (:obj:`dict`, optional): options
+    """
+
+    def __init__(self, knowledge_base, model, options=None):
+        """
+        Args:
+            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            model (:obj:`wc_lang.core.Model`): model
+            options (:obj:`dict`, optional): options
+        """
+        self.knowledge_base = knowledge_base
+        self.model = model
+        self.options = options
+
+    def run(self):
+        """ Generate model components """
+        self.generate_species()
+        self.generate_reactions()
+        self.generate_rate_laws()
 
     @abc.abstractmethod
     def generate_species(self):

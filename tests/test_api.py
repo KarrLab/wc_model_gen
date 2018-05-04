@@ -13,4 +13,4 @@ import wc_model_gen
 
 class ApiTestCase(unittest.TestCase):
     def test(self):
-        self.assertIsInstance(wc_model_gen.InitalizeModel, type)
+        self.assertIsInstance(wc_model_gen.ModelGenerator, type)
