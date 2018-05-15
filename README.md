@@ -1,5 +1,5 @@
 [//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_model_gen.svg)](https://pypi.python.org/pypi/wc_model_gen) )
-[![Documentation](https://img.shields.io/badge/docs-latest-green.svg)](http://docs.karrlab.org/wc_model_gen)
+[![Documentation](https://readthedocs.org/projects/wc-model-gen/badge/?version=latest)](http://docs.karrlab.org/wc_model_gen)
 [![Test results](https://circleci.com/gh/KarrLab/wc_model_gen.svg?style=shield)](https://circleci.com/gh/KarrLab/wc_model_gen)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_model_gen/badge.svg)](https://coveralls.io/github/KarrLab/wc_model_gen)
 [![Code analysis](https://api.codeclimate.com/v1/badges/1b9616a716e848990dae/maintainability)](https://codeclimate.com/github/KarrLab/wc_model_gen)
@@ -8,7 +8,7 @@
 
 # wc_model_gen
 
-Frame for systematically and scalably designing whole-cell models from large datasets such as [`wc_kb`](https://github.com/gh/KarrLab/wc_kb)
+Framework for systematically and scalably designing whole-cell models from large datasets such as [`wc_kb`](https://github.com/gh/KarrLab/wc_kb)
 
 ## Installation
 
