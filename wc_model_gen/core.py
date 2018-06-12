@@ -87,6 +87,10 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         """ Generate model components """
         pass  # pragma: no cover
 
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+        pass  # pragma: no cover
+
 
 class SubmodelGenerator(ModelComponentGenerator):
     """ Base class for submodel generators
@@ -113,6 +117,7 @@ class SubmodelGenerator(ModelComponentGenerator):
 
     def run(self):
         """ Generate model components """
+        self.clean_and_validate_options()
         self.gen_compartments()
         self.gen_species()
         self.gen_reactions()
