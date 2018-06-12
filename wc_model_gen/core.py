@@ -107,7 +107,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         """
         self.knowledge_base = knowledge_base
         self.model = model
-        self.submodel = self.model.submodels.create(id=wc_utils.util.string.camel_case_to_snake_case(
+        self.submodel = self.model.submodels.get_or_create(id=wc_utils.util.string.camel_case_to_snake_case(
             self.__class__.__name__.replace('SubmodelGenerator', '')))
         self.options = options
 
