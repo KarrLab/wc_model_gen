@@ -48,20 +48,12 @@ class TestModelGenerator(unittest.TestCase):
                 self.model.compartments.create(id=self.options['compartment_id'], name='Cytosol')
 
         class TestSubmodelGenerator2(wc_model_gen.SubmodelGenerator):
-            def generate_species(self):
+            def gen_species(self):
                 self.model.species_types.create(id=self.options['species_type_id'], name='ATP')
 
-            def generate_reactions(self): pass
-
-            def generate_rate_laws(self): pass
-
         class TestSubmodelGenerator3(wc_model_gen.SubmodelGenerator):
-            def generate_species(self):
+            def gen_species(self):
                 self.model.species_types.create(id='gtp', name=self.options['species_type_name'])
-
-            def generate_reactions(self): pass
-
-            def generate_rate_laws(self): pass
 
         component_generators = [
             TestComponentGenerator1,
@@ -95,11 +87,15 @@ class TestModelGenerator(unittest.TestCase):
         model = wc_model_gen.ModelGenerator(self.knowledge_base).run()
 
         class component_z_generator(wc_model_gen.SubmodelGenerator):
-            def generate_species(self): pass
+            #def gen_compartments(self): pass
 
-            def generate_reactions(self): pass
+            def gen_species(self): pass
 
-            def generate_rate_laws(self): pass
+            def gen_reactions(self): pass
+
+            #def gen_parameters(self): pass
+
+            def gen_rate_laws(self): pass
 
         component_z = component_z_generator(self.knowledge_base, model)
 

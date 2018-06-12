@@ -113,21 +113,28 @@ class SubmodelGenerator(ModelComponentGenerator):
 
     def run(self):
         """ Generate model components """
-        self.generate_species()
-        self.generate_reactions()
-        self.generate_rate_laws()
+        self.gen_compartments()
+        self.gen_species()
+        self.gen_reactions()
+        self.gen_parameters()
+        self.gen_rate_laws()
 
-    @abc.abstractmethod
-    def generate_species(self):
+    def gen_compartments(self):
+        """ Generate compartments associated with submodel """
+        pass  # pragma: no cover
+
+    def gen_species(self):
         """ Generate species associated with submodel """
         pass  # pragma: no cover
 
-    @abc.abstractmethod
-    def generate_reactions(self):
+    def gen_reactions(self):
         """ Generate reactions associated with submodel """
         pass  # pragma: no cover
 
-    @abc.abstractmethod
-    def generate_rate_laws(self):
+    def gen_parameters(self):
+        """ Generate parameters associated with submodel """
+        pass  # pragma: no cover
+
+    def gen_rate_laws(self):
         """ Generate rate laws associated with submodel """
         pass  # pragma: no cover
