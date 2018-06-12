@@ -10,17 +10,19 @@
 import abc
 import six
 import wc_kb
-import wc_lang.core
+import wc_lang
+import wc_utils.util.string
 
 
 class ModelGenerator(object):
-    """ Generator for models (:obj:`wc_lang.core.Model`)
+    """ Generator for models (:obj:`wc_lang.Model`)
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
         component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
-        options (:obj:`dict`, optional): dictionary of options whose keys are methods and values are
-            optional arguments to the methods
+        options (:obj:`dict`, optional): dictionary of options whose keys are the names of component
+            generator classes and whose values are dictionaries of options for the component generator
+            classes
     """
 
     DEFAULT_COMPONENT_GENERATORS = ()
@@ -30,8 +32,9 @@ class ModelGenerator(object):
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
             component_generators (:obj:`list` of :obj:`ModelComponentGenerator`, optional): model component generators
-            options (:obj:`dict`, optional): dictionary of options whose keys are method names and values are
-                optional arguments to the methods
+            options (:obj:`dict`, optional): dictionary of options whose keys are the names of component
+                generator classes and whose values are dictionaries of options for the component generator
+                classes
         """
 
         self.knowledge_base = knowledge_base
@@ -44,10 +47,10 @@ class ModelGenerator(object):
         """ Generate a :obj:`wc_lang` model from a :obj:`wc_kb` knowledge base
 
         Returns:
-            :obj:`wc_lang.core.Model`: model
+            :obj:`wc_lang.Model`: model
         """
 
-        model = wc_lang.core.Model()
+        model = wc_lang.Model()
         model.id = self.options.get('id', None)
         model.version = self.options.get('version', None)
 
@@ -60,11 +63,11 @@ class ModelGenerator(object):
 
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
-    """ Base class for model component generator classes
+    """ Base class for model component generators
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-        model (:obj:`wc_lang.core.Model`): model
+        model (:obj:`wc_lang.Model`): model
         options (:obj:`dict`, optional): options
     """
 
@@ -72,7 +75,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-            model (:obj:`wc_lang.core.Model`): model
+            model (:obj:`wc_lang.Model`): model
             options (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
@@ -86,11 +89,12 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
 
 
 class SubmodelGenerator(ModelComponentGenerator):
-    """ Base class for model component generator classes
+    """ Base class for submodel generators
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-        model (:obj:`wc_lang.core.Model`): model
+        model (:obj:`wc_lang.Model`): model
+        submodel (:obj:`wc_lang.Submodel`): submodel
         options (:obj:`dict`, optional): options
     """
 
@@ -98,11 +102,13 @@ class SubmodelGenerator(ModelComponentGenerator):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-            model (:obj:`wc_lang.core.Model`): model
+            model (:obj:`wc_lang.Model`): model            
             options (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
         self.model = model
+        self.submodel = self.model.submodels.create(id=wc_utils.util.string.camel_case_to_snake_case(
+            self.__class__.__name__.replace('SubmodelGenerator', '')))
         self.options = options
 
     def run(self):
