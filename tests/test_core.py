@@ -22,7 +22,7 @@ class TestModelGenerator(unittest.TestCase):
 
         self.assertEqual(generator.knowledge_base, self.knowledge_base)
         self.assertEqual(generator.component_generators, [])
-        self.assertEqual(generator.options, {})
+        self.assertEqual(generator.options, {'id': None, 'name': None, 'version': None})
 
     def test_ModelGenerator_run(self):
         generator = wc_model_gen.ModelGenerator(self.knowledge_base, options={
