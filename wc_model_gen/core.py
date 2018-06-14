@@ -49,10 +49,12 @@ class ModelGenerator(object):
         Returns:
             :obj:`wc_lang.Model`: model
         """
+        self.clean_and_validate_options()
 
         model = wc_lang.Model()
-        model.id = self.options.get('id', None)
-        model.version = self.options.get('version', None)
+        model.id = self.options.get('id')
+        model.name = self.options.get('name')
+        model.version = self.options.get('version')
 
         component_options = self.options.get('component', {})
         for component_generator in self.component_generators:
@@ -60,6 +62,22 @@ class ModelGenerator(object):
             component_generator(self.knowledge_base, model, options=options).run()
 
         return model
+
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+        options = self.options
+
+        id = options.get('id', None)
+        assert(isinstance(id, str) or id is None)
+        options['id'] = id
+
+        name = options.get('name', None)
+        assert(isinstance(name, str) or name is None)
+        options['name'] = name
+
+        version = options.get('version', None)
+        assert(isinstance(version, str) or version is None)
+        options['version'] = version
 
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
