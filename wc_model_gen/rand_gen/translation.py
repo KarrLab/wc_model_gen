@@ -145,7 +145,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # tRNAs - add more testing to this bit
                     
-            for letter in list(set(protein.get_seq().tostring())):
+            for letter in list(set(str(protein.get_seq()))):
                 if letter == '*':
                     continue
 

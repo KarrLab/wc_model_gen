@@ -1,6 +1,7 @@
 """ Generator for RNA degradation submodels based on KBs for random in silico organisms
 
 :Author: Jonathan Karr <karr@mssm.edu>
+         Ashwin Srinivasan <ashwins@mit.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -28,21 +29,6 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
-
-        # get or create metabolite species
-        ids = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
-        for id in ids:
-            kb_met = cell.species_types.get_one(id=id)
-            species_type = model.species_types.get_or_create(id=id)
-            if not species_type.name:
-                species_type.name = kb_met.id
-                species_type.type = wc_lang.SpeciesTypeType.metabolite
-                species_type.structure = kb_met.structure
-                species_type.empirical_formula = kb_met.get_empirical_formula()
-                species_type.molecular_weight = kb_met.get_mol_wt()
-                species_type.charge = kb_met.get_charge()
-                species_type_c = species_type.species.get_or_create(compartment=cytosol)
-                species_type_c.concentration = wc_lang.Concentration(value=kb_met.concentration, units=wc_lang.ConcentrationUnit.M)
 
         # get or create RNA species
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
