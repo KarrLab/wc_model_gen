@@ -13,7 +13,6 @@ import wc_kb
 import wc_lang
 import wc_utils.util.string
 
-
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
 
@@ -126,19 +125,19 @@ class SubmodelGenerator(ModelComponentGenerator):
         """
         Args:
             knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
-            model (:obj:`wc_lang.Model`): model            
+            model (:obj:`wc_lang.Model`): model
             options (:obj:`dict`, optional): options
         """
         self.knowledge_base = knowledge_base
         self.model = model
         self.submodel = self.model.submodels.get_or_create(id=wc_utils.util.string.camel_case_to_snake_case(
             self.__class__.__name__.replace('SubmodelGenerator', '')))
-        
+
         self.options = options or {}
         self.clean_and_validate_options()
 
     def run(self):
-        """ Generate model components """        
+        """ Generate model components """
         self.gen_compartments()
         self.gen_species()
         self.gen_reactions()
