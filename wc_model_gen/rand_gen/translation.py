@@ -22,10 +22,12 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Initiate ribosome species types (complexes)
         species_type = self.model.species_types.create(id='complex_70S_IA', name='complex_70S_IA', type=5)
+        species_type.molecular_weight = '1' #placeholder
         species = species_type.species.create(compartment=compartment)
         species.concentration = wc_lang.core.Concentration(value=1e-2, units='M')
 
         species_type = self.model.species_types.create(id='complex_70S_A', name='complex_70S_A', type=5)
+        species_type.molecular_weight = '1' #placeholder
         species = species_type.species.create(compartment=compartment)
         species.concentration = wc_lang.core.Concentration(value=1e-2, units='M')
 
@@ -69,33 +71,95 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna in rnas:
             if rna.type == wc_kb.RnaType.tRna:
                 trnas.append(rna)
+        protsList = []
         IF1 = random.choice(prots).id
+        protsList.append(IF1)
         IF2 = random.choice(prots).id
+        while IF2 in protsList:
+            IF2 = random.choice(prots).id
+        protsList.append(IF2)
         IF3 = random.choice(prots).id
+        while IF3 in protsList:
+            IF3 = random.choice(prots).id
+        protsList.append(IF3)
         EFtu = random.choice(prots).id
+        while EFtu in protsList:
+            EFtu = random.choice(prots).id
+        protsList.append(EFtu)
         EFts = random.choice(prots).id
+        while EFts in protsList:
+            EFts = random.choice(prots).id
+        protsList.append(EFts)
         EFg = random.choice(prots).id
+        while EFg in protsList:
+            EFg = random.choice(prots).id
+        protsList.append(EFg)
         RF = random.choice(prots).id
-        amino_acids = {'S': ['tRNA-Ser', random.choice(trnas).id],
-                       'L': ['tRNA-Leu', random.choice(trnas).id],
-                       'R': ['tRNA-Arg', random.choice(trnas).id],
-                       'T': ['tRNA-Thr', random.choice(trnas).id],
-                       'G': ['tRNA-Gly', random.choice(trnas).id],
-                       'F': ['tRNA-Phe', random.choice(trnas).id],
-                       'W': ['tRNA-Trp', random.choice(trnas).id],
-                       'K': ['tRNA-Lys', random.choice(trnas).id],
-                       'I': ['tRNA-Ile', random.choice(trnas).id],
-                       'A': ['tRNA-Ala', random.choice(trnas).id],
-                       'M': ['tRNA-Met', random.choice(trnas).id],
-                       'Q': ['tRNA-Gln', random.choice(trnas).id],
-                       'E': ['tRNA-Glu', random.choice(trnas).id],
-                       'P': ['tRNA-Pro', random.choice(trnas).id],
-                       'V': ['tRNA-Val', random.choice(trnas).id],
-                       'C': ['tRNA-Cys', random.choice(trnas).id],
-                       'Y': ['tRNA-Tyr', random.choice(trnas).id],
-                       'H': ['tRNA-His', random.choice(trnas).id],
-                       'N': ['tRNA-Asn', random.choice(trnas).id],
-                       'D': ['tRNA-Asp', random.choice(trnas).id]}
+        while RF in protsList:
+            IF2 = random.choice(prots).id
+        protsList.append(IF2)
+        amino_acids = {}
+        trna = random.choice(trnas)
+        amino_acids['S'] = ['tRNA-Ser', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['L'] = ['tRNA-Leu', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['R'] = ['tRNA-Arg', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['T'] = ['tRNA-Thr', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['G'] = ['tRNA-Gly', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['F'] = ['tRNA-Phe', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['W'] = ['tRNA-Trp', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['K'] = ['tRNA-Lys', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['I'] = ['tRNA-Ile', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['A'] = ['tRNA-Ala', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['M'] = ['tRNA-Met', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['Q'] = ['tRNA-Gln', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['E'] = ['tRNA-Glu', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['P'] = ['tRNA-Pro', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['V'] = ['tRNA-Val', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['C'] = ['tRNA-Cys', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['Y'] = ['tRNA-Tyr', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['H'] = ['tRNA-His', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['N'] = ['tRNA-Asn', trna.id]
+        trnas.remove(trna)
+        trna = random.choice(trnas)
+        amino_acids['D'] = ['tRNA-Asp', trna.id]
+        trnas.remove(trna)
+        
         # Add translation initating reactions
         for protein in prots:
             reaction = wc_lang.core.Reaction(id='translation_init_' + protein.id, submodel=submodel)
