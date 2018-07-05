@@ -39,6 +39,8 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
 
         model = wc_lang.Model()
+        met = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
+        met.run()        
         gen = rna_degradation.RnaDegradationSubmodelGenerator(
             kb, model, options={})
         gen.run()
