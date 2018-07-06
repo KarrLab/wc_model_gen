@@ -6,7 +6,6 @@
 :License: MIT
 """
 
-import rand_wc_model_gen
 from rand_wc_model_gen import kb_gen
 from wc_model_gen.rand_gen import metabolism
 import unittest
@@ -25,7 +24,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 },
                 'PropertiesGenerator': {
                     'mean_cell_density': 1e6,
-                    'mean_fraction_dry_weight': 0.3,
+                    'mean_fraction_dry_weight': 0.3
                 },
             },
         }).run()
@@ -45,4 +44,5 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(cytosol.name, 'extracellular space')
 
         # check parameters generated
-        self.assertEqual(model.parameters.get_one(id='fractionDryWeight').value, 0.3)
+        self.assertEqual(model.parameters.get_one(
+            id='fractionDryWeight').value, 0.3)

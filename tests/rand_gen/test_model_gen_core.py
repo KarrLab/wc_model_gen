@@ -5,10 +5,8 @@
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
-
-import rand_wc_model_gen
 from rand_wc_model_gen import kb_gen
-from rand_wc_model_gen import model_gen
+from wc_model_gen import model_gen
 import obj_model
 import unittest
 import wc_lang
