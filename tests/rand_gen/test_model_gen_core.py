@@ -6,7 +6,7 @@
 :License: MIT
 """
 from rand_wc_model_gen import kb_gen
-from wc_model_gen import model_gen
+from wc_model_gen import rand_gen
 import obj_model
 import unittest
 import wc_lang
@@ -24,7 +24,8 @@ class ModelGeneratorTestCase(unittest.TestCase):
                 },
             },
         }).run()
-        model = model_gen.ModelGenerator(kb).run()
+        model = rand_gen.RandomModelGenerator(kb).run()
+        print(model)
 
         self.assertIsInstance(model.submodels.get_one(
             id='transcription'), wc_lang.Submodel)

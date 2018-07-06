@@ -9,7 +9,6 @@
 from rand_wc_model_gen import kb_gen
 from wc_model_gen.rand_gen import metabolism
 import unittest
-import wc_kb
 import wc_lang
 
 

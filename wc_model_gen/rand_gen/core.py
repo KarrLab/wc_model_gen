@@ -6,15 +6,16 @@
 :License: MIT
 """
 
-from wc_model_gen.rand_gen.metabolism import MetabolismSubmodelGenerator
-from wc_model_gen.rand_gen.rna_degradation import RnaDegradationSubmodelGenerator
-from wc_model_gen.rand_gen.transcription import TranscriptionSubmodelGenerator
-from wc_model_gen.rand_gen.translation import TranslationSubmodelGenerator
+from .metabolism import MetabolismSubmodelGenerator
+from .rna_degradation import RnaDegradationSubmodelGenerator
+from .transcription import TranscriptionSubmodelGenerator
+from .translation import TranslationSubmodelGenerator
 import rand_wc_model_gen
 import wc_model_gen
 
 
-class ModelGenerator(wc_model_gen.ModelGenerator):
+
+class RandomModelGenerator(wc_model_gen.ModelGenerator):
     """ Generator for models based on KBs for random in silico organisms
     """
 
