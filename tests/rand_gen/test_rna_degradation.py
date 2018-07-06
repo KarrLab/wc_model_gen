@@ -6,8 +6,9 @@
 :License: MIT
 """
 
+import rand_wc_model_gen
 from rand_wc_model_gen import kb_gen
-from wc_model_gen.rand_gen import rna_degradation
+from wc_model_gen.rand_gen import rna_degradation, metabolism
 import numpy
 import scipy
 import unittest
