@@ -22,7 +22,7 @@ class ModelGenerator(wc_model_gen.ModelGenerator):
         MetabolismSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
-        TranslationSubmodelGenerator,
+        #TranslationSubmodelGenerator,
     )
 
     def clean_and_validate_options(self):
