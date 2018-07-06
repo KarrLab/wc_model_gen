@@ -25,7 +25,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
             },
         }).run()
         model = rand_gen.RandomModelGenerator(kb).run()
-        print(model)
+       
 
         self.assertIsInstance(model.submodels.get_one(
             id='transcription'), wc_lang.Submodel)
