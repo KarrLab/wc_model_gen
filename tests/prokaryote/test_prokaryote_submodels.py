@@ -9,21 +9,24 @@ import wc_lang
 import wc_model_gen
 import wc_model_gen.prokaryote as prokaryote
 
-class DegradationSubmodelTestCase(unittest.TestCase):
+class TranscriptionSubmodelTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls._results_dir = tempfile.mkdtemp()
 
         cls.kb = wc_kb.io.Reader().run('tests/fixtures/core.xlsx','tests/fixtures/seq.fna', strict = False)
-        cls.model = wc_lang.io.Reader().run('tests/fixtures/min_model.xlsx')
+        #cls.model = wc_lang.io.Reader().run('tests/fixtures/min_model.xlsx')
 
         # There is sth wrong with the output format, on todo list
-        # cls.model = wc_model_gen.ModelGenerator(knowledge_base=cls.kb,
-        #                                        component_generators=[prokaryote.CompartmentsGenerator,
-        #                                                              prokaryote.ParametersGenerator,
-        #                                                              prokaryote.MetaboliteSpeciesGenerator,
-        #                                                              prokaryote.DegradationSubmodelGenerator]).run()
+        cls.model = wc_model_gen.ModelGenerator(knowledge_base=cls.kb,
+                                                component_generators=[prokaryote.CompartmentsGenerator,
+                                                                      prokaryote.ParametersGenerator,
+                                                                      prokaryote.MetaboliteSpeciesGenerator,
+                                                                      prokaryote.TranscriptionSubmodelGenerator]).run()
+
+        cls.model.id = 'generated_test_model'
+        cls.model.version = '0.0.1'
 
         cls.degradation_static_test_case  = wc_test.StaticTestCase(model=cls.model)
         cls.degradation_dynamic_test_case = wc_test.DynamicTestCase(model=cls.model)

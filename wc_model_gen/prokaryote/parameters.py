@@ -13,5 +13,5 @@ class ParametersGenerator(wc_model_gen.ModelComponentGenerator):
     """ Generate parameters """
 
     def run(self):
-        self.model.parameters.create(id='fraction_dry_weight', value=0.7)
-        self.model.parameters.create(id='cell_cycle_length', value=8 * 60 * 60)
+        self.model.parameters.create(id='fractionDryWeight', value=0.7)
+        self.model.parameters.create(id='cellCycleLength', value=8*60*60)

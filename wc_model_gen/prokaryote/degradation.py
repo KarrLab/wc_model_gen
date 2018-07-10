@@ -32,7 +32,6 @@ class DegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     for specie in specie_type.species:
                         compartment = specie.compartment
                         reaction = wc_lang.core.Reaction(id='degradation_' + specie.species_type.id, submodel=submodel)
-                        # Add species compartment to reaction name? - dnw with wc_alng
 
                         # Adding reaction participants LHS
                         reaction.participants.create(species=specie, coefficient=-1)
