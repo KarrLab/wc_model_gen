@@ -20,7 +20,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
                     'mean_num_genes': 100,
-                    'mean_gene_len': 100,
+                    'mean_gene_len': 10,
                 },
             },
         }).run()

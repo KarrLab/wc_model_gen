@@ -101,10 +101,18 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         while EFg in protsSet:
             EFg = random.choice(prots).id
         protsSet.add(EFg)
-        RF = random.choice(prots).id
-        while RF in protsSet:
-            RF = random.choice(prots).id
-        protsSet.add(RF)
+        RF1 = random.choice(prots).id
+        while RF1 in protsSet:
+            RF1 = random.choice(prots).id
+        protsSet.add(RF1)
+        RF2 = random.choice(prots).id
+        while RF2 in protsSet:
+            RF2 = random.choice(prots).id
+        protsSet.add(RF2)
+        RF3 = random.choice(prots).id
+        while RF3 in protsSet:
+            RF3 = random.choice(prots).id
+        protsSet.add(RF3)
         amino_acids = {}
         trna = random.choice(trnas)
         amino_acids['S'] = ['tRNA-Ser', trna.id]
@@ -170,6 +178,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Add translation initating reactions
         for protein in prots:
             reaction = wc_lang.core.Reaction(id='translation_init_' + protein.id, submodel=submodel)
+            reaction.name = protein.id
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='complex_70S_IA').species.get_one(compartment=compartment)
@@ -200,6 +209,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Add translation elongation reactions
         for protein in prots:
             reaction = wc_lang.core.Reaction(id='translation_elon_' + protein.id, submodel=submodel)
+            reaction.name = protein.id
             n_steps = len(protein.get_seq())
 
             # Adding reaction participants LHS
@@ -238,18 +248,43 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=n_steps))
             specie = self.model.species_types.get_one(id=EFg).species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=n_steps))
+            specie = self.model.species_types.get_one(id='complex_70S_A').species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation termination reactions
         for protein in prots:
             reaction = wc_lang.core.Reaction(id='translation_term_' + protein.id, submodel=submodel)
+            reaction.name = protein.id
             n_steps = len(protein.get_seq())
 
             # Adding reaction participants LHS
-            specie = self.model.species_types.get_one(id=RF).species.get_one(compartment=compartment)
+            stop_codon = str(protein.gene.get_seq())[-3:]
+
+            if stop_codon == 'TAG':
+                specie = self.model.species_types.get_one(id=RF1).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(id=RF1).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+            elif stop_codon == 'TGA':
+                specie = self.model.species_types.get_one(id=RF2).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(id=RF2).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+            else:
+                rList = [RF1, RF2]
+                RF = random.choice(rList)
+                specie = self.model.species_types.get_one(id=RF).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(id=RF).species.get_one(compartment=compartment)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+                            
+            specie = self.model.species_types.get_one(id=RF3).species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='gtp').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id=protein.id+'_att').species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
+            specie = self.model.species_types.get_one(id='complex_70S_A').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
 
             # Adding reaction participants RHS
@@ -259,7 +294,9 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(id=RF).species.get_one(compartment=compartment)
+            specie = self.model.species_types.get_one(id=RF3).species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+            specie = self.model.species_types.get_one(id='complex_70S_IA').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             
 
