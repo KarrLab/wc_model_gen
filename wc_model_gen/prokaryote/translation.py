@@ -22,11 +22,11 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Initiate ribosome species types (complexes)
         species_type = self.model.species_types.create(id='complex_70S_IA', name='complex_70S_IA', type=5)
         species = species_type.species.create(compartment=compartment)
-        species.concentration = wc_lang.core.Concentration(value=1e-2, units='M')
+        species.concentration = wc_lang.core.Concentration(value=3000, units='molecules')
 
         species_type = self.model.species_types.create(id='complex_70S_A', name='complex_70S_A', type=5)
         species = species_type.species.create(compartment=compartment)
-        species.concentration = wc_lang.core.Concentration(value=1e-2, units='M')
+        species.concentration = wc_lang.core.Concentration(value=3000, units='molecules')
 
         # Create both functional and afunctional form (_att: attached to RNA) of every protein in KB
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
@@ -42,7 +42,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 charge=str(protein.get_charge()))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=0, units='M')
+            species.concentration = wc_lang.core.Concentration(value=0, units='molecules')
 
             # Add inactive form of protein, attached to ribosome
             species_type = self.model.species_types.create(
@@ -55,7 +55,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 charge=str(protein.get_charge()))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=0, units='M')
+            species.concentration = wc_lang.core.Concentration(value=0, units='molecules')
 
     def gen_reactions(self):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """

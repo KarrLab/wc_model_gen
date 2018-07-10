@@ -31,9 +31,18 @@ class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
             ('PPI', 'HO7P2', -3, 174.949),
             ('H', 'H1', 1, 1.008),
             ('P', 'P1', 1, 30.974),
+            ('N', 'N1', 1, 14.0067),
+            ('C', 'C1', 1, 12.0107),
+            ('O', 'O1', 1, 15.994)
         ]
 
         for id, formula, charge, molecular_weight in species_types:
             species_type = self.model.species_types.create(id=id, empirical_formula=formula, charge=charge, molecular_weight=molecular_weight)
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=5e-3, units='M')
+            species.concentration = wc_lang.core.Concentration(value=5000, units=wc_lang.ConcentrationUnit.molecules)
+
+        # Add water to extracellular space so it does not have 0 mass density
+        compartment = self.model.compartments.get_one(id='e')
+        species_type = self.model.species_types.get_one(id='H2O')
+        species = species_type.species.create(compartment=compartment)
+        species.concentration = wc_lang.core.Concentration(value=50000, units=wc_lang.ConcentrationUnit.molecules)
