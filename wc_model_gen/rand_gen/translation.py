@@ -70,7 +70,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         prots = self.knowledge_base.cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
         rnas = self.knowledge_base.cell.species_types.get(__type=wc_kb.RnaSpeciesType)
 
-        print(len(rnas))
+        #print(len(rnas))
         trnas = []
         for rna in rnas:
             if rna.type == wc_kb.RnaType.tRna:
@@ -232,6 +232,12 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
             specie = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
+            specie = self.model.species_types.get_one(id=EFtu).species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=n_steps))
+            specie = self.model.species_types.get_one(id=EFts).species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=n_steps))
+            specie = self.model.species_types.get_one(id=EFg).species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=n_steps))
 
         # Add translation termination reactions
         for protein in prots:
@@ -253,6 +259,9 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+            specie = self.model.species_types.get_one(id=RF).species.get_one(compartment=compartment)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
+            
 
     def gen_rate_laws(self):
         """ Generate the rate laws associate dwith reactions """

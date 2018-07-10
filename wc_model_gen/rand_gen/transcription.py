@@ -31,7 +31,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # get or create RNA species
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
-        print(len(rnas))
+        #print(len(rnas))
         for rna in rnas:
             species_type = model.species_types.get_or_create(id=rna.id)
             if not species_type.name:
