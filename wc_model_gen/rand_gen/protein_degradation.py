@@ -27,7 +27,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def gen_species(self):
         "Generate the protein species for the model"
 
-        cell = self.cell
+        cell = self.knowledge_base.cell
         model = self.model
         cytosol = self.cytosol
 
@@ -101,3 +101,19 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             id='tyr').species_types.get_one(compartment=cytosol)
         val = model.species_types.get_one(
             id='val').species_types.get_one(compartment=cytosol)
+
+        proteins = self.model.species_types.get(
+            __type=wc_kb.core.ProteinSpeciesType)
+
+        degradation_atpase = numpy.random.choice(proteins)
+        while degradation_atpase.name:
+            degradation_atpase = numpy.random.choice(proteins)
+
+        degradation_protease = numpy.random.choice(proteins)
+        while degradation_protease.name:
+            degradation_protease = numpy.random.choice(proteins)
+
+        for protein in proteins:
+            rxn = submodel.reactions.get_or_create(
+                id=protein.id.replace('protein_', 'protein_degradation_'))
+            rxn.name = protein.id.replace('protein', 'protein degradation')
