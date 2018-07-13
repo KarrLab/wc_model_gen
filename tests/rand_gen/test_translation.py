@@ -31,7 +31,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             },
         }).run()
         cell = kb.cell
-        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
 
         model = wc_lang.Model()
         met = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
@@ -52,6 +51,12 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                 self.assertEqual(species.concentration.units, wc_lang.ConcentrationUnit.M)
 
         # check reactions generated
+        species_types = model.species_types
+        prots = []
+        for species_type in species_types:
+            if species_type.type == wc_lang.SpeciesTypeType.protein:
+                if species_type.name is None:
+                    prots.append(species_type)
         
         self.assertEqual(len(submodel.reactions), 3 * len(prots))
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)

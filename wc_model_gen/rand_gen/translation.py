@@ -74,8 +74,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # print('here')
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
-        prots = self.knowledge_base.cell.species_types.get(
-            __type=wc_kb.ProteinSpeciesType)
+        species_types = self.model.species_types
         rnas = self.knowledge_base.cell.species_types.get(
             __type=wc_kb.RnaSpeciesType)
 
@@ -85,49 +84,56 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if rna.type == wc_kb.RnaType.tRna:
                 trnas.append(rna)
         # print(len(trnas))
+        prots = []
+        for species_type in species_types:
+            if species_type.type == wc_lang.SpeciesTypeType.protein:
+                prots.append(species_type)
+        
         protsSet = set()
         IF1 = random.choice(prots)
+        while IF1 in protsSet or IF1.name is not None:
+            IF1 = random.choice(prots)
         IF1.name = 'IF1'
         protsSet.add(IF1)
         # print('here1')
         IF2 = random.choice(prots)
-        while IF2 in protsSet:
+        while IF2 in protsSet or IF2.name is not None:
             # print('here2')
             IF2 = random.choice(prots)
         IF2.name = 'IF2'
         protsSet.add(IF2)
         IF3 = random.choice(prots)
-        while IF3 in protsSet:
+        while IF3 in protsSet or IF3.name is not None:
             IF3 = random.choice(prots)
         IF3.name = 'IF3'
         protsSet.add(IF3)
         EFtu = random.choice(prots)
-        while EFtu in protsSet:
+        while EFtu in protsSet or EFtu.name is not None:
             EFtu = random.choice(prots)
         EFtu.name = "EFtu"
         protsSet.add(EFtu)
         EFts = random.choice(prots)
-        while EFts in protsSet:
+        while EFts in protsSet or EFts.name is not None:
             EFts = random.choice(prots)
         EFts.name = 'EFts'
         protsSet.add(EFts)
         EFg = random.choice(prots)
-        while EFg in protsSet:
+        while EFg in protsSet or EFg.name is not None:
             EFg = random.choice(prots)
         EFg.name = 'EFg'
         protsSet.add(EFg)
         RF1 = random.choice(prots)
-        while RF1 in protsSet:
+        while RF1 in protsSet or RF1.name is not None:
             RF1 = random.choice(prots)
         RF1.name = 'RF1'
         protsSet.add(RF1)
         RF2 = random.choice(prots)
-        while RF2 in protsSet:
+        while RF2 in protsSet or RF2.name is not None:
             RF2 = random.choice(prots)
         RF2.name = 'RF2'
         protsSet.add(RF2)
         RF3 = random.choice(prots)
-        while RF3 in protsSet:
+        while RF3 in protsSet or RF3.name is not None:
             RF3 = random.choice(prots)
         RF3.name = 'RF3'
         protsSet.add(RF3)
@@ -194,208 +200,214 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         trnas.remove(trna)
 
         # Add translation initating reactions
-        for protein in prots:
-            reaction = wc_lang.core.Reaction(
-                id='translation_init_' + protein.id, submodel=submodel)
-            reaction.name = protein.id
+        for prot in prots:
+            if prot.name is None:
+                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+                reaction = wc_lang.core.Reaction(
+                    id='translation_init_' + protein.id, submodel=submodel)
+                reaction.name = protein.id
 
-            # Adding reaction participants LHS
-            specie = self.model.species_types.get_one(
-                id='complex_70S_IA').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=IF1.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=IF2.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=IF3.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
+                # Adding reaction participants LHS
+                specie = self.model.species_types.get_one(
+                    id='complex_70S_IA').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(
+                    id='gtp').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(
+                    id=IF1.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(
+                    id=IF2.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(
+                    id=IF3.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
 
-            # Adding reaction participants RHS
-            specie = self.model.species_types.get_one(
-                id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id=IF1.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id=IF2.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id=IF3.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
+                # Adding reaction participants RHS
+                specie = self.model.species_types.get_one(
+                    id='complex_70S_A').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='gdp').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='pi').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id=IF1.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id=IF2.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id=IF3.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation elongation reactions
-        for protein in prots:
-            reaction = wc_lang.core.Reaction(
-                id='translation_elon_' + protein.id, submodel=submodel)
-            reaction.name = protein.id
-            n_steps = len(protein.get_seq())
+        for prot in prots:
+           if prot.name is None:
+                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+                reaction = wc_lang.core.Reaction(
+                    id='translation_elon_' + protein.id, submodel=submodel)
+                reaction.name = protein.id
+                n_steps = len(protein.get_seq())
 
-            # Adding reaction participants LHS
-            specie = self.model.species_types.get_one(
-                id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=EFtu.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-n_steps))
-            specie = self.model.species_types.get_one(
-                id=EFts.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-n_steps))
-            specie = self.model.species_types.get_one(
-                id=EFg.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-n_steps))
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-2 * n_steps))
-
-            # tRNAs - add more testing to this bit
-
-            for letter in list(set(str(protein.get_seq()))):
-                if letter == '*':
-                    continue
-
-                n = protein.get_seq().tostring().count(letter)
-                specie = self.model.species_types.get_or_create(
-                    id=amino_acids[letter][1], type=wc_lang.SpeciesTypeType.rna).species.get_or_create(compartment=compartment)
+                # Adding reaction participants LHS
+                specie = self.model.species_types.get_one(
+                    id='complex_70S_A').species.get_one(compartment=compartment)
                 reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-n))
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+                specie = self.model.species_types.get_one(
+                    id=EFtu.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
+                specie = self.model.species_types.get_one(
+                    id=EFts.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
+                specie = self.model.species_types.get_one(
+                    id=EFg.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
+                specie = self.model.species_types.get_one(
+                    id='gtp').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-2 * n_steps))
 
-            # Adding reaction participants RHS
-            specie = self.model.species_types.get_one(
-                id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
-            specie = self.model.species_types.get_one(
-                id=EFtu.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=n_steps))
-            specie = self.model.species_types.get_one(
-                id=EFts.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=n_steps))
-            specie = self.model.species_types.get_one(
-                id=EFg.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=n_steps))
-            specie = self.model.species_types.get_one(
-                id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
+                # tRNAs - add more testing to this bit
+
+                for letter in list(set(str(protein.get_seq()))):
+                    if letter == '*':
+                        continue
+
+                    n = protein.get_seq().tostring().count(letter)
+                    specie = self.model.species_types.get_or_create(
+                        id=amino_acids[letter][1], type=wc_lang.SpeciesTypeType.rna).species.get_or_create(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=-n))
+
+                # Adding reaction participants RHS
+                specie = self.model.species_types.get_one(
+                    id=protein.id+'_att').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='gdp').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
+                specie = self.model.species_types.get_one(
+                    id='pi').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
+                specie = self.model.species_types.get_one(
+                    id=EFtu.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=n_steps))
+                specie = self.model.species_types.get_one(
+                    id=EFts.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=n_steps))
+                specie = self.model.species_types.get_one(
+                    id=EFg.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=n_steps))
+                specie = self.model.species_types.get_one(
+                    id='complex_70S_A').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation termination reactions
-        for protein in prots:
-            reaction = wc_lang.core.Reaction(
-                id='translation_term_' + protein.id, submodel=submodel)
-            reaction.name = protein.id
-            n_steps = len(protein.get_seq())
+        for prot in prots:
+            if prot.name is None:
+                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+                reaction = wc_lang.core.Reaction(
+                    id='translation_term_' + protein.id, submodel=submodel)
+                reaction.name = protein.id
+                n_steps = len(protein.get_seq())
 
-            # Adding reaction participants LHS
-            stop_codon = str(protein.gene.get_seq())[-3:]
+                # Adding reaction participants LHS
+                stop_codon = str(protein.gene.get_seq())[-3:]
 
-            if stop_codon == 'TAG':
+                if stop_codon == 'TAG':
+                    specie = self.model.species_types.get_one(
+                        id=RF1.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=-1))
+                    specie = self.model.species_types.get_one(
+                        id=RF1.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=1))
+                elif stop_codon == 'TGA':
+                    specie = self.model.species_types.get_one(
+                        id=RF2.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=-1))
+                    specie = self.model.species_types.get_one(
+                        id=RF2.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=1))
+                else:
+                    rList = [RF1, RF2]
+                    RF = random.choice(rList)
+                    specie = self.model.species_types.get_one(
+                        id=RF.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=-1))
+                    specie = self.model.species_types.get_one(
+                        id=RF.id).species.get_one(compartment=compartment)
+                    reaction.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=1))
+
                 specie = self.model.species_types.get_one(
-                    id=RF1.id).species.get_one(compartment=compartment)
+                    id=RF3.id).species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=RF1.id).species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-            elif stop_codon == 'TGA':
-                specie = self.model.species_types.get_one(
-                    id=RF2.id).species.get_one(compartment=compartment)
+                    id='gtp').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=RF2.id).species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-            else:
-                rList = [RF1, RF2]
-                RF = random.choice(rList)
-                specie = self.model.species_types.get_one(
-                    id=RF.id).species.get_one(compartment=compartment)
+                    id=protein.id+'_att').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=RF.id).species.get_one(compartment=compartment)
+                    id='complex_70S_A').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=-1))
+
+                # Adding reaction participants RHS
+                specie = self.model.species_types.get_one(
+                    id=protein.id).species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
-
-            specie = self.model.species_types.get_one(
-                id=RF3.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-
-            # Adding reaction participants RHS
-            specie = self.model.species_types.get_one(
-                id=protein.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id=RF3.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='complex_70S_IA').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='gdp').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='pi').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id=RF3.id).species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
+                specie = self.model.species_types.get_one(
+                    id='complex_70S_IA').species.get_one(compartment=compartment)
+                reaction.participants.add(
+                    specie.species_coefficients.get_or_create(coefficient=1))
 
     def gen_rate_laws(self):
         """ Generate the rate laws associate dwith reactions """
