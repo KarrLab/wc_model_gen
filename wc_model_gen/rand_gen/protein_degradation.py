@@ -2,8 +2,6 @@
 
 :Author: Bilal Shaikh <bilal.shaikh@columbia.edu>
          Jonathan Karr <karr@mssm.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
-         Balazs Szigeti <balazs.szigeti@mssm.edu>
 :Date: 2018-07-05
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -16,12 +14,12 @@ import wc_model_gen
 
 
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for Protein degradation model"""
+    """ Gnerator for Protein degradation model"""
 
     def gen_compartments(self):
         self.cell = cell = self.knowledge_base.cell
         model = self.model
-        self.cytosol = cytosol = model.compartments.get_or_create(id='c')
+        self.cytosol = cytosol = model.compartments.get_or_create(id='c')[0]
         cytosol.name = 'cytosol'
         cytosol.initial_volume = cell.properties.get_one(
             id='mean_volume').value
@@ -29,7 +27,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def gen_species(self):
         "Generate the protein species for the model"
 
-        cell = self.cell
+        cell = self.knowledge_base.cell
         model = self.model
         cytosol = self.cytosol
 
@@ -49,61 +47,73 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
 
     def gen_reactions(self):
-        submodel = self.submodel
 
-        kb = self.knowledge_base
-
-        cytosol = self.cytosol
-
-        h2o = self.model.species_types.get_one(
-            id='h2o').species.get_one(compartment=cytosol)
-        h = self.model.species_types.get_one(
-            id='h').species.get_one(compartment=cytosol)
-
-        for specie_type in self.model.species_types.get(type=wc_lang.SpeciesTypeType.protein):
-
-            if kb.cell.species_types.get_one(id=specie_type.id):
-                # NoneType is species is not within KB
-                # i.e. inactive species that represent some intermediary, e.g. _att (attached to ribosome)
-
-                seq = kb.cell.species_types.get_one(id=specie_type.id).get_seq()
-
-                reaction = wc_lang.core.Reaction(id='prot_degradation_' + specie_type.id, submodel=submodel)
-
-                # Adding reaction participants LHS
-
-                aaList = ["A", "R", "N", "D", "C", "E", "Q", "G", "H", "I", "L", "K", 
-"M", "F", "P", "S", "T", "W", "Y", "V"]
-                prot = specie_type.species.get_one(compartment=cytosol)
-                reaction.participants = []
-                reaction.participants.add(prot.species_coefficients.get_or_create(
-                    coefficient=-1))
-            
-                for aa in aaList:
-                    if aa in str(seq):
-                        aa_species_type = self.model.species_types.get_or_create(id=aa)
-                        aa_species = aa_species_type.species.get_or_create(compartment=cytosol)
-                        reaction.participants.add(aa_species.species_coefficients.get_or_create(
-                            coefficient=str(seq).count(aa)))
-                        
-
-                reaction.participants.add(h2o.species_coefficients.get_or_create(
-                    coefficient=-(kb.cell.species_types.get_one(id=specie_type.id).get_len() - 1)))
-                reaction.participants.add(h.species_coefficients.get_or_create(
-                    coefficient=kb.cell.species_types.get_one(id=specie_type.id).get_len() - 1))
-
-    def gen_rate_laws(self):
         model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = self.cytosol
+        submodel = self.submodel
+        cytosol = model.compartments.get_one(id='c')
 
-        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
-        for prot, rxn in zip(prots, self.submodel.reactions):
-            rl = rxn.rate_laws.create()
-            rl.direction = wc_lang.RateLawDirection.forward
-            rl.equation = wc_lang.RateLawEquation(
-                expression='k_cat * {0}[c] / (k_m + {0}[c])'.format(prot.id))
-            rl.k_cat = 1 #2 * numpy.log(2) / prot.half_life
-            rl.k_m = 1 #prot.concentration
-            rl.equation.modifiers.append(rxn.participants[0].species)
+        h20 = model.species_types.get_one(
+            id='h20').species_types.get_one(compartment=cytosol)
+        atp = model.species_types.get_one(
+            id='atp').species_types.get_one(compartment=cytosol)
+        adp = model.species_types.get_one(
+            id='adp').species_types.get_one(compartment=cytosol)
+        pi = model.species_types.get_one(
+            id='pi').species_types.get_one(compartment=cytosol)
 
+        ala = model.species_types.get_one(
+            id='ala').species_types.get_one(compartment=cytosol)
+        arg = model.species_types.get_one(
+            id='arg').species_types.get_one(compartment=cytosol)
+        asp = model.species_types.get_one(
+            id='asp').species_types.get_one(compartment=cytosol)
+        asn = model.species_types.get_one(
+            id='asn').species_types.get_one(compartment=cytosol)
+        cys = model.species_types.get_one(
+            id='cys').species_types.get_one(compartment=cytosol)
+        gln = model.species_types.get_one(
+            id='gln').species_types.get_one(compartment=cytosol)
+        glu = model.species_types.get_one(
+            id='glu').species_types.get_one(compartment=cytosol)
+        gly = model.species_types.get_one(
+            id='gly').species_types.get_one(compartment=cytosol)
+        his = model.species_types.get_one(
+            id='his').species_types.get_one(compartment=cytosol)
+        ile = model.species_types.get_one(
+            id='ile').species_types.get_one(compartment=cytosol)
+        leu = model.species_types.get_one(
+            id='leu').species_types.get_one(compartment=cytosol)
+        lys = model.species_types.get_one(
+            id='lys').species_types.get_one(compartment=cytosol)
+        met = model.species_types.get_one(
+            id='met').species_types.get_one(compartment=cytosol)
+        phe = model.species_types.get_one(
+            id='phe').species_types.get_one(compartment=cytosol)
+        pro = model.species_types.get_one(
+            id='pro').species_types.get_one(compartment=cytosol)
+        ser = model.species_types.get_one(
+            id='ser').species_types.get_one(compartment=cytosol)
+        thr = model.species_types.get_one(
+            id='thr').species_types.get_one(compartment=cytosol)
+        trp = model.species_types.get_one(
+            id='trp').species_types.get_one(compartment=cytosol)
+        tyr = model.species_types.get_one(
+            id='tyr').species_types.get_one(compartment=cytosol)
+        val = model.species_types.get_one(
+            id='val').species_types.get_one(compartment=cytosol)
+
+        proteins = self.model.species_types.get(
+            __type=wc_kb.core.ProteinSpeciesType)
+
+        degradation_atpase = numpy.random.choice(proteins)
+        while degradation_atpase.name:
+            degradation_atpase = numpy.random.choice(proteins)
+
+        degradation_protease = numpy.random.choice(proteins)
+        while degradation_protease.name:
+            degradation_protease = numpy.random.choice(proteins)
+
+        for protein in proteins:
+            rxn = submodel.reactions.get_or_create(
+                id=protein.id.replace('protein_', 'protein_degradation_'))
+            rxn.name = protein.id.replace('protein', 'protein degradation')

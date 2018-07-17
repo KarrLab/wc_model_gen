@@ -59,7 +59,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             species_type = self.model.species_types.create(
                 id=protein.id+'_att',
                 type=wc_lang.SpeciesTypeType.protein,
-                name=protein.id+'_att',
+                name=protein.name+'_att',
                 structure=protein.get_seq(),
                 empirical_formula=protein.get_empirical_formula(),
                 molecular_weight=protein.get_mol_wt(),
@@ -74,135 +74,33 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # print('here')
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
-        species_types = self.model.species_types
-        rnas = self.knowledge_base.cell.species_types.get(
-            __type=wc_kb.RnaSpeciesType)
 
-        # print(len(rnas))
-        trnas = []
-        for rna in rnas:
-            if rna.type == wc_kb.RnaType.tRna:
-                trnas.append(rna)
-        # print(len(trnas))
-        prots = []
-        for species_type in species_types:
-            if species_type.type == wc_lang.SpeciesTypeType.protein:
-                prots.append(species_type)
-        
-        protsSet = set()
-        IF1 = random.choice(prots)
-        while IF1 in protsSet or IF1.name is not None:
-            IF1 = random.choice(prots)
-        IF1.name = 'IF1'
-        protsSet.add(IF1)
-        # print('here1')
-        IF2 = random.choice(prots)
-        while IF2 in protsSet or IF2.name is not None:
-            # print('here2')
-            IF2 = random.choice(prots)
-        IF2.name = 'IF2'
-        protsSet.add(IF2)
-        IF3 = random.choice(prots)
-        while IF3 in protsSet or IF3.name is not None:
-            IF3 = random.choice(prots)
-        IF3.name = 'IF3'
-        protsSet.add(IF3)
-        EFtu = random.choice(prots)
-        while EFtu in protsSet or EFtu.name is not None:
-            EFtu = random.choice(prots)
-        EFtu.name = "EFtu"
-        protsSet.add(EFtu)
-        EFts = random.choice(prots)
-        while EFts in protsSet or EFts.name is not None:
-            EFts = random.choice(prots)
-        EFts.name = 'EFts'
-        protsSet.add(EFts)
-        EFg = random.choice(prots)
-        while EFg in protsSet or EFg.name is not None:
-            EFg = random.choice(prots)
-        EFg.name = 'EFg'
-        protsSet.add(EFg)
-        RF1 = random.choice(prots)
-        while RF1 in protsSet or RF1.name is not None:
-            RF1 = random.choice(prots)
-        RF1.name = 'RF1'
-        protsSet.add(RF1)
-        RF2 = random.choice(prots)
-        while RF2 in protsSet or RF2.name is not None:
-            RF2 = random.choice(prots)
-        RF2.name = 'RF2'
-        protsSet.add(RF2)
-        RF3 = random.choice(prots)
-        while RF3 in protsSet or RF3.name is not None:
-            RF3 = random.choice(prots)
-        RF3.name = 'RF3'
-        protsSet.add(RF3)
+        prots = self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+
         amino_acids = {}
-        trna = random.choice(trnas)
-        amino_acids['S'] = ['tRNA-Ser', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['L'] = ['tRNA-Leu', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['R'] = ['tRNA-Arg', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['T'] = ['tRNA-Thr', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['G'] = ['tRNA-Gly', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['F'] = ['tRNA-Phe', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['W'] = ['tRNA-Trp', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['K'] = ['tRNA-Lys', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['I'] = ['tRNA-Ile', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['A'] = ['tRNA-Ala', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['M'] = ['tRNA-Met', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['Q'] = ['tRNA-Gln', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['E'] = ['tRNA-Glu', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['P'] = ['tRNA-Pro', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['V'] = ['tRNA-Val', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['C'] = ['tRNA-Cys', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['Y'] = ['tRNA-Tyr', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['H'] = ['tRNA-His', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['N'] = ['tRNA-Asn', trna.id]
-        trnas.remove(trna)
-        trna = random.choice(trnas)
-        amino_acids['D'] = ['tRNA-Asp', trna.id]
-        trnas.remove(trna)
+        amino_acids['S'] = 'tRNA_Ser'
+        amino_acids['L'] = 'tRNA_Leu'
+        amino_acids['R'] = 'tRNA_Arg'
+        amino_acids['T'] = 'tRNA_Thr'
+        amino_acids['G'] = 'tRNA_Gly'
+        amino_acids['F'] = 'tRNA_Phe'
+        amino_acids['W'] = 'tRNA_Trp'
+        amino_acids['K'] = 'tRNA_Lys'
+        amino_acids['I'] = 'tRNA_Ile'
+        amino_acids['A'] = 'tRNA_Ala'
+        amino_acids['M'] = 'tRNA_Met'
+        amino_acids['Q'] = 'tRNA_Gln'
+        amino_acids['E'] = 'tRNA_Glu'
+        amino_acids['P'] = 'tRNA_Pro'
+        amino_acids['V'] = 'tRNA_Val'
+        amino_acids['C'] = 'tRNA_Cys'
+        amino_acids['Y'] = 'tRNA_Tyr'
+        amino_acids['H'] = 'tRNA_His'
+        amino_acids['N'] = 'tRNA_Asn'
+        amino_acids['D'] = 'tRNA_Asp'
 
         # Add translation initating reactions
-        for prot in prots:
-            if prot.name is None:
-                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+        for protein in prots:
                 reaction = wc_lang.core.Reaction(
                     id='translation_init_' + protein.id, submodel=submodel)
                 reaction.name = protein.id
@@ -217,15 +115,15 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=IF1.id).species.get_one(compartment=compartment)
+                    id='IF1').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=IF2.id).species.get_one(compartment=compartment)
+                    id='IF2').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=IF3.id).species.get_one(compartment=compartment)
+                    id='IF3').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
 
@@ -243,22 +141,20 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
-                    id=IF1.id).species.get_one(compartment=compartment)
+                    id='IF1').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
-                    id=IF2.id).species.get_one(compartment=compartment)
+                    id='IF2').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
-                    id=IF3.id).species.get_one(compartment=compartment)
+                    id='IF3').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation elongation reactions
-        for prot in prots:
-           if prot.name is None:
-                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+        for protein in prots:
                 reaction = wc_lang.core.Reaction(
                     id='translation_elon_' + protein.id, submodel=submodel)
                 reaction.name = protein.id
@@ -270,15 +166,15 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
-                    id=EFtu.id).species.get_one(compartment=compartment)
+                    id='EFtu').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-n_steps))
                 specie = self.model.species_types.get_one(
-                    id=EFts.id).species.get_one(compartment=compartment)
+                    id='EFts').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-n_steps))
                 specie = self.model.species_types.get_one(
-                    id=EFg.id).species.get_one(compartment=compartment)
+                    id='EFg').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-n_steps))
                 specie = self.model.species_types.get_one(
@@ -286,15 +182,13 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-2 * n_steps))
 
-                # tRNAs - add more testing to this bit
-
                 for letter in list(set(str(protein.get_seq()))):
                     if letter == '*':
                         continue
 
                     n = protein.get_seq().tostring().count(letter)
                     specie = self.model.species_types.get_or_create(
-                        id=amino_acids[letter][1], type=wc_lang.SpeciesTypeType.rna).species.get_or_create(compartment=compartment)
+                        id=amino_acids[letter], type=wc_lang.SpeciesTypeType.rna).species.get_or_create(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=-n))
 
@@ -312,15 +206,15 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
                 specie = self.model.species_types.get_one(
-                    id=EFtu.id).species.get_one(compartment=compartment)
+                    id='EFtu').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=n_steps))
                 specie = self.model.species_types.get_one(
-                    id=EFts.id).species.get_one(compartment=compartment)
+                    id='EFts').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=n_steps))
                 specie = self.model.species_types.get_one(
-                    id=EFg.id).species.get_one(compartment=compartment)
+                    id='EFg').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=n_steps))
                 specie = self.model.species_types.get_one(
@@ -329,9 +223,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation termination reactions
-        for prot in prots:
-            if prot.name is None:
-                protein = self.knowledge_base.cell.species_types.get_or_create(id = prot.id)
+        for protein in prots:
                 reaction = wc_lang.core.Reaction(
                     id='translation_term_' + protein.id, submodel=submodel)
                 reaction.name = protein.id
@@ -342,36 +234,36 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 if stop_codon == 'TAG':
                     specie = self.model.species_types.get_one(
-                        id=RF1.id).species.get_one(compartment=compartment)
+                        id='RF1').species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=-1))
                     specie = self.model.species_types.get_one(
-                        id=RF1.id).species.get_one(compartment=compartment)
+                        id='RF1').species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=1))
                 elif stop_codon == 'TGA':
                     specie = self.model.species_types.get_one(
-                        id=RF2.id).species.get_one(compartment=compartment)
+                        id='RF2').species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=-1))
                     specie = self.model.species_types.get_one(
-                        id=RF2.id).species.get_one(compartment=compartment)
+                        id='RF2').species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=1))
                 else:
-                    rList = [RF1, RF2]
+                    rList = ['RF1', 'RF2']
                     RF = random.choice(rList)
                     specie = self.model.species_types.get_one(
-                        id=RF.id).species.get_one(compartment=compartment)
+                        id=RF).species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=-1))
                     specie = self.model.species_types.get_one(
-                        id=RF.id).species.get_one(compartment=compartment)
+                        id=RF).species.get_one(compartment=compartment)
                     reaction.participants.add(
                         specie.species_coefficients.get_or_create(coefficient=1))
 
                 specie = self.model.species_types.get_one(
-                    id=RF3.id).species.get_one(compartment=compartment)
+                    id='RF3').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
@@ -401,7 +293,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
-                    id=RF3.id).species.get_one(compartment=compartment)
+                    id='RF3').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(

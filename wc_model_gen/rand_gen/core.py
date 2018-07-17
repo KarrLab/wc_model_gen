@@ -10,7 +10,6 @@ from .metabolism import MetabolismSubmodelGenerator
 from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
 from .translation import TranslationSubmodelGenerator
-#from .protein_degradation import ProteinDegradationSubmodelGenerator
 import rand_wc_model_gen
 import wc_model_gen
 
@@ -25,7 +24,6 @@ class RandomModelGenerator(wc_model_gen.ModelGenerator):
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
         TranslationSubmodelGenerator,
-        #ProteinDegradationSubmodelGenerator,
     )
 
     def clean_and_validate_options(self):
