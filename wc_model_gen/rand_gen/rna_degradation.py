@@ -46,10 +46,11 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     compartment=cytosol)
                 species.concentration = wc_lang.Concentration(
                     value=rna.concentration, units=wc_lang.ConcentrationUnit.M)
-                
+
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
 
-            species_type = self.model.species_types.get_or_create(id=protein.id)
+            species_type = self.model.species_types.get_or_create(
+                id=protein.id)
             if not species_type.name:
                 # Add functional form of protein
                 species_type.name = protein.name
@@ -86,10 +87,12 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         kb_rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for kb_rna in kb_rnas:
             if kb_rna.id.startswith('rna_'):
-                rxn = submodel.reactions.get_or_create(id=kb_rna.id.replace('rna_', 'rna_degradation_'))
+                rxn = submodel.reactions.get_or_create(
+                    id=kb_rna.id.replace('rna_', 'rna_degradation_'))
                 rxn.name = kb_rna.name.replace('RNA ', 'RNA degradation ')
             else:
-                rxn = submodel.reactions.get_or_create(id='rna_degradation_'+str(kb_rna.id))
+                rxn = submodel.reactions.get_or_create(
+                    id='rna_degradation_'+str(kb_rna.id))
                 rxn.name = 'RNA degradation '+str(kb_rna.name)
 
             model_rna = model.species_types.get_one(
@@ -117,10 +120,11 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
 
-        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume    #http://bionumbers.hms.harvard.edu/bionumber.aspx?id=108959&ver=1&trm=average%20rnase%20concentration&org=
+        # http://bionumbers.hms.harvard.edu/bionumber.aspx?id=108959&ver=1&trm=average%20rnase%20concentration&org=
+        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
 
         deg_rnase = model.species_types.get_one(id='deg_rnase')
-        
+
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
             rl = rxn.rate_laws.create()
@@ -129,5 +133,6 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 expression='{0}[c] * (((k_cat * {1}[c]) / (k_m + {1}[c])) + {2})'.format(rna.id, deg_rnase.id, '0.1'))
             rl.k_cat = 2 * numpy.log(2) / rna.half_life
             rl.k_m = deg_avg_conc
-            rl.equation.modifiers.append(deg_rnase.species.get_one(compartment=cytosol))
+            rl.equation.modifiers.append(
+                deg_rnase.species.get_one(compartment=cytosol))
             rl.equation.modifiers.append(rxn.participants[0].species)
