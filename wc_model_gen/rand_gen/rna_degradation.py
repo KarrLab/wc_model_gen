@@ -69,10 +69,12 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         kb_rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for kb_rna in kb_rnas:
             if kb_rna.id.startswith('rna_'):
-                rxn = submodel.reactions.get_or_create(id=kb_rna.id.replace('rna_', 'rna_degradation_'))
+                rxn = submodel.reactions.get_or_create(
+                    id=kb_rna.id.replace('rna_', 'rna_degradation_'))
                 rxn.name = kb_rna.name.replace('RNA ', 'RNA degradation ')
             else:
-                rxn = submodel.reactions.get_or_create(id='rna_degradation_'+str(kb_rna.id))
+                rxn = submodel.reactions.get_or_create(
+                    id='rna_degradation_'+str(kb_rna.id))
                 rxn.name = 'RNA degradation '+str(kb_rna.name)
 
             model_rna = model.species_types.get_one(
