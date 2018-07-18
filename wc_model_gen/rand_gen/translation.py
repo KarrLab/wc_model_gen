@@ -41,19 +41,21 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Create both functional and afunctional form (_att: attached to RNA) of every protein in KB
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
 
-            # Add functional form of protein
-            species_type = self.model.species_types.create(
-                id=protein.id,
-                type=wc_lang.SpeciesTypeType.protein,
-                name=protein.name,
-                structure=protein.get_seq(),
-                empirical_formula=protein.get_empirical_formula(),
-                molecular_weight=protein.get_mol_wt(),
-                charge=protein.get_charge())
+            species_type = self.model.species_types.get_or_create(id=protein.id)
+            if not species_type.name:
+                # Add functional form of protein
+                species_type.name = protein.name
+                species_type.type = wc_lang.SpeciesTypeType.protein
+                species_type.structure = protein.get_seq()
+                species_type.empirical_formula = protein.get_empirical_formula()
+                species_type.molecular_weight = protein.get_mol_wt()
+                species_type.charge = protein.get_charge()
+                species = species_type.species.get_or_create(
+                    compartment=compartment)
 
-            species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(
-                value=0, units=wc_lang.ConcentrationUnit.M)
+                species.concentration = wc_lang.Concentration(
+                    value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
+
 
             # Add inactive form of protein, attached to ribosome
             species_type = self.model.species_types.create(

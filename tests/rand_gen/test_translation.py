@@ -47,7 +47,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         for species_type in model.species_types:
             if species_type.id.startswith('prot_'):
                 species = species_type.species.get_one(compartment=cytosol)
-                self.assertEqual(species.concentration.value, 0)
                 self.assertEqual(species.concentration.units, wc_lang.ConcentrationUnit.M)
 
         # check reactions generated
