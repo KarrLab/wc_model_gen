@@ -43,9 +43,6 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species_type.charge = protein.get_charge()
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
-                print("hello")
-                print(type(species))
-                print(species)
 
                 species.concentration = wc_lang.Concentration(
                     value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
@@ -72,7 +69,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             model_protein = model.species_types.get_one(
                 id=kb_protein.id).species.get_one(compartment=cytosol)
-            print(model_protein)
+
             seq = kb_protein.get_seq()
 
             rxn.participants = []
@@ -110,19 +107,21 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             for amino_acid, aa in zip(amino_acids, aas):
                 species = model.species_types.get_one(
-                    id=amino_acid).species_types.get_one(compartment=cytosol)
+                    id=amino_acid).species.get_one(compartment=cytosol)
                 rxn.participants.add(
-                    aa.species_coefficients.get_or_create(coefficient=seq.count(aa)))
+                    species.species_coefficients.get_or_create(coefficient=seq.count(aa)))
 
     def gen_rate_laws(self):
         model = self.model
         cell = self.knowledge_base.cell
-        cytosol = self.cytosol
+        cytosol = model.compartments.get_or_create(id='c')
 
-        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
+        prots = cell.species_types.get(
+            __type=wc_kb.ProteinSpeciesType)
         for prot, rxn in zip(prots, self.submodel.reactions):
             rl = rxn.rate_laws.create()
             rl.direction = wc_lang.RateLawDirection.forward
+
             rl.equation = wc_lang.RateLawEquation(
                 expression='k_cat * {0}[c] / (k_m + {0}[c])'.format(prot.id))
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
