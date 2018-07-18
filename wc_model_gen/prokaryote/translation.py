@@ -4,6 +4,10 @@
 :Date: 2018-01-21
 :Copyright: 2018, Karr Lab
 :License: MIT
+
+TODO:
+- protein.get_seq() is throwing error, but protein.rna.get_seq().translate() works, look into
+
 """
 
 import wc_kb
@@ -28,34 +32,46 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         species = species_type.species.create(compartment=compartment)
         species.concentration = wc_lang.core.Concentration(value=3000, units='molecules')
 
-        # Create both functional and afunctional form (_att: attached to RNA) of every protein in KB
+        # Create both functional and afunctional forms (_att: attached to RNA) of every protein in KB
+        #not_translatable = []
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+
+            #try:
+            #    protein.rna.get_seq().translate()
+            #except:
+            #    not_translatable.append(protein.id)
+            #    continue
 
             # Add functional form of protein
             species_type = self.model.species_types.create(
-                id=protein.id,
-                type=2,
-                name=protein.name,
-                structure=protein.get_seq(),
-                empirical_formula=str(protein.get_empirical_formula()),
-                molecular_weight=str(protein.get_mol_wt()),
-                charge=str(protein.get_charge()))
+                id                = protein.id,
+                type              = wc_lang.SpeciesTypeType.protein,
+                name              = protein.name,
+                structure         = protein.get_seq(cds=False),
+                empirical_formula = protein.get_empirical_formula(cds=False),
+                molecular_weight  = protein.get_mol_wt(cds=False),
+                charge            = protein.get_charge(cds=False))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=0, units='molecules')
+            species.concentration = wc_lang.core.Concentration(value=100, units='molecules')
 
             # Add inactive form of protein, attached to ribosome
             species_type = self.model.species_types.create(
-                id=protein.id+'_att',
-                type=2,
-                name=protein.name+'_att',
-                structure=protein.get_seq(),
-                empirical_formula=str(protein.get_empirical_formula()),
-                molecular_weight=str(protein.get_mol_wt()),
-                charge=str(protein.get_charge()))
+                id                = protein.id+'_att',
+                type              = wc_lang.SpeciesTypeType.pseudo_species,
+                name              = protein.name+'_att',
+                structure         = protein.get_seq(cds=False),
+                empirical_formula = protein.get_empirical_formula(cds=False),
+                molecular_weight  = protein.get_mol_wt(cds=False),
+                charge            = protein.get_charge(cds=False))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=0, units='molecules')
+            species.concentration = wc_lang.core.Concentration(value=100, units=wc_lang.ConcentrationUnit.molecules)
+
+        #if not_translatable:
+        #    print('The following protein(s) are not translatable:\n  {}'.format('\n  '.join(not_translatable)))
+        #    print('Was unable to translate {} protein(s) out of {}'.format(len(not_translatable),
+        #                                                            len(self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType))))
 
     def gen_reactions(self):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """
@@ -117,7 +133,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Add translation elongation reactions
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
             reaction = wc_lang.core.Reaction(id='translation_elon_' + protein.id, submodel=submodel)
-            n_steps = len(protein.get_seq())
+            n_steps = len(protein.get_seq(cds=False))
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='complex_70S_A').species.get_one(compartment=compartment)
@@ -132,11 +148,11 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.create(species=specie, coefficient=-2*n_steps)
 
             # tRNAs - add more testing to this bit
-            for letter in list(set(protein.get_seq().tostring())):
+            for letter in list(set(protein.get_seq(cds=False).tostring())):
                 if letter == '*':
                     continue
 
-                n = protein.get_seq().tostring().count(letter)
+                n = protein.get_seq(cds=False).tostring().count(letter)
                 specie = self.model.species_types.get_or_create(
                     id=amino_acids[letter][1], type=4).species.get_or_create(compartment=compartment)
                 reaction.participants.create(species=specie, coefficient=-n)
@@ -152,7 +168,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Add translation termination reactions
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
             reaction = wc_lang.core.Reaction(id='translation_term_' + protein.id, submodel=submodel)
-            n_steps = len(protein.get_seq())
+            n_steps = len(protein.get_seq(cds=False))
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='prot_MPN361').species.get_one(compartment=compartment)

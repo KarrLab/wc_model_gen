@@ -9,7 +9,6 @@
 import wc_lang
 import wc_model_gen
 
-
 class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
     """ Generate species and cytosolic concentrations for each metabolite """
 
@@ -27,6 +26,29 @@ class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
             ('CMP', 'C9H12N3O8P', -2, 321.182),
             ('GMP', 'C10H12N5O8P', -2, 361.207),
             ('UMP', 'C9H11N2O9P', -2, 322.166),
+
+            # CHARGE VALUES ARE PLACEHOLDERS! - IT IS PH DEPENDENT, NEED TO RESERACH BIOCHEM
+            ('Ala', 'C3H7NO2', 0, 89.0935), #Alanine
+            ('Arg', 'C6H14N4O2', 0, 174.2017), #Arginine
+            ('Asn', 'C4H8N2O3', 0, 132.1184), #Asparagine
+            ('Asp', 'C4H7NO4', 0, 133.1032), #Aspartic acid
+            ('Cys', 'C3H7NO2S', 0, 121.1590), #Cysteine
+            ('Gln', 'C5H10N2O3', 0, 147.1299), #Glutamine
+            ('Glu', 'C5H9NO4',  0, 146.1451), #Glutamic acid
+            ('Gly', 'C2H5NO2', 0, 75.0669), #Glycine
+            ('His', 'C6H9N3O2', 0, 155.1552), #Histidine
+            ('Ile', 'C6H13NO2', 0, 131.1736), #Isoleucine
+            ('Leu', 'C6H13NO2', 0, 131.1736), #Leucine
+            ('Lys', 'C6H14N2O2', 0, 146.1882), #Lysine
+            ('Met', 'C5H11NO2S',  0, 149.2124), #Methionine
+            ('Phe', 'C9H11NO2', 0, 165.1900), #Phenylalanine
+            ('Pro', 'C5H9NO2', 0, 115.1310), #Proline
+            ('Ser', 'C3H7NO3', 0, 105.0930), #Serine
+            ('Thr', 'C4H9NO3', 0, 119.1197), #Threonine
+            ('Trp', 'C11H12N2O2', 0, 204.2262), #Tryptophan
+            ('Tyr', 'C9H11NO3', 0, 181.1894), #Tyrosine
+            ('Val', 'C5H11NO2', 0, 117.1469), #Valine
+
             ('H2O', 'H2O', 0, 18.015),
             ('PPI', 'HO7P2', -3, 174.949),
             ('H', 'H1', 1, 1.008),
