@@ -33,14 +33,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         species.concentration = wc_lang.core.Concentration(value=3000, units='molecules')
 
         # Create both functional and afunctional forms (_att: attached to RNA) of every protein in KB
-        #not_translatable = []
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
-
-            #try:
-            #    protein.rna.get_seq().translate()
-            #except:
-            #    not_translatable.append(protein.id)
-            #    continue
 
             # Add functional form of protein
             species_type = self.model.species_types.create(
@@ -67,11 +60,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             species = species_type.species.create(compartment=compartment)
             species.concentration = wc_lang.core.Concentration(value=100, units=wc_lang.ConcentrationUnit.molecules)
-
-        #if not_translatable:
-        #    print('The following protein(s) are not translatable:\n  {}'.format('\n  '.join(not_translatable)))
-        #    print('Was unable to translate {} protein(s) out of {}'.format(len(not_translatable),
-        #                                                            len(self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType))))
 
     def gen_reactions(self):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """
@@ -103,49 +91,54 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Add translation initating reactions
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
             reaction = wc_lang.core.Reaction(id='translation_init_' + protein.id, submodel=submodel)
+            reaction.participants=[]
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='complex_70S_IA').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='GTP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='prot_MPN187').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='prot_MPN631').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='prot_MPN227').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
+
+            #specie = self.model.species_types.get_one(id='prot_MPN227').species.get_one(compartment=compartment)
+            #reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1)
 
             # Adding reaction participants RHS
             specie = self.model.species_types.get_one(id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='GDP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='P').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='prot_MPN187').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='prot_MPN631').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='prot_MPN227').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation elongation reactions
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
             reaction = wc_lang.core.Reaction(id='translation_elon_' + protein.id, submodel=submodel)
             n_steps = len(protein.get_seq(cds=False))
+            reaction.participants=[]
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='complex_70S_A').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='prot_MPN665').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-n_steps))
             specie = self.model.species_types.get_one(id='prot_MPN631').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-n_steps))
             specie = self.model.species_types.get_one(id='prot_MPN227').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-n_steps))
             specie = self.model.species_types.get_one(id='GTP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-2*n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-2*n_steps))
 
             # tRNAs - add more testing to this bit
             for letter in list(set(protein.get_seq(cds=False).tostring())):
@@ -155,36 +148,37 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 n = protein.get_seq(cds=False).tostring().count(letter)
                 specie = self.model.species_types.get_or_create(
                     id=amino_acids[letter][1], type=4).species.get_or_create(compartment=compartment)
-                reaction.participants.create(species=specie, coefficient=-n)
+                reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding reaction participants RHS
             specie = self.model.species_types.get_one(id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='GDP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=2*n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=2*n_steps))
             specie = self.model.species_types.get_one(id='P').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=2*n_steps)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=2*n_steps))
 
         # Add translation termination reactions
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
             reaction = wc_lang.core.Reaction(id='translation_term_' + protein.id, submodel=submodel)
             n_steps = len(protein.get_seq(cds=False))
+            reaction.participants=[]
 
             # Adding reaction participants LHS
             specie = self.model.species_types.get_one(id='prot_MPN361').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id='GTP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=-1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=-1))
 
             # Adding reaction participants RHS
             specie = self.model.species_types.get_one(id=protein.id).species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='GDP').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.species_types.get_one(id='P').species.get_one(compartment=compartment)
-            reaction.participants.create(species=specie, coefficient=1)
+            reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
 
     def gen_rate_laws(self):
         """ Generate the rate laws associate dwith reactions """
@@ -192,8 +186,9 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         compartment = self.model.compartments.get_one(id='c')
 
         for reaction in submodel.reactions:
-            exp = 'k_cat'
+            exp= 'k_cat'
             mod = []
+            rate_eq = None
 
             for participant in reaction.participants:
                 if participant.coefficient > 0:
@@ -204,9 +199,16 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     mod.append(self.model.species_types.get_one(
                         id=participant.species.species_type.id).species.get_one(compartment=compartment))
 
-            rate_eq = wc_lang.core.RateLawEquation(expression=exp, modifiers=mod)
+            for rxn in submodel.reactions:
+              for rl in rxn.rate_laws:
+                  if rl.equation.expression == exp:
+                      rate_eq = rl.equation
+
+            if rate_eq is None:
+              rate_eq = wc_lang.core.RateLawEquation(expression=exp, modifiers=mod)
+
             rate_law = wc_lang.core.RateLaw(reaction=reaction,
-                                            direction=wc_lang.core.RateLawDirection.forward,
-                                            equation=rate_eq,
-                                            k_cat=1,
-                                            k_m=1)
+                                          direction=wc_lang.core.RateLawDirection.forward,
+                                          equation=rate_eq,
+                                          k_cat=10,
+                                          k_m=1)

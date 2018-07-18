@@ -31,7 +31,7 @@ class DegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         arg = model.species_types.get_one(id='Arg').species.get_one(compartment=compartment)
         asn = model.species_types.get_one(id='Asn').species.get_one(compartment=compartment)
         asp = model.species_types.get_one(id='Asp').species.get_one(compartment=compartment)
-        cya = model.species_types.get_one(id='Cya').species.get_one(compartment=compartment)
+        cys = model.species_types.get_one(id='Cys').species.get_one(compartment=compartment)
         gln = model.species_types.get_one(id='Gln').species.get_one(compartment=compartment)
         glu = model.species_types.get_one(id='Glu').species.get_one(compartment=compartment)
         gly = model.species_types.get_one(id='Gly').species.get_one(compartment=compartment)
