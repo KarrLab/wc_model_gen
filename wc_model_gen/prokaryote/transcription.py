@@ -24,7 +24,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 empirical_formula=rna.get_empirical_formula(),
                 molecular_weight=rna.get_mol_wt(),
                 charge=rna.get_charge(),
-                type=4)
+                type=wc_lang.SpeciesTypeType.rna)
 
             species = species_type.species.create(compartment=compartment)
             species.concentration = wc_lang.core.Concentration(value=1000, units=wc_lang.ConcentrationUnit.molecules)
@@ -61,27 +61,6 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=len(seq)))
             reaction.participants.add(h.species_coefficients.get_or_create(coefficient=(rna.get_len()-1)))
 
-            """
-            reaction.participants.create(species=self.model.species_types.get_one(id='ATP').species.get_or_create(compartment=compartment),
-                                         coefficient=-(rna.get_seq().count('A')))
-            reaction.participants.create(species=self.model.species_types.get_one(id='CTP').species.get_or_create(compartment=compartment),
-                                         coefficient=-(rna.get_seq().count('C')))
-            reaction.participants.create(species=self.model.species_types.get_one(id='GTP').species.get_or_create(compartment=compartment),
-                                         coefficient=-(rna.get_seq().count('G')))
-            reaction.participants.create(species=self.model.species_types.get_one(id='UTP').species.get_or_create(compartment=compartment),
-                                         coefficient=-(rna.get_seq().count('U')))
-
-            # Adding reaction participants RHS
-            reaction.participants.create(species=self.model.species_types.get_one(id=rna.id).species.get_or_create(compartment=compartment),
-                                         coefficient=1)
-            reaction.participants.create(species=self.model.species_types.get_one(id='H2O').species.get_or_create(compartment=compartment),
-                                         coefficient=1)
-            reaction.participants.create(species=self.model.species_types.get_one(id='PPI').species.get_or_create(compartment=compartment),
-                                         coefficient=len(rna.get_seq()))
-            reaction.participants.create(species=self.model.species_types.get_one(id='H').species.get_or_create(compartment=compartment),
-                                         coefficient=1)
-            """
-
     def gen_rate_laws(self):
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
@@ -111,27 +90,5 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law = wc_lang.core.RateLaw(reaction=reaction,
                                             direction=wc_lang.core.RateLawDirection.forward,
                                             equation=rate_eq,
-                                            k_cat=1,
+                                            k_cat=10,
                                             k_m=1)
-
-
-"""
-for reaction in submodel.reactions:
-    rate_eq = wc_lang.core.RateLawEquation(
-        expression='k_cat'
-        ' * (ATP[c] / (k_m + ATP[c]))'
-        ' * (CTP[c] / (k_m + CTP[c]))'
-        ' * (GTP[c] / (k_m + GTP[c]))'
-        ' * (UTP[c] / (k_m + UTP[c]))',
-
-        modifiers=[self.model.species_types.get_one(id='ATP').species.get_one(compartment=compartment),
-                   self.model.species_types.get_one(id='CTP').species.get_one(compartment=compartment),
-                   self.model.species_types.get_one(id='GTP').species.get_one(compartment=compartment),
-                   self.model.species_types.get_one(id='UTP').species.get_one(compartment=compartment)])
-
-    rate_law = wc_lang.core.RateLaw(reaction=reaction,
-                                    direction=wc_lang.core.RateLawDirection.forward,
-                                    equation=rate_eq,
-                                    k_cat=1,
-                                    k_m=1)
-"""

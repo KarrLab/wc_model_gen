@@ -93,8 +93,6 @@ class TestModelGenerator(unittest.TestCase):
 
             def gen_reactions(self): pass
 
-            #def gen_parameters(self): pass
-
             def gen_rate_laws(self): pass
 
         component_z = component_z_generator(self.knowledge_base, model)
