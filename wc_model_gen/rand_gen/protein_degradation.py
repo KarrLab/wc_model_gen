@@ -116,6 +116,11 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_or_create(id='c')
 
+        proteosome_conc = 5000/scipy.constants.Avogadro / \
+            cytosol.initial_volume  # PubMed ID16135238
+
+        deg_protease = model.species_types.get_one(id='deg_protease')
+
         prots = cell.species_types.get(
             __type=wc_kb.ProteinSpeciesType)
         for prot, rxn in zip(prots, self.submodel.reactions):
@@ -123,7 +128,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl.direction = wc_lang.RateLawDirection.forward
 
             rl.equation = wc_lang.RateLawEquation(
-                expression='k_cat * {0}[c] / (k_m + {0}[c])'.format(prot.id))
+                expression='{0}[c] * (((k_cat * {1}[c]) / (k_m + {1}[c])) + {2})'.format(prot.id, deg_protease.id, '0.1'))
+
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
-            rl.k_m = prot.concentration
+            rl.k_m = proteosome_conc
             rl.equation.modifiers.append(rxn.participants[0].species)
