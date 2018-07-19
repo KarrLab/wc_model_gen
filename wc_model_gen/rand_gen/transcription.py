@@ -44,13 +44,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species = species_type.species.get_or_create(compartment=cytosol)
                 species.concentration = wc_lang.Concentration(value=rna.concentration, units=wc_lang.ConcentrationUnit.M)
 
-        observables = cell.observables
-        for kb_observable in observables:
-            observable = model.observables.get_or_create(id = kb_observable.id)
-            if not observable.name:
-                observable.name = kb_observable.name
-                observable.species = kb_observable.species
 
+                
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model

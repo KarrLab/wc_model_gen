@@ -150,8 +150,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
 
         deg_rnase = model.observables.get_one(id='deg_rnase_obs')
-        deg_rnase = (numpy.random.choice(
-            deg_rnase.species)).species.species_type
+        deg_rnase = deg_rnase.species[0].species.species_type
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
