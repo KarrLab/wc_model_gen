@@ -18,12 +18,20 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         model = self.model
 
+        # Generate the compartments that are defined in the knowledge base
+        for kb_comp in cell.compartments:
+            model_comp = model.compartments.get_or_create(kb_comp.id)
+            model_comp.name = kb_comp.name
+
+        # If the kb defines "c" and "e" compartments, their properties will be set. If not, they will be created
         cyt = model.compartments.get_or_create(id='c')
-        cyt.name = 'cytosol'
+        if not cyt.name:
+            cyt.name = 'cytosol'
         cyt.initial_volume = cell.properties.get_one(id='mean_volume').value
 
         ext = model.compartments.get_or_create(id='e')
-        ext.name = 'extracellular space'
+        if not ext.name:
+            ext.name = 'extracellular space'
         ext.initial_volume = 1. / \
             cell.properties.get_one(id='mean_cell_density').value
 
