@@ -20,7 +20,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Generate the compartments that are defined in the knowledge base
         for kb_comp in cell.compartments:
-            model_comp = model.compartments.get_or_create(kb_comp.id)
+            model_comp = model.compartments.get_or_create(id=kb_comp.id)
             model_comp.name = kb_comp.name
 
         # If the kb defines "c" and "e" compartments, their properties will be set. If not, they will be created
