@@ -116,18 +116,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     id='gtp').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
-                specie = self.model.species_types.get_one(
-                    id='IF1').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
-                specie = self.model.species_types.get_one(
-                    id='IF2').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
-                specie = self.model.species_types.get_one(
-                    id='IF3').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
 
                 # Adding reaction participants RHS
                 specie = self.model.species_types.get_one(
@@ -140,18 +128,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
                     id='pi').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
-                    id='IF1').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
-                    id='IF2').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
-                    id='IF3').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
 
@@ -167,18 +143,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     id='complex_70S_A').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
-                specie = self.model.species_types.get_one(
-                    id='EFtu').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
-                specie = self.model.species_types.get_one(
-                    id='EFts').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
-                specie = self.model.species_types.get_one(
-                    id='EFg').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-n_steps))
                 specie = self.model.species_types.get_one(
                     id='gtp').species.get_one(compartment=compartment)
                 reaction.participants.add(
@@ -208,18 +172,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
                 specie = self.model.species_types.get_one(
-                    id='EFtu').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=n_steps))
-                specie = self.model.species_types.get_one(
-                    id='EFts').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=n_steps))
-                specie = self.model.species_types.get_one(
-                    id='EFg').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=n_steps))
-                specie = self.model.species_types.get_one(
                     id='complex_70S_A').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
@@ -232,42 +184,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 n_steps = len(protein.get_seq())
 
                 # Adding reaction participants LHS
-                stop_codon = str(protein.gene.get_seq())[-3:]
 
-                if stop_codon == 'TAG':
-                    specie = self.model.species_types.get_one(
-                        id='RF1').species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=-1))
-                    specie = self.model.species_types.get_one(
-                        id='RF1').species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=1))
-                elif stop_codon == 'TGA':
-                    specie = self.model.species_types.get_one(
-                        id='RF2').species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=-1))
-                    specie = self.model.species_types.get_one(
-                        id='RF2').species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=1))
-                else:
-                    rList = ['RF1', 'RF2']
-                    RF = random.choice(rList)
-                    specie = self.model.species_types.get_one(
-                        id=RF).species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=-1))
-                    specie = self.model.species_types.get_one(
-                        id=RF).species.get_one(compartment=compartment)
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=1))
-
-                specie = self.model.species_types.get_one(
-                    id='RF3').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
                     id='gtp').species.get_one(compartment=compartment)
                 reaction.participants.add(
@@ -295,10 +212,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
-                    id='RF3').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
                     id='complex_70S_IA').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
@@ -307,6 +220,14 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate the rate laws associate dwith reactions """
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
+
+        IF = self.model.observables.get_one(
+            id='IF')
+        EF = self.model.observables.get_one(
+            id='EF')
+        RF = self.model.observables.get_one(
+            id='RF')
+        
 
         for reaction in submodel.reactions:
             exp = 'k_cat'
@@ -323,6 +244,28 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         '/ (k_m + ' + participant.species.id() + '))'
                     mod.append(self.model.species_types.get_one(
                         id=participant.species.species_type.id).species.get_one(compartment=compartment))
+
+            if reaction.id.startswith('translation_term_'):
+                for specie in IF.species:
+                    species = specie.species
+                    exp = exp + ' * ({}[c]' + \
+                        '/ (k_m +{}[c]))'.format(species.species_type.id)
+                    mod.append(species)
+                    
+            elif reaction.id.startswith('translation_elon_'):
+                for specie in EF.species:
+                    species = specie.species
+                    exp = exp + ' * ({}[c]' + \
+                        '/ (k_m +{}[c]))'.format(species.species_type.id)
+                    mod.append(species)
+
+            else:
+                for specie in RF.species:
+                    species = specie.species
+                    exp = exp + ' * ({}[c]' + \
+                        '/ (k_m +{}[c]))'.format(species.species_type.id)
+                    mod.append(species)
+                
 
             for rxn in submodel.reactions:
                 for rl in rxn.rate_laws:

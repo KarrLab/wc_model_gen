@@ -1,6 +1,7 @@
 """ Generator for protein  degradation submodels based on KBs for random in silico organisms
 
 :Author: Bilal Shaikh <bilal.shaikh@columbia.edu>
+         Ashwin Srinivasan <ashwins@mit.edu>
          Jonathan Karr <karr@mssm.edu>
 :Date: 2018-07-05
 :Copyright: 2018, Karr Lab
@@ -119,7 +120,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         proteosome_conc = 5000/scipy.constants.Avogadro / \
             cytosol.initial_volume  # PubMed ID16135238
 
-        deg_protease = model.species_types.get_one(id='deg_protease')
+        deg_protease = model.observables.get_one(id='deg_protease')
 
         prots = cell.species_types.get(
             __type=wc_kb.ProteinSpeciesType)
@@ -132,6 +133,5 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
             rl.k_m = proteosome_conc
-            rl.equation.modifiers.append(
-                deg_protease.species.get_one(compartment=cytosol))
+            rl.equation.modifiers.append(deg_protease.species[0].species)
             rl.equation.modifiers.append(rxn.participants[0].species)
