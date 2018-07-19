@@ -65,6 +65,32 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species.concentration = wc_lang.Concentration(
                     value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
 
+        for kb_observable in self.knowledge_base.cell.observables:
+            model_observable = self.model.observables.get_or_create(
+                id=kb_observable.id)
+            if not model_observable.name:
+                model_observable.name = kb_observable.name
+                for kb_species_coefficient in kb_observable.species:
+                    kb_species = kb_species_coefficient.species
+                    kb_species_type = kb_species.species_type
+                    kb_compartment = kb_species.compartment
+                    model_species_type = model.species_types.get_one(
+                        id=kb_species_type.id)
+                    model_species = model_species_type.species.get_one(
+                        compartment=model.compartments.get_one(id=kb_compartment.id))
+                    model_coefficient = kb_species_coefficient.coefficient
+                    model_species_coefficient = wc_lang.SpeciesCoefficient()
+                    model_species_coefficient.species = model_species
+                    model_species_coefficient.coefficient = model_coefficient
+
+                    model_observable.species.append(model_species_coefficient)
+
+                for kb_observable_observable in kb_observable.observables:
+                    model_observable_observable = model.observables.get_or_create(
+                        id=kb_observable_observable.id)
+                    model_observable.observables.append(
+                        model_observable_observable)
+
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
@@ -123,7 +149,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # http://bionumbers.hms.harvard.edu/bionumber.aspx?id=108959&ver=1&trm=average%20rnase%20concentration&org=
         deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
 
-        deg_rnase = model.observables.get_one(id='deg_rnase')
+        deg_rnase = model.observables.get_one(id='deg_rnase_obs')
+        deg_rnase = (numpy.random.choice(
+            deg_rnase.species)).species.species_type
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
