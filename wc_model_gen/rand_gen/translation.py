@@ -115,6 +115,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_observable.observables.append(
                         model_observable_observable)
 
+
     def gen_reactions(self):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """
         # print('here')
