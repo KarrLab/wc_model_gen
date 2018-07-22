@@ -127,7 +127,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             atp = model.species_types.get_one(
                 id='atp').species.get_one(compartment=cytosol)
             adp = model.species_types.get_one(
-                id='adp').species.get_one(compartment=cytosol)
+                id='atp').species.get_one(compartment=cytosol)
             pi = model.species_types.get_one(
                 id='pi').species.get_one(compartment=cytosol)
             rxn.participants.add(

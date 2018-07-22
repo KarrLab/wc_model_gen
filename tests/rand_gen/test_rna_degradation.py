@@ -6,8 +6,7 @@
 :License: MIT
 """
 
-import rand_wc_model_gen
-from rand_wc_model_gen import kb_gen
+from wc_kb_gen import random
 from wc_model_gen.rand_gen import rna_degradation, metabolism
 import numpy
 import scipy
@@ -18,7 +17,7 @@ import wc_lang
 
 class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     def test(self):
-        kb = kb_gen.KbGenerator(options={
+        kb = random.RandomKbGenerator(options={
             'component': {
                 'PropertiesGenerator': {
                     'mean_volume': 1e-15,
@@ -36,12 +35,12 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             },
         }).run()
         cell = kb.cell
-        
+
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
 
         model = wc_lang.Model()
         met = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
-        met.run()        
+        met.run()
         gen = rna_degradation.RnaDegradationSubmodelGenerator(
             kb, model, options={})
         gen.run()

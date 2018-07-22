@@ -5,7 +5,7 @@
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
-from rand_wc_model_gen import kb_gen
+from wc_kb_gen import random
 from wc_model_gen import rand_gen
 import obj_model
 import unittest
@@ -15,7 +15,7 @@ import wc_utils.util.string
 
 class ModelGeneratorTestCase(unittest.TestCase):
     def test(self):
-        kb = kb_gen.KbGenerator(options={
+        kb = random.RnadomKbGenerator(options={
             'component': {
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
@@ -25,7 +25,6 @@ class ModelGeneratorTestCase(unittest.TestCase):
             },
         }).run()
         model = rand_gen.RandomModelGenerator(kb).run()
-       
 
         self.assertIsInstance(model.submodels.get_one(
             id='transcription'), wc_lang.Submodel)

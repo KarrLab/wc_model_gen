@@ -1,6 +1,6 @@
 downstream_dependencies:
   - mycoplasma_pneumoniae
-  - rand_wc_model_gen
+
 
 email_notifications:
   - jonrkarr@gmail.com

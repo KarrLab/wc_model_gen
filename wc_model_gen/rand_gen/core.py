@@ -11,7 +11,6 @@ from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
 from .translation import TranslationSubmodelGenerator
 from .protein_degradation import ProteinDegradationSubmodelGenerator
-import rand_wc_model_gen
 import wc_model_gen
 
 
@@ -39,6 +38,6 @@ class RandomModelGenerator(wc_model_gen.ModelGenerator):
         assert(isinstance(name, str) or name is None)
         options['name'] = name
 
-        version = options.get('version', rand_wc_model_gen.__version__)
+        version = options.get('version', wc_model_gen.__version__)
         assert(isinstance(version, str) or version is None)
         options['version'] = version

@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from rand_wc_model_gen import kb_gen
+from wc_kb_gen import random
 from wc_model_gen.rand_gen import metabolism
 import unittest
 import wc_lang
@@ -14,7 +14,7 @@ import wc_lang
 
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
     def test(self):
-        kb = kb_gen.KbGenerator(options={
+        kb = random.RandomKbGenerator(options={
             'component': {
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
@@ -49,4 +49,5 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         # check species types and species generated
         atp = model.species_types.get_one(id='atp')
         atp_cytosol = atp.species.get_one(compartment=cytosol)
-        self.assertEqual(atp_cytosol.concentration.units, wc_lang.ConcentrationUnit.M)
+        self.assertEqual(atp_cytosol.concentration.units,
+                         wc_lang.ConcentrationUnit.M)
