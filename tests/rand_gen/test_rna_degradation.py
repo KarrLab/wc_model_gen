@@ -95,17 +95,17 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             rnas[0].get_len() - 1)
 
         # check rate laws
-        '''for rna, rxn in zip(rnas, submodel.reactions):
+        deg_rnase = model.observables.get_one(id='deg_rnase_obs')
+        deg_rnase = deg_rnase.species[0].species.species_type
+        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
+        for rna, rxn in zip(rnas, submodel.reactions):
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression,
-                             'k_cat * {0}[c] / (k_m + {0}[c])'.format(rna.id))
-            self.assertEqual(rl.equation.modifiers, [
-                             rxn.participants[0].species])
+                '{0}[c] * (((k_cat * {1}[c]) / (k_m + {1}[c])) + {2})'.format(rna.id, deg_rnase.id, '0.1'))
+            self.assertEqual(rl.equation.modifiers, [deg_rnase.species.get_one(compartment=cytosol), rxn.participants[0].species])
             self.assertEqual(rl.equation.parameters, [])
-            self.assertEqual(rl.k_m, rna.concentration)
+            self.assertEqual(rl.k_m,deg_avg_conc)
+            self.assertEqual(rl.k_cat, 2 * numpy.log(2) / rna.half_life)
 
-        k_cats = [rxn.rate_laws[0].k_cat for rxn in submodel.reactions]
-        numpy.testing.assert_almost_equal(numpy.mean(
-            k_cats), 2. * numpy.log(2.) * (1. / 120.), decimal=2)'''
