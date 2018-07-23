@@ -46,7 +46,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 charge            = protein.get_charge(cds=False))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=100, units='molecules')
+            species.concentration = wc_lang.core.Concentration(value=1, units='uM')
 
             # Add inactive form of protein, attached to ribosome
             species_type = self.model.species_types.create(
@@ -59,7 +59,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 charge            = protein.get_charge(cds=False))
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=100, units=wc_lang.ConcentrationUnit.molecules)
+            species.concentration = wc_lang.core.Concentration(value=1000, units=wc_lang.ConcentrationUnit.molecules)
 
     def gen_reactions(self):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """

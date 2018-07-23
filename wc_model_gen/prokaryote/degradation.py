@@ -56,12 +56,12 @@ class DegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_specie_type_kb = kb.cell.species_types.get_one(id=rna_specie_type_model.id)
             rna_specie_model = model.species_types.get_one(id=rna_specie_type_model.id).species.get_one(compartment=compartment)
 
-            reaction = wc_lang.core.Reaction(id='degradation_' + rna.id, submodel=submodel)
+            reaction = wc_lang.core.Reaction(id='degradation_' + rna_specie_type_model.id, submodel=submodel)
             seq = rna_specie_type_kb.get_seq()
             reaction.participants=[]
 
             # Adding reaction participants LHS
-            reaction.participants.add(species=rna_specie_model, coefficient=-1)
+            reaction.participants.add(rna_specie_model.species_coefficients.get_or_create(coefficient=-1))
 
             # Adding reaction participants RHS
             reaction.participants.add(amp.species_coefficients.get_or_create(coefficient=seq.count('A')))
@@ -73,60 +73,69 @@ class DegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for protein_specie_type_model in self.model.species_types.get(type=2):
 
             protein_species_type_kb = kb.cell.species_types.get_one(id=protein_specie_type_model.id)
-            protein_specie_model = model.species_types.get_one(id=protein_specie_type_model.id).species.get_one(compartment=compartment)
+            #protein_specie_model = model.species_types.get_one(id=protein_specie_type_model.id).species.get_one(compartment=compartment)
 
-            for protein_specie_model in protein_specie_model.species:
+            for protein_specie_model in protein_specie_type_model.species:
                 seq = protein_species_type_kb.get_seq(cds=False)
-                compartment = specie.compartment
+                compartment = protein_specie_model.compartment
 
-                reaction = wc_lang.core.Reaction(id='degradation_' + specie.species_type.id, submodel=submodel)
+                reaction = wc_lang.core.Reaction(id='degradation_' +  protein_specie_model.species_type.id, submodel=submodel)
                 reaction.participants=[]
 
                 # Adding reaction participants LHS
-                reaction.participants.add(species=protein_specie_model, coefficient=-1)
+                reaction.participants.add(protein_specie_model.species_coefficients.get_or_create(coefficient=-1))
 
                 # Adding reaction participants RHS
-                reaction.participants.add(species=ala, coefficient=seq.count('A'))
-                reaction.participants.add(species=arg, coefficient=seq.count('R'))
-                reaction.participants.add(species=asn, coefficient=seq.count('N'))
-                reaction.participants.add(species=asp, coefficient=seq.count('D'))
-                reaction.participants.add(species=cys, coefficient=seq.count('C'))
-                reaction.participants.add(species=gln, coefficient=seq.count('Q'))
-                reaction.participants.add(species=glu, coefficient=seq.count('E'))
-                reaction.participants.add(species=gly, coefficient=seq.count('G'))
-                reaction.participants.add(species=his, coefficient=seq.count('H'))
-                reaction.participants.add(species=ile, coefficient=seq.count('I'))
-                reaction.participants.add(species=leu, coefficient=seq.count('L'))
-                reaction.participants.add(species=lys, coefficient=seq.count('K'))
-                reaction.participants.add(species=met, coefficient=seq.count('M'))
-                reaction.participants.add(species=phe, coefficient=seq.count('F'))
-                reaction.participants.add(species=pro, coefficient=seq.count('P'))
-                reaction.participants.add(species=ser, coefficient=seq.count('S'))
-                reaction.participants.add(species=thr, coefficient=seq.count('T'))
-                reaction.participants.add(species=trp, coefficient=seq.count('W'))
-                reaction.participants.add(species=tyr, coefficient=seq.count('Y'))
-                reaction.participants.add(species=val, coefficient=seq.count('V'))
+                reaction.participants.add(ala.species_coefficients.get_or_create(coefficient=seq.count('A')))
+                reaction.participants.add(arg.species_coefficients.get_or_create(coefficient=seq.count('R')))
+                reaction.participants.add(asn.species_coefficients.get_or_create(coefficient=seq.count('N')))
+                reaction.participants.add(asp.species_coefficients.get_or_create(coefficient=seq.count('D')))
+                reaction.participants.add(cys.species_coefficients.get_or_create(coefficient=seq.count('C')))
+                reaction.participants.add(gln.species_coefficients.get_or_create(coefficient=seq.count('Q')))
+                reaction.participants.add(glu.species_coefficients.get_or_create(coefficient=seq.count('E')))
+                reaction.participants.add(gly.species_coefficients.get_or_create(coefficient=seq.count('G')))
+                reaction.participants.add(his.species_coefficients.get_or_create(coefficient=seq.count('H')))
+                reaction.participants.add(ile.species_coefficients.get_or_create(coefficient=seq.count('I')))
+                reaction.participants.add(leu.species_coefficients.get_or_create(coefficient=seq.count('L')))
+                reaction.participants.add(lys.species_coefficients.get_or_create(coefficient=seq.count('K')))
+                reaction.participants.add(met.species_coefficients.get_or_create(coefficient=seq.count('M')))
+                reaction.participants.add(phe.species_coefficients.get_or_create(coefficient=seq.count('F')))
+                reaction.participants.add(pro.species_coefficients.get_or_create(coefficient=seq.count('P')))
+                reaction.participants.add(ser.species_coefficients.get_or_create(coefficient=seq.count('S')))
+                reaction.participants.add(thr.species_coefficients.get_or_create(coefficient=seq.count('T')))
+                reaction.participants.add(trp.species_coefficients.get_or_create(coefficient=seq.count('W')))
+                reaction.participants.add(tyr.species_coefficients.get_or_create(coefficient=seq.count('Y')))
+                reaction.participants.add(val.species_coefficients.get_or_create(coefficient=seq.count('V')))
 
     def gen_rate_laws(self):
+
         submodel = self.submodel
+        compartment = self.model.compartments.get_one(id='c')
 
         for reaction in submodel.reactions:
-            exp = 'k_cat'
+            exp= 'k_cat'
             mod = []
+            rate_eq = None
 
             for participant in reaction.participants:
                 if participant.coefficient > 0:
                     continue
 
                 if participant.coefficient < 0:
-                    compartment = participant.species.compartment
                     exp = exp + ' * (' + participant.species.id() + '/ (k_m + ' + participant.species.id() + '))'
                     mod.append(self.model.species_types.get_one(
                         id=participant.species.species_type.id).species.get_one(compartment=compartment))
 
-            rate_eq = wc_lang.core.RateLawEquation(expression=exp, modifiers=mod)
+            for rxn in submodel.reactions:
+              for rl in rxn.rate_laws:
+                  if rl.equation.expression == exp:
+                      rate_eq = rl.equation
+
+            if rate_eq is None:
+              rate_eq = wc_lang.core.RateLawEquation(expression=exp, modifiers=mod)
+
             rate_law = wc_lang.core.RateLaw(reaction=reaction,
-                                            direction=wc_lang.core.RateLawDirection.forward,
-                                            equation=rate_eq,
-                                            k_cat=1,
-                                            k_m=1)
+                                          direction=wc_lang.core.RateLawDirection.forward,
+                                          equation=rate_eq,
+                                          k_cat=10,
+                                          k_m=1)

@@ -27,6 +27,7 @@ class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
             ('GMP', 'C10H12N5O8P', -2, 361.207),
             ('UMP', 'C9H11N2O9P', -2, 322.166),
 
+            # Add amino acids
             # CHARGE VALUES ARE PLACEHOLDERS! - IT IS PH DEPENDENT, NEED TO RESERACH BIOCHEM
             ('Ala', 'C3H7NO2', 0, 89.0935), #Alanine
             ('Arg', 'C6H14N4O2', 0, 174.2017), #Arginine
@@ -60,11 +61,15 @@ class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
 
         for id, formula, charge, molecular_weight in species_types:
             species_type = self.model.species_types.create(id=id, empirical_formula=formula, charge=charge, molecular_weight=molecular_weight)
-            species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=5000, units=wc_lang.ConcentrationUnit.molecules)
+            specie = species_type.species.create(compartment=compartment)
+            specie.concentration = wc_lang.core.Concentration(value=0.005, units=wc_lang.ConcentrationUnit.uM)
 
-        # Add water to extracellular space so it does not have 0 mass density
+        # Add water to extracellular space so compartment 'e' does not have 0 mass
         compartment = self.model.compartments.get_one(id='e')
-        species_type = self.model.species_types.get_one(id='H2O')
-        species = species_type.species.create(compartment=compartment)
-        species.concentration = wc_lang.core.Concentration(value=50000, units=wc_lang.ConcentrationUnit.molecules)
+        specie = self.model.species_types.get_one(id='H2O').species.create(compartment=compartment)
+        specie.concentration = wc_lang.core.Concentration(value=2, units=wc_lang.ConcentrationUnit.uM)
+
+        # Add extra water to intracellular space
+        compartment = self.model.compartments.get_one(id='c')
+        specie = self.model.species_types.get_one(id='H2O').species.get_one(compartment=compartment)
+        specie.concentration.value = 0.05
