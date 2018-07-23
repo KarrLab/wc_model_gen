@@ -1,6 +1,7 @@
 """ Tests of transcription submodel generation
 
 :Author: Jonathan Karr <karr@mssm.edu>
+         Ashwin Srinivasan <ashwins@mit.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT

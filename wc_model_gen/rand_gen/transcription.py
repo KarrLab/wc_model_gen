@@ -1,6 +1,7 @@
 """ Generator for transcription submodels based on KBs for random in silico organisms
 
 :Author: Jonathan Karr <karr@mssm.edu>
+         Ashwin Srinivasan
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT

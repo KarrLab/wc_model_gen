@@ -11,6 +11,7 @@ import wc_kb
 import wc_lang
 import wc_model_gen
 import random
+import numpy
 
 
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -265,61 +266,61 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate the rate laws associate dwith reactions """
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
+        cell = self.knowledge_base.cell
+
+        mean_volume = cell.properties.get_one(id='mean_volume').value
+        mean_doubling_time = cell.properties.get_one(id='mean_doubling_time').value
 
         IF = self.model.observables.get_one(
             id='IF_obs')
         IF = IF.species[0].species.species_type
+        IF_avg_conc = 0.05 #placeholder
         EF = self.model.observables.get_one(
             id='EF_obs')
         EF = EF.species[0].species.species_type
+        EF_avg_conc = 0.05 #placeholder
         RF = self.model.observables.get_one(
             id='RF_obs')
         RF = RF.species[0].species.species_type
+        RF_avg_conc = 0.05 #placeholder
+
+        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
+        exp = 'k_cat'
+        mod = []
+        mod.append(IF.species.get_one(compartment = compartment))
+        init_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(IF.id) + \
+                  '/ (k_m +{}[c]))'.format(IF.id), modifiers = mod)
+        mod = []
+        mod.append(EF.species.get_one(compartment = compartment))
+        elon_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(EF.id) + \
+                  '/ (k_m +{}[c]))'.format(EF.id), modifiers = mod)
+
+
+        mod = []
+        mod.append(RF.species.get_one(compartment = compartment))
+        term_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(RF.id) + \
+                                               '/ (k_m +{}[c]))'.format(RF.id), modifiers = mod)
+
         
-
-        for reaction in submodel.reactions:
-            exp = 'k_cat'
-            mod = []
-
-            rate_eq = None
-
-            for participant in reaction.participants:
-                if participant.coefficient > 0:
-                    continue
-
-                if participant.coefficient < 0:
-                    exp = exp + ' * (' + participant.species.id() + \
-                        '/ (k_m + ' + participant.species.id() + '))'
-                    mod.append(self.model.species_types.get_one(
-                        id=participant.species.species_type.id).species.get_one(compartment=compartment))
+        
+        for prot, reaction in zip(prots, self.submodel.reactions):
+            rl = reaction.rate_laws.create()
+            print(reaction.rate_laws)
+            rl.direction = wc_lang.RateLawDirection.forward
+            rl.k_cat = 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / mean_doubling_time)
 
             if reaction.id.startswith('translation_init_'):
-                        exp = exp + ' * ({}[c]'.format(IF.id) + \
-                            '/ (k_m +{}[c]))'.format(IF.id)
-                        mod.append(IF.species.get_one(compartment = compartment))
+                        rl.equation = init_eq
+                        rl.k_m = IF_avg_conc
                     
             elif reaction.id.startswith('translation_elon_'):
-                    exp = exp + ' * ({}[c]'.format(EF.id) + \
-                        '/ (k_m +{}[c]))'.format(EF.id)
-                    mod.append(EF.species.get_one(compartment = compartment))
+                    rl.equation = elon_eq
+                    rl.k_m = EF_avg_conc
 
             else:
-                    exp = exp + ' * ({}[c]'.format(RF.id) + \
-                        '/ (k_m +{}[c]))'.format(RF.id)
-                    mod.append(RF.species.get_one(compartment = compartment))
-                
+                    rl.equation = term_eq
+                    rl.k_m = RF_avg_conc
 
-            for rxn in submodel.reactions:
-                for rl in rxn.rate_laws:
-                    if rl.equation.expression == exp:
-                        rate_eq = rl.equation
+            
 
-            if rate_eq is None:
-                rate_eq = wc_lang.core.RateLawEquation(
-                    expression=exp, modifiers=mod)
 
-            rate_law = wc_lang.core.RateLaw(reaction=reaction,
-                                            direction=wc_lang.core.RateLawDirection.forward,
-                                            equation=rate_eq,
-                                            k_cat=1,
-                                            k_m=1)

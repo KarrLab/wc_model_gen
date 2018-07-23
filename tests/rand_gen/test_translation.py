@@ -1,4 +1,10 @@
+""" Testing Translation Submodel Generator
 
+:Author: Ashwin Srinivasan <ashwins@mit.edu> 
+:Date: 2018-07-23
+:Copyright: 2018, Karr Lab
+:License: MIT
+"""
 
 from wc_kb_gen import random
 from wc_model_gen.rand_gen import translation, metabolism
@@ -105,17 +111,22 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                         self.assertEqual(participant.coefficient, -1)
 
         # check rate laws
-        '''for rxn in submodel.reactions:
-            exp = 'k_cat'
-            for participant in rxn.participants:
-                if participant.coefficient < 0:
-                    exp = exp + ' * (' + participant.species.id() + \
-                        '/ (k_m + ' + participant.species.id() + '))'
-
+        for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
+            if rxn.id.startswith('translation_init_'):
+                exp = 'k_cat * (IF[c]' + \
+                      '/ (k_m +IF[c]))'
+                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='IF').species.get_one(compartment=cytosol)])
+            elif reaction.id.startswith('translation_elon_'):
+                exp = 'k_cat * (EF[c]' + \
+                      '/ (k_m +EF[c]))'
+                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='EF').species.get_one(compartment=cytosol)])
+            else:
+                exp = 'k_cat * (RF[c]' + \
+                      '/ (k_m +RF[c]))'
+                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='RF').species.get_one(compartment=cytosol)])
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression, exp)
             self.assertEqual(rl.equation.parameters, [])
-            self.assertEqual(rl.k_m, 1)
-            self.assertEqual(rl.k_cat, 1)'''
+            self.assertEqual(rl.k_m, 0.05)
