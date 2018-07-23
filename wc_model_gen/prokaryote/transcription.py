@@ -27,7 +27,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 type=wc_lang.SpeciesTypeType.rna)
 
             species = species_type.species.create(compartment=compartment)
-            species.concentration = wc_lang.core.Concentration(value=1000, units=wc_lang.ConcentrationUnit.molecules)
+            species.concentration = wc_lang.core.Concentration(value=0.00001, units=wc_lang.ConcentrationUnit.uM)
 
     def gen_reactions(self):
         submodel = self.submodel
@@ -90,5 +90,5 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law = wc_lang.core.RateLaw(reaction=reaction,
                                             direction=wc_lang.core.RateLawDirection.forward,
                                             equation=rate_eq,
-                                            k_cat=10,
+                                            k_cat=1,
                                             k_m=1)
