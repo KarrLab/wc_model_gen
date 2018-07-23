@@ -15,7 +15,7 @@ import wc_utils.util.string
 
 class ModelGeneratorTestCase(unittest.TestCase):
     def test(self):
-        kb = random.RnadomKbGenerator(options={
+        kb = random.RandomKbGenerator(options={
             'component': {
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
