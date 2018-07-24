@@ -44,6 +44,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         submodel = model.submodels.get_one(id='translation')
 
+
         # check compartments generated
         cytosol = model.compartments.get_one(id='c')
         self.assertEqual(cytosol.name, 'cytosol')
@@ -109,7 +110,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                 for participant in reaction.participants:
                     if participant.species.species_type.id == prot.id+'_att':
                         self.assertEqual(participant.coefficient, -1)
-
+                        
         # check rate laws
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
@@ -118,7 +119,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                 exp = 'k_cat * (IF[c]' + \
                       '/ (k_m +IF[c]))'
                 self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='IF').species.get_one(compartment=cytosol)])
-            elif reaction.id.startswith('translation_elon_'):
+            elif rxn.id.startswith('translation_elon_'):
                 exp = 'k_cat * (EF[c]' + \
                       '/ (k_m +EF[c]))'
                 self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='EF').species.get_one(compartment=cytosol)])
