@@ -271,31 +271,28 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         IF = self.model.observables.get_one(
             id='IF_obs')
-        IF = IF.species[0].species.species_type
         IF_avg_conc = 0.05 #placeholder
         EF = self.model.observables.get_one(
             id='EF_obs')
-        EF = EF.species[0].species.species_type
         EF_avg_conc = 0.05 #placeholder
         RF = self.model.observables.get_one(
             id='RF_obs')
-        RF = RF.species[0].species.species_type
         RF_avg_conc = 0.05 #placeholder
 
         exp = 'k_cat'
         
-        init_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(IF.id) + \
-                  '/ (k_m +{}[c]))'.format(IF.id))
-        init_eq.modifiers.append(IF.species.get_one(compartment = compartment))
+        init_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(IF.id) + \
+                  '/ (k_m +{}))'.format(IF.id))
+        init_eq.parameters.append(IF)
 
-        elon_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(EF.id) + \
-                  '/ (k_m +{}[c]))'.format(EF.id))
-        elon_eq.modifiers.append(EF.species.get_one(compartment = compartment))
+        elon_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(EF.id) + \
+                  '/ (k_m +{}))'.format(EF.id))
+        elon_eq.parameters.append(EF)
 
 
-        term_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}[c]'.format(RF.id) + \
-                                               '/ (k_m +{}[c]))'.format(RF.id))
-        term_eq.modifiers.append(RF.species.get_one(compartment = compartment))
+        term_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(RF.id) + \
+                                               '/ (k_m +{}))'.format(RF.id))
+        term_eq.parameters.append(RF)
 
         for reaction in self.submodel.reactions:
             if reaction.id.startswith('translation_init_'):

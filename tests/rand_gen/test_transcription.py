@@ -101,14 +101,13 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         rna_poly = model.observables.get_one(
             id='rna_poly_obs')
-        rna_poly = rna_poly.species[0].species
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume #http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         # check rate laws
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
             self.assertEqual(rl.direction.name, 'forward')
-            self.assertEqual(rl.equation.expression, '(((k_cat * rna_poly[c]) / (k_m + rna_poly[c])))')
-            self.assertEqual(rl.equation.modifiers, [rna_poly])
-            self.assertEqual(rl.equation.parameters, [])
+            self.assertEqual(rl.equation.expression, '(((k_cat * rna_poly_obs) / (k_m + rna_poly_obs)))')
+            self.assertEqual(rl.equation.modifiers, [])
+            self.assertEqual(rl.equation.parameters, [rna_poly])
             numpy.testing.assert_equal(rl.k_m, poly_avg_conc)

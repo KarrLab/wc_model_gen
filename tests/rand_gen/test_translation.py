@@ -116,27 +116,27 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
             if rxn.id.startswith('translation_init_'):
-                exp = 'k_cat * (IF[c]' + \
-                      '/ (k_m +IF[c]))'
-                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='IF').species.get_one(compartment=cytosol)])
+                exp = 'k_cat * (IF_obs' + \
+                      '/ (k_m +IF_obs))'
+                self.assertEqual(rl.equation.parameters, [model.observables.get_one(id='IF_obs')])
                 prot_id = rxn.id[rxn.id.find('init_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
                 self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             elif rxn.id.startswith('translation_elon_'):
-                exp = 'k_cat * (EF[c]' + \
-                      '/ (k_m +EF[c]))'
-                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='EF').species.get_one(compartment=cytosol)])
+                exp = 'k_cat * (EF_obs' + \
+                      '/ (k_m +EF_obs))'
+                self.assertEqual(rl.equation.parameters, [model.observables.get_one(id='EF_obs')])
                 prot_id = rxn.id[rxn.id.find('elon_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
                 self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             else:
-                exp = 'k_cat * (RF[c]' + \
-                      '/ (k_m +RF[c]))'
-                self.assertEqual(rl.equation.modifiers, [model.species_types.get_one(id='RF').species.get_one(compartment=cytosol)])
+                exp = 'k_cat * (RF_obs' + \
+                      '/ (k_m +RF_obs))'
+                self.assertEqual(rl.equation.parameters, [model.observables.get_one(id='RF_obs')])
                 prot_id = rxn.id[rxn.id.find('term_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
                 self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression, exp)
-            self.assertEqual(rl.equation.parameters, [])
+            self.assertEqual(rl.equation.modifiers, [])
             self.assertEqual(rl.k_m, 0.05)

@@ -81,19 +81,15 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # check rate laws
         deg_protease = model.observables.get_one(id='deg_protease_obs')
-        deg_protease = deg_protease.species[0].species.species_type
         deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
         for prot, rxn in zip(prots, submodel.reactions):
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression,
-                '{0}[c] * (((k_cat * {1}[c]) / (k_m + {1}[c])) + {2})'.format(prot.id, deg_protease.id, '0.1'))
-            if prot.id != deg_protease.id:
-                self.assertEqual(rl.equation.modifiers, [deg_protease.species.get_one(compartment=cytosol), rxn.participants[0].species])
-            else:
-                self.assertEqual(rl.equation.modifiers, [rxn.participants[0].species])
-            self.assertEqual(rl.equation.parameters, [])
+                '{0}[c] * (((k_cat * deg_protease_obs) / (k_m + deg_protease_obs)) + 0.1)'.format(prot.id))
+            self.assertEqual(rl.equation.modifiers, [rxn.participants[0].species])
+            self.assertEqual(rl.equation.parameters, [deg_protease])
             self.assertEqual(rl.k_m,deg_avg_conc)
             self.assertEqual(rl.k_cat, 2 * numpy.log(2) / prot.half_life)
 

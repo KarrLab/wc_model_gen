@@ -140,9 +140,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume #http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         rna_poly = self.model.observables.get_one(
             id='rna_poly_obs')
-        rna_poly = rna_poly.species[0].species.species_type
-        exp='(((k_cat * {}[c]) / (k_m + {}[c])))'.format(rna_poly.id, rna_poly.id)
+        exp='(((k_cat * {}) / (k_m + {})))'.format(rna_poly.id, rna_poly.id)
         equation = wc_lang.RateLawEquation(expression = exp)
+        equation.parameters.append(
+                rna_poly)
         
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
@@ -151,5 +152,3 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl.direction = wc_lang.RateLawDirection.forward
             rl.k_cat = 2 * (numpy.log(2) / rna.half_life + numpy.log(2) / mean_doubling_time)
             rl.k_m = poly_avg_conc
-            rl.equation.modifiers.append(
-                rna_poly.species.get_one(compartment=cytosol))
