@@ -62,14 +62,14 @@ class MetaboliteSpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         for id, formula, charge, molecular_weight in species_types:
             species_type = self.model.species_types.create(id=id, empirical_formula=formula, charge=charge, molecular_weight=molecular_weight)
             specie = species_type.species.create(compartment=compartment)
-            specie.concentration = wc_lang.core.Concentration(value=0.005, units=wc_lang.ConcentrationUnit.uM)
+            specie.concentration = wc_lang.core.Concentration(value=5E-8, units=wc_lang.ConcentrationUnit.uM)
 
         # Add water to extracellular space so compartment 'e' does not have 0 mass
         compartment = self.model.compartments.get_one(id='e')
         specie = self.model.species_types.get_one(id='H2O').species.create(compartment=compartment)
-        specie.concentration = wc_lang.core.Concentration(value=2, units=wc_lang.ConcentrationUnit.uM)
+        specie.concentration = wc_lang.core.Concentration(value=1E-5, units=wc_lang.ConcentrationUnit.uM)
 
         # Add extra water to intracellular space
         compartment = self.model.compartments.get_one(id='c')
         specie = self.model.species_types.get_one(id='H2O').species.get_one(compartment=compartment)
-        specie.concentration.value = 0.05
+        specie.concentration.value = 1E-6
