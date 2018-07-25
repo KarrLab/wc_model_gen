@@ -127,7 +127,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             atp = model.species_types.get_one(
                 id='atp').species.get_one(compartment=cytosol)
             adp = model.species_types.get_one(
-                id='atp').species.get_one(compartment=cytosol)
+                id='adp').species.get_one(compartment=cytosol)
             pi = model.species_types.get_one(
                 id='pi').species.get_one(compartment=cytosol)
             rxn.participants.add(
@@ -142,7 +142,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 id='h2o').species.get_one(compartment=cytosol)
 
             rxn.participants.add(
-                h2o.species_coefficients.get_or_create(coefficient=-len(seq)))
+                h2o.species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
 
             # The 20 amino acids
             amino_acids = ['ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his',
