@@ -15,6 +15,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_species(self):
         compartment = self.model.compartments.get_one(id='c')
+        
         for rna in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.RnaSpeciesType):
 
             species_type = self.model.species_types.create(

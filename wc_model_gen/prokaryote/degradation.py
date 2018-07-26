@@ -109,8 +109,8 @@ class DegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_rate_laws(self):
 
-        submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
+        submodel = self.submodel
 
         for reaction in submodel.reactions:
             exp= 'k_cat'

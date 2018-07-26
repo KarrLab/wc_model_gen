@@ -18,10 +18,11 @@ import wc_model_gen
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
-    def gen_species(self):
+    def gen_species(self, fraction=1):
         """ Generate a set of 2 protein species (_att: attached to ribosome and acitve form) for each protein """
-        submodel = self.submodel
+        upper_index_limit = round(fraction*len(self.knowledge_base.cell.species_types.get(__type = wc_kb.core.RnaSpeciesType)))
         compartment = self.model.compartments.get_one(id='c')
+        submodel = self.submodel
 
         # Initiate ribosome species types (complexes)
         species_type = self.model.species_types.create(id='complex_70S_IA', name='complex_70S_IA', type=5)
@@ -33,7 +34,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         species.concentration = wc_lang.core.Concentration(value=3000, units='molecules')
 
         # Create both functional and afunctional forms (_att: attached to RNA) of every protein in KB
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)[0:upper_index_limit]:
 
             # Add functional form of protein
             species_type = self.model.species_types.create(
@@ -61,11 +62,11 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             species = species_type.species.create(compartment=compartment)
             species.concentration = wc_lang.core.Concentration(value=1000, units=wc_lang.ConcentrationUnit.molecules)
 
-    def gen_reactions(self):
+    def gen_reactions(self, fraction=1):
         """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """
-
-        submodel = self.submodel
+        upper_index_limit = round(fraction*len(self.knowledge_base.cell.species_types.get(__type = wc_kb.core.RnaSpeciesType)))
         compartment = self.model.compartments.get_one(id='c')
+        submodel = self.submodel
 
         amino_acids = {'S': ['tRNA-Ser', 'Rna_MPNt09', 'Rna_MPNt24', 'Rna_MPNt25', 'Rna_MPNt26', 'Rna_MPNt03'],
                        'L': ['tRNA-Leu', 'Rna_MPNt19', 'Rna_MPNt27', 'Rna_MPNt35', 'Rna_MPNt36'],
@@ -89,7 +90,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                        'D': ['tRNA-Asp', 'Rna_MPNt11']}
 
         # Add translation initating reactions
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)[0:upper_index_limit]:
             reaction = wc_lang.core.Reaction(id='translation_init_' + protein.id, submodel=submodel)
             reaction.participants=[]
 
@@ -123,7 +124,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation elongation reactions
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)[0:upper_index_limit]:
             reaction = wc_lang.core.Reaction(id='translation_elon_' + protein.id, submodel=submodel)
             n_steps = len(protein.get_seq(cds=False))
             reaction.participants=[]
@@ -159,7 +160,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(specie.species_coefficients.get_or_create(coefficient=2*n_steps))
 
         # Add translation termination reactions
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)[0:upper_index_limit]:
             reaction = wc_lang.core.Reaction(id='translation_term_' + protein.id, submodel=submodel)
             n_steps = len(protein.get_seq(cds=False))
             reaction.participants=[]
