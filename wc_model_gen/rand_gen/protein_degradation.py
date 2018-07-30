@@ -177,5 +177,5 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
             rl.k_m = proteosome_conc
-            rl.equation.parameters.append(deg_protease)
+            rl.equation.observables.append(deg_protease)
             rl.equation.modifiers.append(rxn.participants[0].species)

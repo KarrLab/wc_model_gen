@@ -159,5 +159,5 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(rna.id, deg_rnase.id, '0.1'))
             rl.k_cat = 2 * numpy.log(2) / rna.half_life
             rl.k_m = deg_avg_conc
-            rl.equation.parameters.append(deg_rnase)
+            rl.equation.observables.append(deg_rnase)
             rl.equation.modifiers.append(rxn.participants[0].species)

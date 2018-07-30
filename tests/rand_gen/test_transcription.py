@@ -26,7 +26,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
                 },
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
-                    'mean_num_genes': 100.,
+                    'mean_num_genes': 200.,
                     'mean_gene_len': 10.,
                     'mean_copy_number': 10.,
                     'mean_half_life': 120.,
@@ -109,5 +109,5 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression, '(((k_cat * rna_poly_obs) / (k_m + rna_poly_obs)))')
             self.assertEqual(rl.equation.modifiers, [])
-            self.assertEqual(rl.equation.parameters, [rna_poly])
+            self.assertEqual(rl.equation.observables, [rna_poly])
             numpy.testing.assert_equal(rl.k_m, poly_avg_conc)

@@ -19,7 +19,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
             'component': {
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
-                    'mean_num_genes': 100,
+                    'mean_num_genes': 200,
                     'mean_gene_len': 10,
                 },
             },

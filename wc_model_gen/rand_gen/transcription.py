@@ -1,7 +1,7 @@
 """ Generator for transcription submodels based on KBs for random in silico organisms
 
 :Author: Jonathan Karr <karr@mssm.edu>
-         Ashwin Srinivasan
+         Ashwin Srinivasan <ashwins@mit.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -142,7 +142,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             id='rna_poly_obs')
         exp='(((k_cat * {}) / (k_m + {})))'.format(rna_poly.id, rna_poly.id)
         equation = wc_lang.RateLawEquation(expression = exp)
-        equation.parameters.append(
+        equation.observables.append(
                 rna_poly)
         
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)

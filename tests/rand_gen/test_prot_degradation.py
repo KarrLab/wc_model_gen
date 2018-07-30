@@ -25,7 +25,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 },
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
-                    'mean_num_genes': 100.,
+                    'mean_num_genes': 200.,
                     'mean_gene_len': 10.,
                     'mean_copy_number': 10.,
                     'mean_half_life': 120.,
@@ -89,7 +89,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(rl.equation.expression,
                 '{0}[c] * (((k_cat * deg_protease_obs) / (k_m + deg_protease_obs)) + 0.1)'.format(prot.id))
             self.assertEqual(rl.equation.modifiers, [rxn.participants[0].species])
-            self.assertEqual(rl.equation.parameters, [deg_protease])
+            self.assertEqual(rl.equation.observables, [deg_protease])
             self.assertEqual(rl.k_m,deg_avg_conc)
             self.assertEqual(rl.k_cat, 2 * numpy.log(2) / prot.half_life)
 

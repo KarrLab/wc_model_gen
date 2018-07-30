@@ -125,28 +125,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         prots = self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
 
-        amino_acids = {}
-        amino_acids['S'] = 'tRNA_Ser'
-        amino_acids['L'] = 'tRNA_Leu'
-        amino_acids['R'] = 'tRNA_Arg'
-        amino_acids['T'] = 'tRNA_Thr'
-        amino_acids['G'] = 'tRNA_Gly'
-        amino_acids['F'] = 'tRNA_Phe'
-        amino_acids['W'] = 'tRNA_Trp'
-        amino_acids['K'] = 'tRNA_Lys'
-        amino_acids['I'] = 'tRNA_Ile'
-        amino_acids['A'] = 'tRNA_Ala'
-        amino_acids['M'] = 'tRNA_Met'
-        amino_acids['Q'] = 'tRNA_Gln'
-        amino_acids['E'] = 'tRNA_Glu'
-        amino_acids['P'] = 'tRNA_Pro'
-        amino_acids['V'] = 'tRNA_Val'
-        amino_acids['C'] = 'tRNA_Cys'
-        amino_acids['Y'] = 'tRNA_Tyr'
-        amino_acids['H'] = 'tRNA_His'
-        amino_acids['N'] = 'tRNA_Asn'
-        amino_acids['D'] = 'tRNA_Asp'
-
         # Add translation initating reactions
         for protein in prots:
                 reaction = submodel.reactions.get_or_create(id='translation_init_' + protein.id)
@@ -192,16 +170,17 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     id='gtp').species.get_one(compartment=compartment)
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-2 * n_steps))
-
-                for letter in list(set(str(protein.get_seq()))):
-                    if letter == '*':
-                        continue
-
-                    n = protein.get_seq().tostring().count(letter)
-                    specie = self.model.observables.get_one(
-                        id=amino_acids[letter]+'_obs').species[0].species
-                    reaction.participants.add(
-                        specie.species_coefficients.get_or_create(coefficient=-n))
+                bases = "TCAG"
+                codons = [a + b + c for a in bases for b in bases for c in bases]
+                
+                for codon in codons:
+                    n = str(protein.gene.get_seq()).count(codon)
+                    if n > 0:
+                        obs = self.model.observables.get_one(
+                            id='tRNA_'+codon+'_obs')
+                        specie = obs.species[0].species
+                        reaction.participants.add(
+                            specie.species_coefficients.get_or_create(coefficient=-n))
 
                 # Adding reaction participants RHS
                 specie = self.model.species_types.get_one(
@@ -283,16 +262,16 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
         init_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(IF.id) + \
                   '/ (k_m +{}))'.format(IF.id))
-        init_eq.parameters.append(IF)
+        init_eq.observables.append(IF)
 
         elon_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(EF.id) + \
                   '/ (k_m +{}))'.format(EF.id))
-        elon_eq.parameters.append(EF)
+        elon_eq.observables.append(EF)
 
 
         term_eq = wc_lang.core.RateLawEquation(expression = exp + ' * ({}'.format(RF.id) + \
                                                '/ (k_m +{}))'.format(RF.id))
-        term_eq.parameters.append(RF)
+        term_eq.observables.append(RF)
 
         for reaction in self.submodel.reactions:
             if reaction.id.startswith('translation_init_'):
