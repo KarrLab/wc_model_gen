@@ -78,13 +78,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_species = model_species_type.species.get_one(
                         compartment=model.compartments.get_one(id=kb_compartment.id))
                     model_coefficient = kb_species_coefficient.coefficient
-                    model_species_coefficient = wc_lang.SpeciesCoefficient()
-                    model_species_coefficient.species = model_species
-                    model_species_coefficient.coefficient = model_coefficient
-
+                    model_species_coefficient = model_species.species_coefficients.get_or_create(coefficient = model_coefficient)
                     model_observable.species.append(model_species_coefficient)
                     
-                    model_species.species_coefficients.get_or_create(coefficient = model_coefficient)
 
                 for kb_observable_observable in kb_observable.observables:
                     model_observable_observable = model.observables.get_or_create(

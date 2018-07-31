@@ -104,10 +104,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_species = model_species_type.species.get_one(
                         compartment=model.compartments.get_one(id=kb_compartment.id))
                     model_coefficient = kb_species_coefficient.coefficient
-                    model_species_coefficient = wc_lang.SpeciesCoefficient()
-                    model_species_coefficient.species = model_species
-                    model_species_coefficient.coefficient = model_coefficient
-
+                    model_species_coefficient = model_species.species_coefficients.get_or_create(coefficient = model_coefficient)
                     model_observable.species.append(model_species_coefficient)
 
                 for kb_observable_observable in kb_observable.observables:
@@ -174,13 +171,14 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 codons = [a + b + c for a in bases for b in bases for c in bases]
                 
                 for codon in codons:
-                    n = str(protein.gene.get_seq()).count(codon)
-                    if n > 0:
-                        obs = self.model.observables.get_one(
-                            id='tRNA_'+codon+'_obs')
-                        specie = obs.species[0].species
-                        reaction.participants.add(
-                            specie.species_coefficients.get_or_create(coefficient=-n))
+                    if codon not in ['TAG', 'TAA', 'TGA']:
+                        n = str(protein.gene.get_seq()).count(codon)
+                        if n > 0:
+                            obs = self.model.observables.get_one(
+                                id='tRNA_'+codon+'_obs')
+                            specie = obs.species[0].species
+                            reaction.participants.add(
+                                specie.species_coefficients.get_or_create(coefficient=-n))
 
                 # Adding reaction participants RHS
                 specie = self.model.species_types.get_one(
