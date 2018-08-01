@@ -24,7 +24,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
                 },
             },
         }).run()
-        model = prokaryote.PrkaryoteModelGenerator(kb).run()
+        model = prokaryote.ProkaryoteModelGenerator(kb).run()
 
         self.assertIsInstance(model.submodels.get_one(
             id='transcription'), wc_lang.Submodel)
