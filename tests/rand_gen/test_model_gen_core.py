@@ -6,7 +6,7 @@
 :License: MIT
 """
 from wc_kb_gen import random
-from wc_model_gen import rand_gen
+from wc_model_gen import prokaryote
 import obj_model
 import unittest
 import wc_lang
@@ -24,7 +24,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
                 },
             },
         }).run()
-        model = rand_gen.RandomModelGenerator(kb).run()
+        model = prokaryote.PrkaryoteModelGenerator(kb).run()
 
         self.assertIsInstance(model.submodels.get_one(
             id='transcription'), wc_lang.Submodel)

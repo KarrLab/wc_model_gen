@@ -7,7 +7,7 @@
 """
 
 from wc_kb_gen import random
-from wc_model_gen.rand_gen import rna_degradation, metabolism
+from wc_model_gen.prokaryote import rna_degradation, metabolism
 import numpy
 import scipy
 import unittest
@@ -102,9 +102,9 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             rl = rxn.rate_laws[0]
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression,
-                '{0}[c] * (((k_cat * deg_rnase_obs) / (k_m + deg_rnase_obs)) + 0.1)'.format(rna.id))
-            self.assertEqual(rl.equation.modifiers, [rxn.participants[0].species])
+                             '{0}[c] * (((k_cat * deg_rnase_obs) / (k_m + deg_rnase_obs)) + 0.1)'.format(rna.id))
+            self.assertEqual(rl.equation.modifiers, [
+                             rxn.participants[0].species])
             self.assertEqual(rl.equation.observables, [deg_rnase])
-            self.assertEqual(rl.k_m,deg_avg_conc)
+            self.assertEqual(rl.k_m, deg_avg_conc)
             self.assertEqual(rl.k_cat, 2 * numpy.log(2) / rna.half_life)
-

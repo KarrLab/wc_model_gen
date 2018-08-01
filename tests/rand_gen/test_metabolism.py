@@ -7,7 +7,7 @@
 """
 
 from wc_kb_gen import random
-from wc_model_gen.rand_gen import metabolism
+from wc_model_gen.prokaryote import metabolism
 import unittest
 import wc_lang
 

@@ -7,7 +7,7 @@
 """
 
 from wc_kb_gen import random
-from wc_model_gen.rand_gen import translation, metabolism
+from wc_model_gen.prokaryote import translation, metabolism
 import numpy
 import scipy
 import unittest
@@ -43,7 +43,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         gen.run()
 
         submodel = model.submodels.get_one(id='translation')
-
 
         # check compartments generated
         cytosol = model.compartments.get_one(id='c')
@@ -110,7 +109,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                 for participant in reaction.participants:
                     if participant.species.species_type.id == prot.id+'_att':
                         self.assertEqual(participant.coefficient, -1)
-                        
+
         # check rate laws
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
@@ -118,24 +117,30 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             if rxn.id.startswith('translation_init_'):
                 exp = 'k_cat * (IF_obs' + \
                       '/ (k_m +IF_obs))'
-                self.assertEqual(rl.equation.observables, [model.observables.get_one(id='IF_obs')])
+                self.assertEqual(rl.equation.observables, [
+                                 model.observables.get_one(id='IF_obs')])
                 prot_id = rxn.id[rxn.id.find('init_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
-                self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
+                self.assertEqual(
+                    rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             elif rxn.id.startswith('translation_elon_'):
                 exp = 'k_cat * (EF_obs' + \
                       '/ (k_m +EF_obs))'
-                self.assertEqual(rl.equation.observables, [model.observables.get_one(id='EF_obs')])
+                self.assertEqual(rl.equation.observables, [
+                                 model.observables.get_one(id='EF_obs')])
                 prot_id = rxn.id[rxn.id.find('elon_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
-                self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
+                self.assertEqual(
+                    rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             else:
                 exp = 'k_cat * (RF_obs' + \
                       '/ (k_m +RF_obs))'
-                self.assertEqual(rl.equation.observables, [model.observables.get_one(id='RF_obs')])
+                self.assertEqual(rl.equation.observables, [
+                                 model.observables.get_one(id='RF_obs')])
                 prot_id = rxn.id[rxn.id.find('term_')+5:]
                 prot = cell.species_types.get_one(id=prot_id)
-                self.assertEqual(rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
+                self.assertEqual(
+                    rl.k_cat, 2 * (numpy.log(2) / prot.half_life + numpy.log(2) / 1000))
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression, exp)
             self.assertEqual(rl.equation.modifiers, [])

@@ -15,7 +15,7 @@ from mycoplasma_pneumoniae import config
 import wc_model_gen
 
 
-class RandomModelGenerator(wc_model_gen.ModelGenerator):
+class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
     """ Generator for models based on KBs for random in silico organisms
     """
 

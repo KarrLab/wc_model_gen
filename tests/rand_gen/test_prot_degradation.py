@@ -7,7 +7,7 @@
 """
 
 from wc_kb_gen import random
-from wc_model_gen.rand_gen import protein_degradation, metabolism
+from wc_model_gen.prokaryote import protein_degradation, metabolism
 import numpy
 import scipy
 import unittest
@@ -67,17 +67,20 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             id='pi').species.get_one(compartment=cytosol)
         h2o = model.species_types.get_one(
             id='h2o').species.get_one(compartment=cytosol)
-        self.assertEqual(submodel.reactions[0].participants.get_one(species=atp).coefficient, -1)
-        self.assertEqual(submodel.reactions[0].participants.get_one(species=adp).coefficient, 1)
-        self.assertEqual(submodel.reactions[0].participants.get_one(species=pi).coefficient, 1)
+        self.assertEqual(submodel.reactions[0].participants.get_one(
+            species=atp).coefficient, -1)
+        self.assertEqual(submodel.reactions[0].participants.get_one(
+            species=adp).coefficient, 1)
+        self.assertEqual(submodel.reactions[0].participants.get_one(
+            species=pi).coefficient, 1)
         self.assertEqual(
             + submodel.reactions[0].participants.get_one(species=h2o).coefficient,
             -(prots[0].get_len()-1))
 
         aa_species = model.species_types.get_one(
-                    id='cys').species.get_one(compartment=cytosol)
-        self.assertEqual(submodel.reactions[0].participants.get_one(species = aa_species).coefficient, prots[0].get_seq().count('C'))
-        
+            id='cys').species.get_one(compartment=cytosol)
+        self.assertEqual(submodel.reactions[0].participants.get_one(
+            species=aa_species).coefficient, prots[0].get_seq().count('C'))
 
         # check rate laws
         deg_protease = model.observables.get_one(id='deg_protease_obs')
@@ -87,9 +90,9 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             rl = rxn.rate_laws[0]
             self.assertEqual(rl.direction.name, 'forward')
             self.assertEqual(rl.equation.expression,
-                '{0}[c] * (((k_cat * deg_protease_obs) / (k_m + deg_protease_obs)) + 0.1)'.format(prot.id))
-            self.assertEqual(rl.equation.modifiers, [rxn.participants[0].species])
+                             '{0}[c] * (((k_cat * deg_protease_obs) / (k_m + deg_protease_obs)) + 0.1)'.format(prot.id))
+            self.assertEqual(rl.equation.modifiers, [
+                             rxn.participants[0].species])
             self.assertEqual(rl.equation.observables, [deg_protease])
-            self.assertEqual(rl.k_m,deg_avg_conc)
+            self.assertEqual(rl.k_m, deg_avg_conc)
             self.assertEqual(rl.k_cat, 2 * numpy.log(2) / prot.half_life)
-
