@@ -94,12 +94,12 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             + submodel.reactions[0].participants.get_one(species=h).coefficient,
             rnas[0].get_len() - 1)
 
-       """ # check rate laws
-        deg_rnase = model.observables.get_one(id='deg_rnase_obs')
-        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
-        for rna, rxn in zip(rnas, submodel.reactions):
-            self.assertEqual(len(rxn.rate_laws), 1)
-            rl = rxn.rate_laws[0]
-            self.assertEqual(rl.direction.name, 'forward')
-            self.assertEqual(rl.k_m, deg_avg_conc)
-            self.assertEqual(rl.k_cat, 2 * numpy.log(2) / rna.half_life)"""
+    """ # check rate laws
+     deg_rnase = model.observables.get_one(id='deg_rnase_obs')
+     deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
+     for rna, rxn in zip(rnas, submodel.reactions):
+         self.assertEqual(len(rxn.rate_laws), 1)
+         rl = rxn.rate_laws[0]
+         self.assertEqual(rl.direction.name, 'forward')
+         self.assertEqual(rl.k_m, deg_avg_conc)
+         self.assertEqual(rl.k_cat, 2 * numpy.log(2) / rna.half_life)"""

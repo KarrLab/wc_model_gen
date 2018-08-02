@@ -99,7 +99,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             + submodel.reactions[0].participants.get_one(species=h).coefficient,
             -(rnas[0].get_len() - 1))
 
-       """ rna_poly = model.observables.get_one(
+        """ rna_poly = model.observables.get_one(
             id='rna_poly_obs')
         # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume

@@ -110,7 +110,9 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                     if participant.species.species_type.id == prot.id+'_att':
                         self.assertEqual(participant.coefficient, -1)
 
-   """     # check rate laws
+                        """     
+                        # check rate laws
+
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
