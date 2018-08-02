@@ -44,7 +44,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         # check parameters generated
         self.assertEqual(model.parameters.get_one(
-            id='fractionDryWeight').value, 0.3)
+            id='fraction_dry_weight').value, 0.3)
 
         # check species types and species generated
         atp = model.species_types.get_one(id='atp')

@@ -14,6 +14,7 @@ import wc_lang
 import wc_model_gen
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
+
 class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for transcription submodel """
 
@@ -22,49 +23,67 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
         cytosol = model.compartments.get_or_create(id='c')
         cytosol.name = 'cytosol'
-        cytosol.initial_volume = cell.properties.get_one(id='mean_volume').value
+        cytosol.initial_volume = cell.properties.get_one(
+            id='initial_volume').value
 
     def gen_species(self):
         """ Generate species associated with submodel """
 
         speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
         speciesGen.run()
-                
+
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
         submodel = self.submodel
         cytosol = model.compartments.get_one(id='c')
-        atp = model.species_types.get_one(id='atp').species.get_one(compartment=cytosol)
-        ctp = model.species_types.get_one(id='ctp').species.get_one(compartment=cytosol)
-        gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
-        utp = model.species_types.get_one(id='utp').species.get_one(compartment=cytosol)
-        ppi = model.species_types.get_one(id='ppi').species.get_one(compartment=cytosol)
-        h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
-        h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
+        atp = model.species_types.get_one(
+            id='atp').species.get_one(compartment=cytosol)
+        ctp = model.species_types.get_one(
+            id='ctp').species.get_one(compartment=cytosol)
+        gtp = model.species_types.get_one(
+            id='gtp').species.get_one(compartment=cytosol)
+        utp = model.species_types.get_one(
+            id='utp').species.get_one(compartment=cytosol)
+        ppi = model.species_types.get_one(
+            id='ppi').species.get_one(compartment=cytosol)
+        h2o = model.species_types.get_one(
+            id='h2o').species.get_one(compartment=cytosol)
+        h = model.species_types.get_one(
+            id='h').species.get_one(compartment=cytosol)
 
         cell = self.knowledge_base.cell
         kb_rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for kb_rna in kb_rnas:
             if kb_rna.id.startswith('rna_'):
-                rxn = submodel.reactions.get_or_create(id=kb_rna.id.replace('rna_', 'transcription_'))
+                rxn = submodel.reactions.get_or_create(
+                    id=kb_rna.id.replace('rna_', 'transcription_'))
                 rxn.name = kb_rna.name.replace('RNA ', 'Transcription')
             else:
-                rxn = submodel.reactions.get_or_create(id='transcription_'+str(kb_rna.id))
+                rxn = submodel.reactions.get_or_create(
+                    id='transcription_'+str(kb_rna.id))
                 rxn.name = 'Transcription '+str(kb_rna.name)
 
-
-            model_rna = model.species_types.get_one(id=kb_rna.id).species.get_one(compartment=cytosol)
+            model_rna = model.species_types.get_one(
+                id=kb_rna.id).species.get_one(compartment=cytosol)
             seq = kb_rna.get_seq()
             rxn.participants = []
-            rxn.participants.add(atp.species_coefficients.get_or_create(coefficient=-seq.count('A')))
-            rxn.participants.add(ctp.species_coefficients.get_or_create(coefficient=-seq.count('C')))
-            rxn.participants.add(gtp.species_coefficients.get_or_create(coefficient=-seq.count('G')))
-            rxn.participants.add(utp.species_coefficients.get_or_create(coefficient=-seq.count('U')))
-            rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-(kb_rna.get_len() - 1)))
-            rxn.participants.add(model_rna.species_coefficients.get_or_create(coefficient=1))
-            rxn.participants.add(ppi.species_coefficients.get_or_create(coefficient=kb_rna.get_len()))
-            rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=kb_rna.get_len() - 1))
+            rxn.participants.add(atp.species_coefficients.get_or_create(
+                coefficient=-seq.count('A')))
+            rxn.participants.add(ctp.species_coefficients.get_or_create(
+                coefficient=-seq.count('C')))
+            rxn.participants.add(gtp.species_coefficients.get_or_create(
+                coefficient=-seq.count('G')))
+            rxn.participants.add(utp.species_coefficients.get_or_create(
+                coefficient=-seq.count('U')))
+            rxn.participants.add(h.species_coefficients.get_or_create(
+                coefficient=-(kb_rna.get_len() - 1)))
+            rxn.participants.add(
+                model_rna.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(ppi.species_coefficients.get_or_create(
+                coefficient=kb_rna.get_len()))
+            rxn.participants.add(h2o.species_coefficients.get_or_create(
+                coefficient=kb_rna.get_len() - 1))
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with submodel """
@@ -72,20 +91,24 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
 
-        mean_volume = cell.properties.get_one(id='mean_volume').value
-        mean_doubling_time = cell.properties.get_one(id='mean_doubling_time').value
-        poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume #http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
+        mean_volume = cell.properties.get_one(id='initial_volume').value
+        mean_doubling_time = cell.properties.get_one(
+            id='doubling_time').value
+        # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
+        poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume
         rna_poly = self.model.observables.get_one(
             id='rna_poly_obs')
-        exp='(((k_cat * {}) / (k_m + {})))'.format(rna_poly.id, rna_poly.id)
-        equation = wc_lang.RateLawEquation(expression = exp)
-        equation.observables.append(
-                rna_poly)
-        
+        exp = '(((k_cat * {}) / (k_m + {})))'.format(
+            rna_poly.species[0].species.id(), rna_poly.species[0].species.id())
+        equation = wc_lang.RateLawEquation(expression=exp)
+        equation.modifiers.append(
+            rna_poly.species[0].species)
+
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
             rl = rxn.rate_laws.create()
             rl.equation = equation
             rl.direction = wc_lang.RateLawDirection.forward
-            rl.k_cat = 2 * (numpy.log(2) / rna.half_life + numpy.log(2) / mean_doubling_time)
+            rl.k_cat = 2 * (numpy.log(2) / rna.half_life +
+                            numpy.log(2) / mean_doubling_time)
             rl.k_m = poly_avg_conc

@@ -24,7 +24,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_or_create(id='c')
         cytosol.name = 'cytosol'
         cytosol.initial_volume = cell.properties.get_one(
-            id='mean_volume').value
+            id='initial_volume').value
 
     def gen_species(self):
         """ Generate species associated with submodel """
@@ -96,8 +96,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl = rxn.rate_laws.create()
             rl.direction = wc_lang.RateLawDirection.forward
             rl.equation = wc_lang.RateLawEquation(
-                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(rna.id, deg_rnase.id, '0.1'))
+                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(rna.id, deg_rnase.species[0].species.id(), '0.1'))
             rl.k_cat = 2 * numpy.log(2) / rna.half_life
             rl.k_m = deg_avg_conc
-            rl.equation.observables.append(deg_rnase)
+            rl.equation.modifiers.append(deg_rnase.species[0].species)
             rl.equation.modifiers.append(rxn.participants[0].species)
