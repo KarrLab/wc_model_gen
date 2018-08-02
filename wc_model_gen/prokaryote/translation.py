@@ -128,7 +128,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
             specie = self.model.observables.get_one(
-                id='complex_70S_A').species[0].species
+                id='complex_70S_A_obs').species[0].species
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
 
@@ -150,7 +150,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.observables.get_one(
-                id='complex_70S_A').species[0].species
+                id='complex_70S_A_obs').species[0].species
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=-1))
 
@@ -168,7 +168,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.observables.get_one(
-                id='complex_70S_IA').species[0].species
+                id='complex_70S_IA_obs').species[0].species
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
 
