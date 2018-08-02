@@ -27,21 +27,21 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cyt = model.compartments.get_or_create(id='c')
         if not cyt.name:
             cyt.name = 'cytosol'
-        cyt.initial_volume = cell.properties.get_one(id='mean_volume').value
+        cyt.initial_volume = cell.properties.get_one(id='initial_volume').value
 
         ext = model.compartments.get_or_create(id='e')
         if not ext.name:
             ext.name = 'extracellular space'
         ext.initial_volume = 1. / \
-            cell.properties.get_one(id='mean_cell_density').value
+            cell.properties.get_one(id='cell_density').value
 
     def gen_parameters(self):
         cell = self.knowledge_base.cell
         model = self.model
-        param = model.parameters.get_or_create(id='fractionDryWeight')
+        param = model.parameters.get_or_create(id='fraction_dry_weight')
         param.submodels.append(self.submodel)
         param.value = cell.properties.get_one(
-            id='mean_fraction_dry_weight').value
+            id='fraction_dry_weight').value
         param.units = 'dimensionless'
 
     def gen_species(self):

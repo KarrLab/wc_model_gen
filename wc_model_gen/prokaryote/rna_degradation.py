@@ -24,7 +24,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_or_create(id='c')
         cytosol.name = 'cytosol'
         cytosol.initial_volume = cell.properties.get_one(
-            id='mean_volume').value
+            id='initial_volume').value
 
     def gen_species(self):
         """ Generate species associated with submodel """

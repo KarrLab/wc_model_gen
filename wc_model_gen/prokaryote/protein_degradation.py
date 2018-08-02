@@ -14,6 +14,7 @@ import wc_lang
 import wc_model_gen
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
+
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Gnerator for Protein degradation model"""
 
@@ -23,7 +24,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_or_create(id='c')
         cytosol.name = 'cytosol'
         cytosol.initial_volume = self.cell.properties.get_one(
-            id='mean_volume').value
+            id='initial_volume').value
 
     def gen_species(self):
         "Generate the protein species for the model"
