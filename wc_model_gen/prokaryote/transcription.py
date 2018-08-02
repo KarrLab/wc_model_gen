@@ -93,15 +93,16 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(
-            id='mean_doubling_time').value
+            id='doubling_time').value
         # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume
         rna_poly = self.model.observables.get_one(
             id='rna_poly_obs')
-        exp = '(((k_cat * {}) / (k_m + {})))'.format(rna_poly.id, rna_poly.id)
+        exp = '(((k_cat * {}) / (k_m + {})))'.format(
+            rna_poly.species[0].species.id(), rna_poly.species[0].species.id())
         equation = wc_lang.RateLawEquation(expression=exp)
-        equation.observables.append(
-            rna_poly)
+        equation.modifiers.append(
+            rna_poly.species[0].species)
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):

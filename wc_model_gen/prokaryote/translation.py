@@ -196,7 +196,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(
-            id='mean_doubling_time').value
+            id='doubling_time').value
 
         IF = self.model.observables.get_one(
             id='IF_obs')
@@ -210,17 +210,19 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         exp = 'k_cat'
 
-        init_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(IF.id) +
-                                               '/ (k_m +{}))'.format(IF.id))
-        init_eq.observables.append(IF)
+        init_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(IF.species[0].species.id()) +
+                                               '/ (k_m +{}))'.format(IF.species[0].species.id()))
+        init_eq.modifiers.append(IF.species[0].species)
 
-        elon_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(EF.id) +
-                                               '/ (k_m +{}))'.format(EF.id))
-        elon_eq.observables.append(EF)
+        elon_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(EF.species[0].species.id()) +
+                                               '/ (k_m +{}))'.format(EF.species[0].species.id()))
+        # elon_eq.observables.append(EF)
+        elon_eq.modifiers.append(EF.species[0].species)
 
-        term_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(RF.id) +
-                                               '/ (k_m +{}))'.format(RF.id))
-        term_eq.observables.append(RF)
+        term_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(RF.species[0].species.id()) +
+                                               '/ (k_m +{}))'.format(RF.species[0].species.id()))
+        # term_eq.observables.append(RF)
+        term_eq.modifiers.append(RF.species[0].species)
 
         for reaction in self.submodel.reactions:
             if reaction.id.startswith('translation_init_'):
