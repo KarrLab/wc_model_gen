@@ -18,8 +18,8 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         '''Generates model species from given KB'''
         self.gen_rna()
         self.gen_protein()
-        self.gen_observables()
         self.gen_complexes()
+        self.gen_observables()
 
     def gen_rna(self):
         '''Generate RNAs in wc_lang model from knowledge base '''
@@ -77,13 +77,8 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
             species_type = self.model.species_types.get_or_create(
                 id=comp.id)
             if not species_type.name:
-                # Add functional form of protein
                 species_type.name = comp.name
                 species_type.type = wc_lang.SpeciesTypeType.pseudo_species
-                species_type.structure = comp.get_seq()
-                species_type.empirical_formula = comp.get_empirical_formula()
-                species_type.molecular_weight = comp.get_mol_wt()
-                species_type.charge = comp.get_charge()
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
 

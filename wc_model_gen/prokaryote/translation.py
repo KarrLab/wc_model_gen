@@ -30,21 +30,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         model = self.model
 
-        # Initiate ribosome species types (complexes)
-        species_type = self.model.species_types.create(
-            id='complex_70S_IA', name='complex_70S_IA', type=wc_lang.SpeciesTypeType.pseudo_species)
-        species_type.molecular_weight = 1  # placeholder
-        species = species_type.species.create(compartment=cytosol)
-        species.concentration = wc_lang.core.Concentration(
-            value=1e-2, units=wc_lang.ConcentrationUnit.M)
-
-        species_type = self.model.species_types.create(
-            id='complex_70S_A', name='complex_70S_A', type=wc_lang.SpeciesTypeType.pseudo_species)
-        species_type.molecular_weight = 1  # placeholder
-        species = species_type.species.create(compartment=cytosol)
-        species.concentration = wc_lang.core.Concentration(
-            value=1e-2, units=wc_lang.ConcentrationUnit.M)
-
         # Create both functional and afunctional form (_att: attached to RNA) of every protein in KB
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
 
@@ -77,8 +62,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.name = protein.id
 
                 # Adding reaction participants LHS
-                specie = self.model.species_types.get_one(
-                    id='complex_70S_IA').species.get_one(compartment=compartment)
+                specie = self.model.observables.get_one(
+                    id='complex_70S_IA_obs').species[0].species
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
@@ -87,8 +72,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     specie.species_coefficients.get_or_create(coefficient=-1))
 
                 # Adding reaction participants RHS
-                specie = self.model.species_types.get_one(
-                    id='complex_70S_A').species.get_one(compartment=compartment)
+                specie = self.model.observables.get_one(
+                    id='complex_70S_A_obs').species[0].species
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
