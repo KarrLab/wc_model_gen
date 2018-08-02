@@ -11,7 +11,6 @@ from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
 from .translation import TranslationSubmodelGenerator
 from .protein_degradation import ProteinDegradationSubmodelGenerator
-from mycoplasma_pneumoniae import config
 import wc_model_gen
 
 
@@ -30,8 +29,6 @@ class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
         options = self.options
-       # options = self.options = config.get_config(
-       #     {'model_gen': self.options or {}})['model_gen']
 
         id = options.get('id', 'rand_wc_model')
         assert(isinstance(id, str) or id is None)
