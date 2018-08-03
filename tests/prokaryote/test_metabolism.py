@@ -5,49 +5,39 @@
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
-
-from wc_kb_gen import random
 from wc_model_gen.prokaryote import metabolism
 import unittest
 import wc_lang
+import wc_kb
 
 
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
-    def test(self):
-        kb = random.RandomKbGenerator(options={
-            'component': {
-                'GenomeGenerator': {
-                    'num_chromosomes': 1,
-                    'mean_num_genes': 200,
-                    'mean_gene_len': 10,
-                },
-                'PropertiesGenerator': {
-                    'mean_cell_density': 1e6,
-                    'mean_fraction_dry_weight': 0.3
-                },
-            },
-        }).run()
-        cell = kb.cell
+    def setUp(self):
 
-        model = wc_lang.Model()
-        gen = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
-        gen.run()
+        self.kb = wc_kb.io.Reader().run('tests/fixtures/core.xlsx',
+                                        'tests/fixtures/seq.fna', strict=False)
 
-        submodel = model.submodels.get_one(id='metabolism')
+        self.model = wc_lang.Model()
+        metabolism.MetabolismSubmodelGenerator(
+            self.kb, self.model, options={}).run()
 
-        # check compartments generated
-        cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'cytosol')
+    def testModelGen(self):
+        submodel = self.model.submodels.get_one(id='metabolism')
+        self.assertIsInstance(submodel, wc_lang.Submodel)
 
-        extra = model.compartments.get_one(id='e')
-        self.assertEqual(extra.name, 'extracellular space')
+    def testSpecies(self):
 
         # check parameters generated
-        self.assertEqual(model.parameters.get_one(
-            id='fraction_dry_weight').value, 0.3)
+        self.assertEqual(self.model.parameters.get_one(
+            id='fraction_dry_weight').value, 0.7)
 
         # check species types and species generated
-        atp = model.species_types.get_one(id='atp')
+        cytosol = self.model.compartments.get(id='c')[0]
+        atp = self.model.species_types.get_one(id='ATP')
         atp_cytosol = atp.species.get_one(compartment=cytosol)
         self.assertEqual(atp_cytosol.concentration.units,
                          wc_lang.ConcentrationUnit.M)
+
+        for species in self.kb.cell.species_types.get(__type=wc_kb.MetaboliteSpeciesType):
+            model_species = self.model.species_types.get_one(id=species.id)
+            self.assertIsInstance(model_species, wc_lang.SpeciesType)
