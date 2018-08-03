@@ -9,6 +9,7 @@
 
 import wc_model_gen
 import wc_lang
+import wc_kb
 
 
 class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -48,16 +49,14 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
+        metabolites = cell.species_types.get(
+            __type=wc_kb.core.MetaboliteSpeciesType)
 
         # get or create metabolite species
-        ids = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'h2o',
-               'h', 'amp', 'adp', 'cmp', 'gmp', 'ump', 'pi', 'gdp', 'ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his', 'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
-
-        for id in ids:
-            kb_met = cell.species_types.get_one(id=id)
-            species_type = model.species_types.get_or_create(id=id)
+        for kb_met in metabolites:
+            species_type = model.species_types.get_or_create(id=kb_met.id)
             if not species_type.name:
-                species_type.name = kb_met.id
+                species_type.name = kb_met.name
                 species_type.type = wc_lang.SpeciesTypeType.metabolite
                 species_type.structure = kb_met.structure
                 species_type.empirical_formula = kb_met.get_empirical_formula()
