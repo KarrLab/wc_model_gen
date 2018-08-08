@@ -33,11 +33,14 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         # check species types and species generated
         cytosol = self.model.compartments.get(id='c')[0]
-        atp = self.model.species_types.get_one(id='ATP')
-        atp_cytosol = atp.species.get_one(compartment=cytosol)
-        self.assertEqual(atp_cytosol.concentration.units,
-                         wc_lang.ConcentrationUnit.M)
 
         for species in self.kb.cell.species_types.get(__type=wc_kb.MetaboliteSpeciesType):
             model_species = self.model.species_types.get_one(id=species.id)
+            model_species_cytosol = model_species.species.get_one(
+                compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
+            self.assertIsInstance(model_species_cytosol, wc_lang.Species)
+            self.assertEqual(
+                model_species_cytosol.concentration.units, wc_lang.ConcentrationUnit.M)
+            # self.assertEqual(
+            #    model_species_cytosol.concentration, species.concentration)

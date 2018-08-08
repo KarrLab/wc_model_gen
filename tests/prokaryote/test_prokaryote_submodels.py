@@ -1,10 +1,7 @@
-import os
 import shutil
 import unittest
 import tempfile
 import wc_kb
-import wc_sim
-import wc_test
 import wc_lang
 import wc_model_gen
 import wc_model_gen.prokaryote as prokaryote
@@ -38,9 +35,9 @@ class ProkaryoteTestCase(unittest.TestCase):
 
     def test_parameters_generator(self):
         self.assertIsInstance(self.model.parameters.get_one(
-            id='cellCycleLength'), wc_lang.core.Parameter)
+            id='cell_cycle_length'), wc_lang.core.Parameter)
         self.assertIsInstance(self.model.parameters.get_one(
-            id='fractionDryWeight'), wc_lang.core.Parameter)
+            id='fraction_dry_weight'), wc_lang.core.Parameter)
 
     def test_metabolites_generator(self):
         comp = self.model.compartments.get_one(id='c')
@@ -50,7 +47,7 @@ class ProkaryoteTestCase(unittest.TestCase):
 
         comp = self.model.compartments.get_one(id='c')
         specie = self.model.species_types.get_one(
-            id='Ala').species.get_one(compartment=comp)
+            id='ALA').species.get_one(compartment=comp)
         self.assertIsInstance(specie, wc_lang.core.Species)
 
         comp = self.model.compartments.get_one(id='c')
@@ -110,17 +107,3 @@ class TranslationSubmodelTestCase(ProkaryoteTestCase):
         self.assertEqual(
             len(self.model.get_rate_laws()),
             3*len(self.kb.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)))
-
-
-class DegradationSubmodelTestCase(ProkaryoteTestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        super(DegradationSubmodelTestCase, cls).setUpClass()
-        prokaryote.DegradationSubmodelGenerator(cls.kb, cls.model).run()
-
-    def test_construction(self):
-        # These tests will be made more meaningfull after finishign the ability to reduce KB and hence model size
-        self.assertEqual(len(self.model.get_species_types()), 37)
-        self.assertEqual(len(self.model.get_reactions()), 0)
-        self.assertEqual(len(self.model.get_rate_laws()), 0)
