@@ -27,7 +27,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
         model = prokaryote.ProkaryoteModelGenerator(kb).run()
 
         self.assertIsInstance(model.submodels.get_one(
-            id='transcription'), wc_lang.Submodel)
+            id='metabolism'), wc_lang.Submodel)
 
         errors = obj_model.Validator().run(model, get_related=True)
         self.assertEqual(

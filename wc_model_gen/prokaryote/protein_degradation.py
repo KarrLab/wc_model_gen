@@ -114,7 +114,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl.direction = wc_lang.RateLawDirection.forward
 
             rl.equation = wc_lang.RateLawEquation(
-                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(prot.id, deg_protease.id, '0.1'))
+                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(prot.id, deg_protease.id(), '0.1'))
 
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
             rl.k_m = proteosome_conc

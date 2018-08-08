@@ -1,5 +1,4 @@
 """ Generating wc_lang formatted models from knowledge base.
-
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
          Ashwin Srinivasan <ashwins@mit.edu>
 :Date: 2018-01-21
@@ -57,32 +56,33 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Add translation initating reactions
         for protein in prots:
-                reaction = submodel.reactions.get_or_create(id='translation_init_' + protein.id)
-                reaction.name = protein.id
+            reaction = submodel.reactions.get_or_create(
+                id='translation_init_' + protein.id)
+            reaction.name = protein.id
 
-                # Adding reaction participants LHS
-                specie = self.model.observables.get_one(
-                    id='complex_70S_obs').expression.species[0]
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
-                specie = self.model.species_types.get_one(
-                    id='gtp').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=-1))
+            # Adding reaction participants LHS
+            specie = self.model.observables.get_one(
+                id='complex_70S_obs').expression.species[0]
+            reaction.participants.add(
+                specie.species_coefficients.get_or_create(coefficient=-1))
+            specie = self.model.species_types.get_one(
+                id='gtp').species.get_one(compartment=compartment)
+            reaction.participants.add(
+                specie.species_coefficients.get_or_create(coefficient=-1))
 
-                # Adding reaction participants RHS
-                specie = self.model.observables.get_one(
-                    id='complex_70S_obs').expression.species[0]
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
-                    id='gdp').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
-                specie = self.model.species_types.get_one(
-                    id='pi').species.get_one(compartment=compartment)
-                reaction.participants.add(
-                    specie.species_coefficients.get_or_create(coefficient=1))
+            # Adding reaction participants RHS
+            specie = self.model.observables.get_one(
+                id='complex_70S_obs').expression.species[0]
+            reaction.participants.add(
+                specie.species_coefficients.get_or_create(coefficient=1))
+            specie = self.model.species_types.get_one(
+                id='gdp').species.get_one(compartment=compartment)
+            reaction.participants.add(
+                specie.species_coefficients.get_or_create(coefficient=1))
+            specie = self.model.species_types.get_one(
+                id='pi').species.get_one(compartment=compartment)
+            reaction.participants.add(
+                specie.species_coefficients.get_or_create(coefficient=1))
 
         # Add translation elongation reactions
         for protein in prots:

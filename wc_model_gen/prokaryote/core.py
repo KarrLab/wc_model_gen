@@ -11,6 +11,9 @@ from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
 from .translation import TranslationSubmodelGenerator
 from .protein_degradation import ProteinDegradationSubmodelGenerator
+from .compartments import CompartmentsGenerator
+from .parameters import ParametersGenerator
+from .species import SpeciesGenerator
 import wc_model_gen
 
 
@@ -19,6 +22,9 @@ class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
     """
 
     DEFAULT_COMPONENT_GENERATORS = (
+        CompartmentsGenerator,
+        ParametersGenerator,
+        SpeciesGenerator,
         MetabolismSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
