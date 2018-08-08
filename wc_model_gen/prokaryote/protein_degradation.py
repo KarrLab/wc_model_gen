@@ -104,7 +104,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         proteosome_conc = 5000/scipy.constants.Avogadro / \
             cytosol.initial_volume  # PubMed ID16135238
 
-        deg_protease = model.observables.get_one(id='deg_protease_obs')
+        deg_protease = model.observables.get_one(
+            id='deg_protease_obs').expression.species[0]
 
         prots = cell.species_types.get(
             __type=wc_kb.ProteinSpeciesType)
@@ -113,10 +114,10 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl.direction = wc_lang.RateLawDirection.forward
 
             rl.equation = wc_lang.RateLawEquation(
-                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(prot.id, deg_protease.species[0].species.id(), '0.1'))
+                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(prot.id, deg_protease.id, '0.1'))
 
             rl.k_cat = 2 * numpy.log(2) / prot.half_life
             rl.k_m = proteosome_conc
             # rl.equation.observables.append(deg_protease)
-            rl.equation.modifiers.append(deg_protease.species[0].species)
+            rl.equation.modifiers.append(deg_protease)
             rl.equation.modifiers.append(rxn.participants[0].species)
