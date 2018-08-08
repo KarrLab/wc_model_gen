@@ -64,10 +64,8 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             id='gdp').species.get_one(compartment=cytosol)
         pi = model.species_types.get_one(
             id='pi').species.get_one(compartment=cytosol)
-        complex_70S = model.species_types.get_one(
-            id='complex_70S_A').species.get_one(compartment=cytosol)
-        complex_70S_I = model.species_types.get_one(
-            id='complex_70S_IA').species.get_one(compartment=cytosol)
+        complex_70S = model.observables.get_one(
+            id='complex_70S_obs').expression.species[0]
 
         for reaction in submodel.reactions:
             prot = cell.species_types.get_one(id=reaction.name)
@@ -80,10 +78,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                     species=gdp).coefficient, 1)
                 self.assertEqual(reaction.participants.get_one(
                     species=pi).coefficient, 1)
-                self.assertEqual(reaction.participants.get_one(
-                    species=complex_70S).coefficient, 1)
-                self.assertEqual(reaction.participants.get_one(
-                    species=complex_70S_I).coefficient, -1)
 
             elif reaction.id.startswith('translation_elon_'):  # translation elon
                 self.assertEqual(reaction.participants.get_one(
@@ -104,8 +98,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                     species=gdp).coefficient, 1)
                 self.assertEqual(reaction.participants.get_one(
                     species=pi).coefficient, 1)
-                self.assertEqual(reaction.participants.get_one(
-                    species=complex_70S_I).coefficient, 1)
                 for participant in reaction.participants:
                     if participant.species.species_type.id == prot.id+'_att':
                         self.assertEqual(participant.coefficient, -1)

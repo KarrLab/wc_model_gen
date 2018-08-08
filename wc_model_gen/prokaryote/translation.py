@@ -62,7 +62,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 # Adding reaction participants LHS
                 specie = self.model.observables.get_one(
-                    id='complex_70S_IA_obs').species[0].species
+                    id='complex_70S_obs').expression.species[0]
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=-1))
                 specie = self.model.species_types.get_one(
@@ -72,7 +72,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 # Adding reaction participants RHS
                 specie = self.model.observables.get_one(
-                    id='complex_70S_A_obs').species[0].species
+                    id='complex_70S_obs').expression.species[0]
                 reaction.participants.add(
                     specie.species_coefficients.get_or_create(coefficient=1))
                 specie = self.model.species_types.get_one(
@@ -94,7 +94,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Adding reaction participants LHS
             specie = self.model.observables.get_one(
-                id='complex_70S_A_obs').species[0].species
+                id='complex_70S_obs').expression.species[0]
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.species_types.get_one(
@@ -110,7 +110,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     if n > 0:
                         obs = self.model.observables.get_one(
                             id='tRNA_'+codon+'_obs')
-                        specie = obs.species[0].species
+                        specie = obs.expression.species[0]
                         reaction.participants.add(
                             specie.species_coefficients.get_or_create(coefficient=-n))
 
@@ -128,7 +128,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
             specie = self.model.observables.get_one(
-                id='complex_70S_A_obs').species[0].species
+                id='complex_70S_obs').expression.species[0]
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
 
@@ -150,7 +150,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=-1))
             specie = self.model.observables.get_one(
-                id='complex_70S_A_obs').species[0].species
+                id='complex_70S_obs').expression.species[0]
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=-1))
 
@@ -168,7 +168,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
             specie = self.model.observables.get_one(
-                id='complex_70S_IA_obs').species[0].species
+                id='complex_70S_obs').expression.species[0]
             reaction.participants.add(
                 specie.species_coefficients.get_or_create(coefficient=1))
 
@@ -194,19 +194,19 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         exp = 'k_cat'
 
-        init_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(IF.species[0].species.id()) +
-                                               '/ (k_m +{}))'.format(IF.species[0].species.id()))
-        init_eq.modifiers.append(IF.species[0].species)
+        init_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(IF.expression.species[0].id()) +
+                                               '/ (k_m +{}))'.format(IF.expression.species[0].id()))
+        init_eq.modifiers.append(IF.expression.species[0])
 
-        elon_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(EF.species[0].species.id()) +
-                                               '/ (k_m +{}))'.format(EF.species[0].species.id()))
+        elon_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(EF.expression.species[0].id()) +
+                                               '/ (k_m +{}))'.format(EF.expression.species[0].id()))
         # elon_eq.observables.append(EF)
-        elon_eq.modifiers.append(EF.species[0].species)
+        elon_eq.modifiers.append(EF.expression.species[0])
 
-        term_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(RF.species[0].species.id()) +
-                                               '/ (k_m +{}))'.format(RF.species[0].species.id()))
+        term_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(RF.expression.species[0].id()) +
+                                               '/ (k_m +{}))'.format(RF.expression.species[0].id()))
         # term_eq.observables.append(RF)
-        term_eq.modifiers.append(RF.species[0].species)
+        term_eq.modifiers.append(RF.expression.species[0])
 
         for reaction in self.submodel.reactions:
             if reaction.id.startswith('translation_init_'):

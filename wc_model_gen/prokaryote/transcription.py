@@ -99,10 +99,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rna_poly = self.model.observables.get_one(
             id='rna_poly_obs')
         exp = '(((k_cat * {}) / (k_m + {})))'.format(
-            rna_poly.species[0].species.id(), rna_poly.species[0].species.id())
+            rna_poly.expression.species[0].get_id(), rna_poly.expression.species[0].get_id())
         equation = wc_lang.RateLawEquation(expression=exp)
         equation.modifiers.append(
-            rna_poly.species[0].species)
+            rna_poly.expression.species[0])
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):
