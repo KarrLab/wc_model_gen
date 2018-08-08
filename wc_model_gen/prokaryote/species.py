@@ -10,6 +10,7 @@
 import wc_model_gen
 import wc_kb
 import wc_lang
+from wc_lang import Species, Observable, ExpressionMethods
 
 
 class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
@@ -90,9 +91,12 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
+        observable_references = {Species:{}, Observable:{}}
         for kb_observable in self.knowledge_base.cell.observables:
             model_observable = self.model.observables.get_or_create(
                 id=kb_observable.id)
+
+            obs_expr_parts = []
             if not model_observable.name:
                 model_observable.name = kb_observable.name
                 for kb_species_coefficient in kb_observable.species:
@@ -103,13 +107,16 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
                         id=kb_species_type.id)
                     model_species = model_species_type.species.get_one(
                         compartment=model.compartments.get_one(id=kb_compartment.id))
+                    observable_references[Species][model_species.get_id()] = model_species
                     model_coefficient = kb_species_coefficient.coefficient
-                    model_species_coefficient = model_species.species_coefficients.get_or_create(
-                        coefficient=model_coefficient)
-                    model_observable.species.append(model_species_coefficient)
+                    obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.get_id()))
 
                 for kb_observable_observable in kb_observable.observables:
                     model_observable_observable = model.observables.get_or_create(
                         id=kb_observable_observable.id)
-                    model_observable.observables.append(
-                        model_observable_observable)
+                    obs_expr_parts.append("{}*{}".format(kb_observable_observable.coefficient, kb_observable_observable.id))
+                    observable_references[Observable][model_observable_observable.id] = model_observable_observable
+                obs_expr, e = ExpressionMethods.make_expression_obj(Observable, 
+                    ' + '.join(obs_expr_parts), observable_references)
+                assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
+                model_observable.expression = obs_expr
