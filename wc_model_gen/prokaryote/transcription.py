@@ -90,25 +90,30 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='transcription')
 
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(
-            id='doubling_time').value
+        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+
         # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume
-        rna_poly = self.model.observables.get_one(
-            id='rna_poly_obs')
-        exp = '(((k_cat * {}) / (k_m + {})))'.format(
-            rna_poly.expression.species[0].get_id(), rna_poly.expression.species[0].get_id())
-        equation = wc_lang.RateLawEquation(expression=exp)
-        equation.modifiers.append(
-            rna_poly.expression.species[0])
+        rna_polymerase = model.observables.get_one(id='rna_polymerase_obs')
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
-        for rna, rxn in zip(rnas, self.submodel.reactions):
-            rl = rxn.rate_laws.create()
-            rl.equation = equation
-            rl.direction = wc_lang.RateLawDirection.forward
-            rl.k_cat = 2 * (numpy.log(2) / rna.half_life +
-                            numpy.log(2) / mean_doubling_time)
-            rl.k_m = poly_avg_conc
+        for reaction in submodel.reactions:
+            rate_law = reaction.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            rate_law_equation = wc_lang.RateLawEquation()
+
+            rate_law_equation.modifiers.append(rna_polymerase.expression.species[0])
+            expression = 'k_cat*({}/(k_m + {})'.format(rna_polymerase.expression.species[0].get_id(),
+                                                       rna_polymerase.expression.species[0].get_id())
+
+            for participant in reaction.participants:
+                if participant.coefficient < 0:
+                    rate_law_equation.modifiers.append(participant.species)
+                    expression += '*({}/(k_m+{})'.format(
+                                    participant.species.id(),
+                                    participant.species.id())
+
+            rate_law_equation.expression = expression
+            rate_law.equation = rate_law_equation
