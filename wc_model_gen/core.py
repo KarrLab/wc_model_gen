@@ -13,6 +13,7 @@ import wc_kb
 import wc_lang
 import wc_utils.util.string
 
+
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
 
@@ -152,14 +153,14 @@ class SubmodelGenerator(ModelComponentGenerator):
         """ Generate species associated with submodel """
         pass  # pragma: no cover
 
-    def gen_reactions(self):
-        """ Generate reactions associated with submodel """
-        pass  # pragma: no cover
-
     def gen_parameters(self):
         """ Generate parameters associated with submodel """
         pass  # pragma: no cover
 
+    def gen_reactions(self):
+        """ Generate reactions associated with submodel """
+        pass  # pragma: no cover
+
     def gen_rate_laws(self):
-        """ Generate rate laws associated with submodel """
+        """ Generate rate laws for reactions associated with submodel """
         pass  # pragma: no cover

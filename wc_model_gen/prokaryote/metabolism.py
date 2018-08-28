@@ -33,8 +33,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         ext = model.compartments.get_or_create(id='e')
         if not ext.name:
             ext.name = 'extracellular space'
-        ext.initial_volume = 1. / \
-            cell.properties.get_one(id='cell_density').value
+        ext.initial_volume = 1. / cell.properties.get_one(id='cell_density').value
 
     def gen_parameters(self):
         cell = self.knowledge_base.cell
@@ -46,6 +45,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         param.units = 'dimensionless'
 
     def gen_species(self):
+        """ Generate species associated with submodel """
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
@@ -62,13 +62,53 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species_type.empirical_formula = kb_met.get_empirical_formula()
                 species_type.molecular_weight = kb_met.get_mol_wt()
                 species_type.charge = kb_met.get_charge()
-                species_type_c = species_type.species.get_or_create(
+                species = species_type.species.get_or_create(
                     compartment=cytosol)
-                species_type_c.concentration = wc_lang.Concentration(
+                species.concentration = wc_lang.Concentration(
                     value=kb_met.concentration, units=wc_lang.ConcentrationUnit.M)
 
     def gen_reactions(self):
-        pass
+        """ Generate reactions associated with submodel """
+        cytosol = self.model.compartments.get_one(id='c')
+
+        for kb_rxn in self.knowledge_base.cell.reactions:
+            lang_rxn = self.submodel.reactions.create(
+                id=kb_rxn.id,
+                name=kb_rxn.name,
+                reversible=kb_rxn.reversible,
+                comments=kb_rxn.comments)
+            for participant in kb_rxn.participants:
+                lang_species_type = self.model.species_types.get_one(
+                    id=participant.species.species_type.id)
+                lang_species = lang_species_type.species.get_one(
+                    compartment=cytosol)
+                lang_rxn.participants.add(
+                    lang_species.species_coefficients.get_or_create(
+                        coefficient=participant.coefficient))
 
     def gen_rate_laws(self):
-        pass
+        """ Generate rate laws for reactions associated with submodel """
+        model = self.model
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+
+        for kb_rxn in self.knowledge_base.cell.reactions:
+            lang_rxn = self.submodel.reactions.get_one(id=kb_rxn.id)
+            for kb_rate_law in kb_rxn.rate_laws:
+                lang_rate_law = wc_lang.RateLaw(k_cat=kb_rate_law.k_cat,
+                    k_m=kb_rate_law.k_m,
+                    comments=kb_rate_law.comments)
+                lang_rxn.rate_laws.add(lang_rate_law)
+                if kb_rate_law.direction == wc_kb.RateLawDirection.forward:
+                    lang_rate_law.direction = wc_lang.RateLawDirection.forward
+                elif kb_rate_law.direction == wc_kb.RateLawDirection.backward:
+                    lang_rate_law.direction = wc_lang.RateLawDirection.backward
+                lang_rate_law.equation = wc_lang.RateLawEquation(
+                    expression=kb_rate_law.equation.expression
+                )
+                for kb_modifier in kb_rate_law.equation.modifiers:
+                    lang_species_type = self.model.species_types.get_one(
+                        id=kb_modifier.species_type.id)
+                    lang_species = lang_species_type.species.get_one(
+                        compartment=cytosol)
+                    lang_rate_law.equation.modifiers.add(lang_species)
