@@ -107,6 +107,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law_equation.modifiers.append(rna_polymerase.expression.species[0])
             expression = 'k_cat*({}/(k_m + {})'.format(rna_polymerase.expression.species[0].get_id(),
                                                        rna_polymerase.expression.species[0].get_id())
+            expression = expression.rstrip()
 
             for participant in reaction.participants:
                 if participant.coefficient < 0:
@@ -114,6 +115,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     expression += '*({}/(k_m+{})'.format(
                                     participant.species.id(),
                                     participant.species.id())
+                    expression = expression.rstrip()
 
             rate_law_equation.expression = expression
             rate_law.equation = rate_law_equation
