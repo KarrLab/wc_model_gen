@@ -14,7 +14,6 @@ import wc_lang
 import wc_model_gen
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
-
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
 

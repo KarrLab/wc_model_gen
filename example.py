@@ -25,10 +25,10 @@ model = prokaryote.ProkaryoteModelGenerator(
             component_generators=[prokaryote.CompartmentsGenerator,
                                   prokaryote.ParametersGenerator,
                                   prokaryote.MetabolismSubmodelGenerator,
-                                  prokaryote.TranscriptionSubmodelGenerator]).run()
+                                  prokaryote.TranscriptionSubmodelGenerator,
+                                  prokaryote.TranslationSubmodelGenerator]).run()
 
 model.id = 'rand_kb'
 model.version = '0.0.1'
 
-wc_lang.io.Writer().run(model,'/media/sf_VM_share/models/rand_model_test2.xlsx', set_repo_metadata_from_path=False)
-model2 = wc_lang.io.Reader().run('/media/sf_VM_share/models/rand_model_test2.xlsx')
+wc_lang.io.Writer().run(model,'/media/sf_VM_share/models/rand_model_test.xlsx', set_repo_metadata_from_path=False)
