@@ -3,7 +3,6 @@ import wc_model_gen
 import wc_lang
 import wc_kb_gen
 import wc_kb
-import scipy
 
 rand_kb = wc_kb_gen.random.RandomKbGenerator(options={
              'component': {
@@ -32,4 +31,4 @@ model.id = 'rand_kb'
 model.version = '0.0.1'
 
 wc_lang.io.Writer().run(model,'/media/sf_VM_share/models/rand_model_test2.xlsx', set_repo_metadata_from_path=False)
-#model2 = wc_lang.io.Reader().run('/media/sf_VM_share/models/rand_model_test2.xlsx')
+model2 = wc_lang.io.Reader().run('/media/sf_VM_share/models/rand_model_test2.xlsx')

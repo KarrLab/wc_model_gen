@@ -182,14 +182,11 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_doubling_time = cell.properties.get_one(
             id='doubling_time').value
 
-        IF = self.model.observables.get_one(
-            id='IF_obs')
+        IF = self.model.observables.get_one(id='translation_init_factors_obs')
         IF_avg_conc = 0.05  # placeholder
-        EF = self.model.observables.get_one(
-            id='EF_obs')
+        EF = self.model.observables.get_one(id='translation_elongation_factors_obs')
         EF_avg_conc = 0.05  # placeholder
-        RF = self.model.observables.get_one(
-            id='RF_obs')
+        RF = self.model.observables.get_one(id='translation_release_factors_obs')
         RF_avg_conc = 0.05  # placeholder
 
         exp = 'k_cat'
