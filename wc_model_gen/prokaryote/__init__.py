@@ -2,6 +2,7 @@ from .core import ProkaryoteModelGenerator
 from .metabolism import MetabolismSubmodelGenerator
 from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
+from .translation import TranslationSubmodelGenerator
 from .protein_degradation import ProteinDegradationSubmodelGenerator
 from .compartments import CompartmentsGenerator
 from .parameters import ParametersGenerator

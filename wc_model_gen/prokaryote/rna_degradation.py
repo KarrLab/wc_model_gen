@@ -14,7 +14,6 @@ import wc_lang
 import wc_model_gen
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
-
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
 
@@ -90,7 +89,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
 
         deg_rnase = model.observables.get_one(
-            id='deg_rnase_obs').expression.species[0]
+            id='degrade_rnase_obs').expression.species[0]
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna, rxn in zip(rnas, self.submodel.reactions):

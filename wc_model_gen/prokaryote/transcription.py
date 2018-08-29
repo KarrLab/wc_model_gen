@@ -36,23 +36,18 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate reactions associated with submodel """
         model = self.model
         submodel = self.submodel
-        cytosol = model.compartments.get_one(id='c')
-        atp = model.species_types.get_one(
-            id='atp').species.get_one(compartment=cytosol)
-        ctp = model.species_types.get_one(
-            id='ctp').species.get_one(compartment=cytosol)
-        gtp = model.species_types.get_one(
-            id='gtp').species.get_one(compartment=cytosol)
-        utp = model.species_types.get_one(
-            id='utp').species.get_one(compartment=cytosol)
-        ppi = model.species_types.get_one(
-            id='ppi').species.get_one(compartment=cytosol)
-        h2o = model.species_types.get_one(
-            id='h2o').species.get_one(compartment=cytosol)
-        h = model.species_types.get_one(
-            id='h').species.get_one(compartment=cytosol)
-
         cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+
+        rna_polymerase = model.observables.get_one(id='rna_polymerase_obs').expression.species[0]
+        atp = model.species_types.get_one(id='atp').species.get_one(compartment=cytosol)
+        ctp = model.species_types.get_one(id='ctp').species.get_one(compartment=cytosol)
+        gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
+        utp = model.species_types.get_one(id='utp').species.get_one(compartment=cytosol)
+        ppi = model.species_types.get_one(id='ppi').species.get_one(compartment=cytosol)
+        h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
+        h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
+
         kb_rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for kb_rna in kb_rnas:
             if kb_rna.id.startswith('rna_'):
@@ -64,51 +59,49 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     id='transcription_'+str(kb_rna.id))
                 rxn.name = 'Transcription '+str(kb_rna.name)
 
-            model_rna = model.species_types.get_one(
-                id=kb_rna.id).species.get_one(compartment=cytosol)
+            model_rna = model.species_types.get_one(id=kb_rna.id).species.get_one(compartment=cytosol)
             seq = kb_rna.get_seq()
             rxn.participants = []
-            rxn.participants.add(atp.species_coefficients.get_or_create(
-                coefficient=-seq.count('A')))
-            rxn.participants.add(ctp.species_coefficients.get_or_create(
-                coefficient=-seq.count('C')))
-            rxn.participants.add(gtp.species_coefficients.get_or_create(
-                coefficient=-seq.count('G')))
-            rxn.participants.add(utp.species_coefficients.get_or_create(
-                coefficient=-seq.count('U')))
-            rxn.participants.add(h.species_coefficients.get_or_create(
-                coefficient=-(kb_rna.get_len() - 1)))
-            rxn.participants.add(
-                model_rna.species_coefficients.get_or_create(coefficient=1))
-            rxn.participants.add(ppi.species_coefficients.get_or_create(
-                coefficient=kb_rna.get_len()))
-            rxn.participants.add(h2o.species_coefficients.get_or_create(
-                coefficient=kb_rna.get_len() - 1))
+
+            rxn.participants.add(rna_polymerase.species_coefficients.get_or_create(coefficient=-1))
+            rxn.participants.add(atp.species_coefficients.get_or_create(coefficient=-seq.count('A')))
+            rxn.participants.add(ctp.species_coefficients.get_or_create(coefficient=-seq.count('C')))
+            rxn.participants.add(gtp.species_coefficients.get_or_create(coefficient=-seq.count('G')))
+            rxn.participants.add(utp.species_coefficients.get_or_create(coefficient=-seq.count('U')))
+            rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-(kb_rna.get_len() - 1)))
+
+            rxn.participants.add(rna_polymerase.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(model_rna.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(ppi.species_coefficients.get_or_create(coefficient=kb_rna.get_len()))
+            rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=kb_rna.get_len() - 1))
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with submodel """
         model = self.model
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='transcription')
 
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(
-            id='doubling_time').value
+        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+
         # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
         poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume
-        rna_poly = self.model.observables.get_one(
-            id='rna_poly_obs')
-        exp = '(((k_cat * {}) / (k_m + {})))'.format(
-            rna_poly.expression.species[0].get_id(), rna_poly.expression.species[0].get_id())
-        equation = wc_lang.RateLawEquation(expression=exp)
-        equation.modifiers.append(
-            rna_poly.expression.species[0])
+        rna_polymerase = model.observables.get_one(id='rna_polymerase_obs')
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
-        for rna, rxn in zip(rnas, self.submodel.reactions):
-            rl = rxn.rate_laws.create()
-            rl.equation = equation
-            rl.direction = wc_lang.RateLawDirection.forward
-            rl.k_cat = 2 * (numpy.log(2) / rna.half_life +
-                            numpy.log(2) / mean_doubling_time)
-            rl.k_m = poly_avg_conc
+        for reaction in submodel.reactions:
+            rate_law = reaction.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            rate_law_equation = wc_lang.RateLawEquation()
+            expression = 'k_cat*'
+
+            for participant in reaction.participants:
+                if participant.coefficient < 0:
+                    rate_law_equation.modifiers.append(participant.species)
+                    expression += '({}/({}+(3/2)*{})*'.format(participant.species.id(),
+                                                              participant.species.id(),
+                                                              participant.species.concentration.value)
+
+            expression = expression[:-1] #clip off trailing * character
+            rate_law_equation.expression = expression
+            rate_law.equation = rate_law_equation

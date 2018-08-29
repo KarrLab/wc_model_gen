@@ -4,12 +4,15 @@
 :Date: 2018-01-21
 :Copyright: 2018, Karr Lab
 :License: MIT
+
+TODO: aminoacyl-tRnas are missign from observables
 """
 
 import wc_kb
 import wc_lang
 import wc_model_gen
 import numpy
+import scipy
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
 
@@ -17,179 +20,107 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
     def gen_species(self):
-        """ Generate a set of 2 protein species (_att: attached to ribosome and acitve form) for each protein """
-
+        """ Generate protein species """
         speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
         speciesGen.run()
 
-        # print('here')
-        submodel = self.submodel
-        cytosol = self.model.compartments.get_one(id='c')
-        cell = self.knowledge_base.cell
-        model = self.model
-
-        # Create both functional and afunctional form (_att: attached to RNA) of every protein in KB
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
-
-            # Add inactive form of protein, attached to ribosome
-            species_type = self.model.species_types.create(
-                id=protein.id+'_att',
-                type=wc_lang.SpeciesTypeType.protein,
-                name=protein.name+'_att',
-                structure=protein.get_seq(),
-                empirical_formula=protein.get_empirical_formula(),
-                molecular_weight=protein.get_mol_wt(),
-                charge=protein.get_charge())
-
-            species = species_type.species.create(compartment=cytosol)
-            species.concentration = wc_lang.core.Concentration(
-                value=0, units=wc_lang.ConcentrationUnit.M)
-
     def gen_reactions(self):
-        """ Generate a set of 3 reqactions (initation, elongation, termination) for each protein """
-        # print('here')
+        """ Generate a lumped reaction that cvers initiation, elongation and termination for each protein translated """
         submodel = self.submodel
         compartment = self.model.compartments.get_one(id='c')
 
-        prots = self.knowledge_base.cell.species_types.get(
-            __type=wc_kb.core.ProteinSpeciesType)
+        proteins = self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
 
         # Add translation initating reactions
-        for protein in prots:
-            reaction = submodel.reactions.get_or_create(
-                id='translation_init_' + protein.id)
-            reaction.name = protein.id
+        for protein_kb in proteins:
+            reaction = submodel.reactions.get_or_create(id='translation_' + protein_kb.id)
+            reaction.name = 'translate '+ protein_kb.id
+            n_steps = protein_kb.get_len()
 
             # Adding reaction participants LHS
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
+            ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
+            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=-1))
+            gtp = self.model.species_types.get_one(id='gtp').species.get_one(compartment=compartment)
+            reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-(n_steps+2)))
+            initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
+            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=-1))
+            elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
+            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=-n_steps))
+            release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+            reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=-1))
 
-            # Adding reaction participants RHS
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-
-        # Add translation elongation reactions
-        for protein in prots:
-            reaction = submodel.reactions.get_or_create(
-                id='translation_elon_' + protein.id)
-
-            reaction.name = protein.id
-            n_steps = len(protein.get_seq())
-
-            # Adding reaction participants LHS
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-2 * n_steps))
+            # Add tRNAs to
             bases = "TCAG"
             codons = [a + b + c for a in bases for b in bases for c in bases]
 
             for codon in codons:
                 if codon not in ['TAG', 'TAA', 'TGA']:
-                    n = str(protein.gene.get_seq()).count(codon)
+                    n = str(protein_kb.gene.get_seq()).count(codon)
                     if n > 0:
-                        obs = self.model.observables.get_one(
-                            id='tRNA_'+codon+'_obs')
-                        specie = obs.expression.species[0]
-                        reaction.participants.add(
-                            specie.species_coefficients.get_or_create(coefficient=-n))
+                        trna = self.model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
+                        reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding reaction participants RHS
-            specie = self.model.species_types.get_one(
-                id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=2 * n_steps))
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-
-        # Add translation termination reactions
-        for protein in prots:
-            reaction = submodel.reactions.get_or_create(
-                id='translation_term_' + protein.id)
-            reaction.name = protein.id
-            n_steps = len(protein.get_seq())
-
-            # Adding reaction participants LHS
-
-            specie = self.model.species_types.get_one(
-                id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.species_types.get_one(
-                id=protein.id+'_att').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=-1))
-
-            # Adding reaction participants RHS
-            specie = self.model.species_types.get_one(
-                id=protein.id).species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.species_types.get_one(
-                id='pi').species.get_one(compartment=compartment)
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
-            specie = self.model.observables.get_one(
-                id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(
-                specie.species_coefficients.get_or_create(coefficient=1))
+            protein = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=compartment)
+            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
+            ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
+            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
+            gdp = self.model.species_types.get_one(id='gdp').species.get_one(compartment=compartment)
+            reaction.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps))
+            pi = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
+            reaction.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
+            initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
+            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+            elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
+            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+            release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+            reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
     def gen_rate_laws(self):
-        """ Generate the rate laws associate dwith reactions """
-        submodel = self.submodel
-        compartment = self.model.compartments.get_one(id='c')
+        """ Generate rate laws associated with submodel """
+        model = self.model
         cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='translation')
 
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(
-            id='doubling_time').value
+        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
 
-        IF = self.model.observables.get_one(
-            id='IF_obs')
+        # check ribosome count
+        poly_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
+        rna_polymerase = model.observables.get_one(id='rna_polymerase_obs')
+
+        for reaction in submodel.reactions:
+            rate_law = reaction.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            rate_law_equation = wc_lang.RateLawEquation()
+            expression = 'k_cat*'
+
+            for participant in reaction.participants:
+                if participant.coefficient < 0:
+                    rate_law_equation.modifiers.append(participant.species)
+                    expression += '({}/({}+(3/2)*{})*'.format(participant.species.id(),
+                                                              participant.species.id(),
+                                                              participant.species.concentration.value)
+
+            expression = expression[:-1] #clip off trailing * character
+            rate_law_equation.expression = expression
+            rate_law.equation = rate_law_equation
+
+        """ Generate the rate laws associate dwith reactions
+        model = self.model
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='translation')
+
+        mean_volume = cell.properties.get_one(id='initial_volume').value
+        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+
+        IF = self.model.observables.get_one(id='translation_init_factors_obs')
         IF_avg_conc = 0.05  # placeholder
-        EF = self.model.observables.get_one(
-            id='EF_obs')
+        EF = self.model.observables.get_one(id='translation_elongation_factors_obs')
         EF_avg_conc = 0.05  # placeholder
-        RF = self.model.observables.get_one(
-            id='RF_obs')
+        RF = self.model.observables.get_one(id='translation_release_factors_obs')
         RF_avg_conc = 0.05  # placeholder
 
         exp = 'k_cat'
@@ -237,3 +168,4 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2) / mean_doubling_time)
                 rl.equation = term_eq
                 rl.k_m = RF_avg_conc
+                """

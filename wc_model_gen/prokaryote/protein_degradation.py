@@ -105,7 +105,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             cytosol.initial_volume  # PubMed ID16135238
 
         deg_protease = model.observables.get_one(
-            id='deg_protease_obs').expression.species[0]
+            id='degrade_protease_obs').expression.species[0]
 
         prots = cell.species_types.get(
             __type=wc_kb.ProteinSpeciesType)
