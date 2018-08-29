@@ -81,7 +81,7 @@ class ModelGenerator(object):
 
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
-    """ Base class for model component generators
+    """ Abstract base class for model component generators
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
