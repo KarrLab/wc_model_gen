@@ -26,7 +26,7 @@ model = prokaryote.ProkaryoteModelGenerator(
                                   prokaryote.ParametersGenerator,
                                   prokaryote.MetabolismSubmodelGenerator,
                                   prokaryote.TranscriptionSubmodelGenerator,
-                                  prokaryote.TranslationSubmodelGenerator]).run()
+                                  prokaryote.RnaDegradationSubmodelGenerator]).run()
 
 model.id = 'rand_kb'
 model.version = '0.0.1'
