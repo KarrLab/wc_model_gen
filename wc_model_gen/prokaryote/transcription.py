@@ -100,51 +100,45 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate calibrated model """
         model = self.model
         cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='transcription')
-
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(id='doubling_time').value
-
-        # http://bionumbers.hms.harvard.edu/bionumber.aspx?s=n&v=2&id=106199
-        # poly_avg_conc = 3000/scipy.constants.Avogadro / cytosol.initial_volume
-        # rna_polymerase = model.observables.get_one(id='rna_polymerase_obs')
-
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+
         for rna_kb, reaction in zip(rnas, submodel.reactions):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
-            if rna_kb.half_life == 0:
-                rna_kb.half_life = 553  #TODO: replace with calculation of avg half life; 553 s the avg for mycoplasma RNAs
-
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            rate_law_equation = wc_lang.RateLawEquation()
-
             expression = 'k_cat*'
+            modifiers = []
             rate_avg = ''
             beta = 2
 
+            if rna_kb.half_life == 0:
+                #TODO: replace with calculation of avg half life; 553s is avg of Mycoplasma RNAs
+                rna_kb.half_life = 553
+
             for participant in reaction.participants:
                 if participant.coefficient < 0:
-                    rate_law_equation.modifiers.append(participant.species)
+                    avg_conc = (3/2)*participant.species.concentration.value
+                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                    modifiers.append(participant.species)
                     expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               participant.species.concentration.value)
-
-                    # Approx avg concentrationa cross cell cycle
-                    avg_conc = (3/2)*participant.species.concentration.value
-                    rate_avg = rate_avg + '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
 
             # Clip off trailing * character
             expression = expression[:-1]
             rate_avg = rate_avg[:-1]
 
-            rate_law_equation.expression = expression
+            # Create / add rate law equation
+            if 'rate_law_equation' not in locals():
+                rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
+
             rate_law.equation = rate_law_equation
 
-            # Calculate k_cat;  Avg concn over the cell cycle is overestimated assuming exp gene expression,
-            # more accurate value can be obtained by running model with exp gene expression and calc avg conc
+            # Calculate k_cat
             exp_expression = '({}*(1/{}+1/{})*{})'.format(
                                 numpy.log(2),
                                 model.parameters.get_one(id='cellCycleLength').value,
