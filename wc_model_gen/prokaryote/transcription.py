@@ -141,7 +141,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Calculate k_cat
             exp_expression = '({}*(1/{}+1/{})*{})'.format(
                                 numpy.log(2),
-                                model.parameters.get_one(id='cellCycleLength').value,
+                                cell.properties.get_one(id='doubling_time').value,
                                 rna_kb.half_life,
                                 3/2*rna_kb.concentration) #This should have units of M
 

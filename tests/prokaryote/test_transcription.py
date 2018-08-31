@@ -22,29 +22,27 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'component': {
                 'PropertiesGenerator': {
                     'mean_volume': 1e-15,
-                    'mean_doubling_time': 1000.,
+                    'mean_doubling_time': 100,
                 },
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
-                    'mean_num_genes': 200.,
-                    'mean_gene_len': 10.,
-                    'mean_copy_number': 10.,
-                    'mean_half_life': 120.,
+                    'mean_num_genes': 50,
+                    'mean_gene_len': 10,
+                    'mean_copy_number': 10,
+                    'mean_half_life': 120,
                 },
                 'MetabolitesGenerator': {
                 },
             },
         }).run()
+
+
         cell = kb.cell
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
 
         model = wc_lang.Model()
-        met = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
-        met.run()
-        gen = transcription.TranscriptionSubmodelGenerator(
-            kb, model, options={})
-        gen.run()
-
+        metabolism.MetabolismSubmodelGenerator(kb, model, options={}).run()
+        transcription.TranscriptionSubmodelGenerator(kb, model, options={}).run()
         submodel = model.submodels.get_one(id='transcription')
 
         # check compartments generated

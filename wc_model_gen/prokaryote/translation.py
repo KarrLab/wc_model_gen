@@ -39,14 +39,15 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Adding reaction participants LHS
             ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=-1))
             gtp = self.model.species_types.get_one(id='gtp').species.get_one(compartment=compartment)
-            reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-(n_steps+2)))
             initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
-            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=-1))
             elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
-            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=-n_steps))
             release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+
+            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=-1))
+            reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-(n_steps+2)))
+            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=-1))
+            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=-n_steps))
             reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=-1))
 
             # Add tRNAs to
@@ -62,18 +63,20 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Adding reaction participants RHS
             protein = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=compartment)
-            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
-            ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
-            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
             gdp = self.model.species_types.get_one(id='gdp').species.get_one(compartment=compartment)
-            reaction.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps))
             pi = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
+
+            #ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
+            #initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
+            #elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
+            #release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+
+            reaction.participants.add(protein.species_coefficients.get_or_create(coefficient=1))
+            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
+            reaction.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
             reaction.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
-            initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
             reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
-            elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
             reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
-            release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
             reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
     def gen_rate_laws(self):
@@ -99,7 +102,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for participant in reaction.participants:
                 if participant.coefficient < 0:
                     rate_law_equation.modifiers.append(participant.species)
-                    expression += '({}/({}+(3/2)*{})*'.format(participant.species.id(),
+                    expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               participant.species.concentration.value)
 

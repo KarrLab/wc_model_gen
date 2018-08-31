@@ -28,7 +28,7 @@ class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
         MetabolismSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
-        TranslationSubmodelGenerator,
+        #TranslationSubmodelGenerator,
         ProteinDegradationSubmodelGenerator
     )
 
