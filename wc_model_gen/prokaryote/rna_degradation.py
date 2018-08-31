@@ -80,7 +80,22 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=kb_rna.get_len() - 1))
 
     def gen_rate_laws(self):
-        """ Generate rate laws associated with submodel """
+        """ Generate rate laws associated with reactions """
+        model = self.model
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='rna_degradation')
+
+        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        for rna_kb, rxn in zip(rnas, self.submodel.reactions):
+            rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
+            rate_law = rxn.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            expression = '({} / {}) * {}'.format(numpy.log(2), rna_kb.half_life, rna_model.id())
+            rate_law.equation = wc_lang.RateLawEquation(expression = expression)
+            rate_law.equation.modifiers.append(rxn.participants[0].species)
+
+        """
         model = self.model
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
@@ -101,3 +116,4 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rl.k_m = deg_avg_conc
             rl.equation.modifiers.append(deg_rnase)
             rl.equation.modifiers.append(rxn.participants[0].species)
+        """
