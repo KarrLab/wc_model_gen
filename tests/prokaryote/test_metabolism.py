@@ -59,7 +59,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             compartment=self.model.compartments.get_one(id=compartment_id))
         return lang_species
 
-    def test_O2_degradation(self):
+    def test_o2_degradation_rxn(self):
         lang_O2_degradation_rxn = self.submodel.reactions.get_one(id='O2_degradation')
         self.assertEqual(lang_O2_degradation_rxn.name, 'O2 degradation')
         self.assertEqual(lang_O2_degradation_rxn.reversible, False)
@@ -71,12 +71,22 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 coefficient=part.coefficient))
         self.assertEqual(expected_participants, set(lang_O2_degradation_rxn.participants))
 
-    def test_Ozone(self):
+    def test_ozone_rxn(self):
         lang_Ozone_rxn = self.submodel.reactions.get_one(id='Ozone')
         self.assertEqual(lang_Ozone_rxn.reversible, True)
         self.assertEqual(len(lang_Ozone_rxn.rate_laws), 2)
         self.assertEqual(set(('1+2', '1+3')),
             set([rl.equation.expression for rl in lang_Ozone_rxn.rate_laws]))
+
+    def test_rxn_participants(self):
+        for lang_rxn in self.submodel.reactions:
+            kb_rxn = self.kb.cell.reactions.get_one(id=lang_rxn.id)
+            expected_participants = set()
+            for part in kb_rxn.participants:
+                lang_species = self.get_species(part.species.species_type.id, part.species.compartment.id)
+                expected_participants.add(lang_species.species_coefficients.get_one(
+                    coefficient=part.coefficient))
+            self.assertEqual(expected_participants, set(lang_rxn.participants))
 
     def test_oxygen_ionization_rate_law(self):
         lang_Oxygen_ionization_rxn = self.submodel.reactions.get_one(id='Oxygen_ionization')
