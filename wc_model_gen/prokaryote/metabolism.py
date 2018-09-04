@@ -33,8 +33,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         ext = model.compartments.get_or_create(id='e')
         if not ext.name:
             ext.name = 'extracellular space'
-        ext.initial_volume = 1. / \
-            cell.properties.get_one(id='cell_density').value
+        ext.initial_volume = 1. / cell.properties.get_one(id='cell_density').value
 
     def gen_parameters(self):
         cell = self.knowledge_base.cell
@@ -45,30 +44,99 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             id='fraction_dry_weight').value
         param.units = 'dimensionless'
 
+    def gen_a_specie(self, kb_metabolite, lang_compartment):
+        """ Generate a species in a particular compartment
+
+        Args:
+            kb_metabolite (:obj:`wc_kb.MetaboliteSpeciesType`): a knowledgebase metabolite
+            lang_compartment (:obj:`wc_lang.Compartment`): the wc_lang compartment containing the species
+
+        Returns:
+            :obj:`wc_lang.Species`: the species that was found or created
+        """
+        species_type = self.model.species_types.get_or_create(id=kb_metabolite.id)
+        species_type.name = kb_metabolite.name
+        species_type.type = wc_lang.SpeciesTypeType.metabolite
+        species_type.structure = kb_metabolite.structure
+        species_type.empirical_formula = kb_metabolite.get_empirical_formula()
+        species_type.molecular_weight = kb_metabolite.get_mol_wt()
+        species_type.charge = kb_metabolite.get_charge()
+        species_type.comments = kb_metabolite.comments
+        species = species_type.species.get_or_create(
+            compartment=lang_compartment)
+        species.concentration = wc_lang.Concentration(
+            value=kb_metabolite.concentration, units=wc_lang.ConcentrationUnit.M)
+        return species
+
     def gen_species(self):
-        cell = self.knowledge_base.cell
-        model = self.model
-        cytosol = model.compartments.get(id='c')[0]
-        metabolites = cell.species_types.get(
+        """ Generate all metabolic species in the cytosol """
+        cytosol = self.model.compartments.get_one(id='c')
+        metabolites = self.knowledge_base.cell.species_types.get(
             __type=wc_kb.core.MetaboliteSpeciesType)
 
         # get or create metabolite species
         for kb_met in metabolites:
-            species_type = model.species_types.get_or_create(id=kb_met.id)
-            if not species_type.name:
-                species_type.name = kb_met.name
-                species_type.type = wc_lang.SpeciesTypeType.metabolite
-                species_type.structure = kb_met.structure
-                species_type.empirical_formula = kb_met.get_empirical_formula()
-                species_type.molecular_weight = kb_met.get_mol_wt()
-                species_type.charge = kb_met.get_charge()
-                species_type_c = species_type.species.get_or_create(
-                    compartment=cytosol)
-                species_type_c.concentration = wc_lang.Concentration(
-                    value=kb_met.concentration, units=wc_lang.ConcentrationUnit.M)
+            self.gen_a_specie(kb_met, cytosol)
+
+    def get_species_type_types(self, kb_rxn):
+        """ Obtain the species type types used by a kb reaction """
+        species_type_types = set()
+        for participant in kb_rxn.participants:
+            kb_species_type = participant.species.species_type
+            species_type_types.add(type(kb_species_type))
+        return species_type_types
 
     def gen_reactions(self):
-        pass
+        """ Generate reactions associated with metabolism """
+
+        for kb_rxn in self.knowledge_base.cell.reactions:
+            # if species are metabolites, create lang reaction in metabolism
+            # todo: generalize to all submodels
+            if self.get_species_type_types(kb_rxn) == set([wc_kb.core.MetaboliteSpeciesType]):
+                lang_rxn = self.submodel.reactions.create(
+                    id=kb_rxn.id,
+                    name=kb_rxn.name,
+                    reversible=kb_rxn.reversible,
+                    comments=kb_rxn.comments)
+                for participant in kb_rxn.participants:
+                    kb_species = participant.species
+                    lang_species_type = self.model.species_types.get_one(
+                        id=kb_species.species_type.id)
+                    lang_compartment = self.model.compartments.get_one(
+                        id=kb_species.compartment.id)
+                    lang_species = lang_species_type.species.get_one(
+                        compartment=lang_compartment)
+                    # ensure that species are present in extracellular space
+                    if lang_species is None:
+                        lang_species = self.gen_a_specie(kb_species.species_type, lang_compartment)
+                    lang_rxn.participants.add(
+                        lang_species.species_coefficients.get_or_create(
+                            coefficient=participant.coefficient))
 
     def gen_rate_laws(self):
-        pass
+        """ Generate rate laws for reactions associated with submodel """
+        model = self.model
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+
+        for kb_rxn in self.knowledge_base.cell.reactions:
+            if self.get_species_type_types(kb_rxn) == set([wc_kb.core.MetaboliteSpeciesType]):
+                lang_rxn = self.submodel.reactions.get_one(id=kb_rxn.id)
+                for kb_rate_law in kb_rxn.rate_laws:
+                    lang_rate_law = wc_lang.RateLaw(k_cat=kb_rate_law.k_cat,
+                        k_m=kb_rate_law.k_m,
+                        comments=kb_rate_law.comments)
+                    lang_rxn.rate_laws.add(lang_rate_law)
+                    if kb_rate_law.direction == wc_kb.RateLawDirection.forward:
+                        lang_rate_law.direction = wc_lang.RateLawDirection.forward
+                    elif kb_rate_law.direction == wc_kb.RateLawDirection.backward:  # pragma branch not covered
+                        lang_rate_law.direction = wc_lang.RateLawDirection.backward
+                    lang_rate_law.equation = wc_lang.RateLawEquation(
+                        expression=kb_rate_law.equation.expression
+                    )
+                    for kb_modifier in kb_rate_law.equation.modifiers:
+                        lang_species_type = self.model.species_types.get_one(
+                            id=kb_modifier.species_type.id)
+                        lang_species = lang_species_type.species.get_one(
+                            compartment=cytosol)
+                        lang_rate_law.equation.modifiers.add(lang_species)

@@ -13,6 +13,7 @@ import wc_kb
 import wc_lang
 import wc_utils.util.string
 
+
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
 
@@ -80,7 +81,7 @@ class ModelGenerator(object):
 
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
-    """ Base class for model component generators
+    """ Abstract base class for model component generators
 
     Attributes:
         knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
@@ -152,14 +153,14 @@ class SubmodelGenerator(ModelComponentGenerator):
         """ Generate species associated with submodel """
         pass  # pragma: no cover
 
-    def gen_reactions(self):
-        """ Generate reactions associated with submodel """
-        pass  # pragma: no cover
-
     def gen_parameters(self):
         """ Generate parameters associated with submodel """
         pass  # pragma: no cover
 
+    def gen_reactions(self):
+        """ Generate reactions associated with submodel """
+        pass  # pragma: no cover
+
     def gen_rate_laws(self):
-        """ Generate rate laws associated with submodel """
+        """ Generate rate laws for reactions associated with submodel """
         pass  # pragma: no cover

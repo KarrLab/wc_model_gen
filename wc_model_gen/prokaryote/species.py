@@ -39,6 +39,7 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
                 species_type.empirical_formula = rna.get_empirical_formula()
                 species_type.molecular_weight = rna.get_mol_wt()
                 species_type.charge = rna.get_charge()
+                species_type.comments = rna.comments
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
                 species.concentration = wc_lang.Concentration(
@@ -63,6 +64,7 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
                 species_type.empirical_formula = protein.get_empirical_formula()
                 species_type.molecular_weight = protein.get_mol_wt()
                 species_type.charge = protein.get_charge()
+                species_type.comments = protein.comments
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
 
