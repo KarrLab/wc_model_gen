@@ -19,6 +19,14 @@ from wc_model_gen.prokaryote.species import SpeciesGenerator
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+
+        options = self.options
+        rate_law_dynamics = options.get('rate_law_dynamics', 'exponential')
+        assert(rate_law_dynamics in ['exponential', 'calibrated'])
+        options['rate_law_dynamics'] = rate_law_dynamics
+
     def gen_species(self):
         """ Generate protein species """
         speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
@@ -26,31 +34,34 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_reactions(self):
         """ Generate a lumped reaction that cvers initiation, elongation and termination for each protein translated """
+        model = self.model
         submodel = self.submodel
-        compartment = self.model.compartments.get_one(id='c')
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
 
-        proteins = self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        # Get species involved in reaction - tRna handeled on a per codon bases below
+        gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
+        gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
+        pi =  model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
+        initiation_factors = model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
+        elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
+        release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
 
-        # Add translation initating reactions
-        for protein_kb in proteins:
-            reaction = submodel.reactions.get_or_create(id='translation_' + protein_kb.id)
-            reaction.name = 'translate '+ protein_kb.id
+        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb in proteins_kbs:
+
+            protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
+            rxn = submodel.reactions.get_or_create(id=protein_kb.id.replace('prot_', 'translation_'))
+            rxn.participants = []
 
-            # Adding reaction participants LHS
-            ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
-            gtp = self.model.species_types.get_one(id='gtp').species.get_one(compartment=compartment)
-            initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
-            elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
-            release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+            # Adding participants to LHS
+            rxn.participants.add(gtp.species_coefficients.get_or_create(coefficient=-(n_steps+2)))
+            rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=-1))
+            rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=-n_steps))
+            rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=-1))
 
-            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=-1))
-            reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-(n_steps+2)))
-            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=-1))
-            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=-n_steps))
-            reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=-1))
-
-            # Add tRNAs to
+            # Add tRNAs to LHS
             bases = "TCAG"
             codons = [a + b + c for a in bases for b in bases for c in bases]
 
@@ -58,57 +69,110 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 if codon not in ['TAG', 'TAA', 'TGA']:
                     n = str(protein_kb.gene.get_seq()).count(codon)
                     if n > 0:
-                        trna = self.model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
-                        reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
+                        trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
+                        rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
-            # Adding reaction participants RHS
-            protein = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=compartment)
-            gdp = self.model.species_types.get_one(id='gdp').species.get_one(compartment=compartment)
-            pi = self.model.species_types.get_one(id='pi').species.get_one(compartment=compartment)
+            # Adding participants to RHS
+            rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+            rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
+            rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
 
-            #ribosome = self.model.observables.get_one(id='complex_70S_obs').expression.species[0]
-            #initiation_factors = self.model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
-            #elongation_factors = self.model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
-            #release_factors = self.model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+            # Add ribosome
+            for ribosome_kb in cell.observables.get_one(id='complex_70S_obs').species:
+                ribosome_species_type_model = model.species_types.get_one(id=ribosome_kb.species.species_type.id)
+                ribosome_model = ribosome_species_type_model.species.get_one(compartment=cytosol)
 
-            reaction.participants.add(protein.species_coefficients.get_or_create(coefficient=1))
-            reaction.participants.add(ribosome.species_coefficients.get_or_create(coefficient=1))
-            reaction.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
-            reaction.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
-            reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
-            reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
-            reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+                rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=(-1)*ribosome_kb.coefficient))
+                rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=ribosome_kb.coefficient))
 
     def gen_rate_laws(self):
-        """ Generate rate laws associated with submodel """
+        """ Choose dynamics for the model """
+
+        rate_law_dynamics = self.options.get('rate_law_dynamics')
+        if rate_law_dynamics=='exponential':
+            self.gen_rate_laws_exp()
+
+        elif rate_law_dynamics=='calibrated':
+            self.gen_rate_laws_cal()
+
+    def gen_rate_laws_exp(self):
+        """ Generate rate laws with exponential dynamics """
+
         model = self.model
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='translation')
+        cell_cycle_length = cell.properties.get_one(id='doubling_time').value
 
+        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
+            protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
+
+            if protein_kb.half_life == 0:
+                protein_kb.half_life = 12*60*60
+
+            rate_law = rxn.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            expression = '({} / {} + {} / {}) * {}'.format(numpy.log(2), protein_kb.half_life,
+                                                           numpy.log(2), cell_cycle_length,
+                                                           protein_model.id())
+
+            rate_law.equation = wc_lang.RateLawEquation(expression = expression)
+            rate_law.equation.modifiers.append(protein_model)
+
+    def gen_rate_laws_cal(self):
+        """ Generate rate laws associated with submodel """
+        model = self.model
+        cell = self.knowledge_base.cell
+        submodel = model.submodels.get_one(id='translation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(id='doubling_time').value
 
-        # check ribosome count
-        poly_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
-        rna_polymerase = model.observables.get_one(id='rna_polymerase_obs')
+        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
 
-        for reaction in submodel.reactions:
-            rate_law = reaction.rate_laws.create()
+            protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
+            rate_law = rxn.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            rate_law_equation = wc_lang.RateLawEquation()
             expression = 'k_cat*'
+            modifiers = []
+            rate_avg = ''
+            beta = 2
 
-            for participant in reaction.participants:
+            #TODO: replace with calculation of avg half life; 553s is avg of Mycoplasma RNAs
+            if protein_kb.half_life == 0:
+                protein_kb.half_life = 12*60*60
+
+            for participant in rxn.participants:
                 if participant.coefficient < 0:
-                    rate_law_equation.modifiers.append(participant.species)
+                    avg_conc = (3/2)*participant.species.concentration.value
+                    modifiers.append(participant.species)
+                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
                     expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               participant.species.concentration.value)
 
-            expression = expression[:-1] #clip off trailing * character
-            rate_law_equation.expression = expression
+            # Clip off trailing * character
+            expression = expression[:-1]
+            rate_avg = rate_avg[:-1]
+
+            # Create / add rate law equation
+            if 'rate_law_equation' not in locals():
+                rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
+
             rate_law.equation = rate_law_equation
+
+            # Calculate k_cat
+            exp_expression = '({}*(1/{}+1/{})*{})'.format(
+                                numpy.log(2),
+                                cell.properties.get_one(id='doubling_time').value,
+                                protein_kb.half_life,
+                                3/2*protein_kb.concentration) #This should have units of M
+
+            rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
 
         """ Generate the rate laws associate dwith reactions
         model = self.model
