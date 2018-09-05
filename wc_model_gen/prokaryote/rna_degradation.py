@@ -135,8 +135,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     modifiers.append(participant.species)
                     avg_conc = (3/2)*participant.species.concentration.value
                     rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                    expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
+                    expression += '({}/({}+(3/2)*{}*{}))*'.format(participant.species.id(),
                                                               participant.species.id(),
+                                                              beta,
                                                               participant.species.concentration.value)
 
             # Clip off trailing * character

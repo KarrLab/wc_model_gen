@@ -65,9 +65,9 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
                 species_type.molecular_weight = protein.get_mol_wt()
                 species_type.charge = protein.get_charge()
                 species_type.comments = protein.comments
+
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
-
                 species.concentration = wc_lang.Concentration(
                     value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
 
@@ -76,17 +76,19 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
+
         for comp in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
-            species_type = self.model.species_types.get_or_create(
-                id=comp.id)
+            species_type = model.species_types.get_or_create(id=comp.id)
+
             if not species_type.name:
                 species_type.name = comp.name
                 species_type.type = wc_lang.SpeciesTypeType.pseudo_species
-                species = species_type.species.get_or_create(
-                    compartment=cytosol)
+                species_type.empirical_formula = comp.get_empirical_formula()
+                species_type.molecular_weight = comp.get_mol_wt()
+                species_type.charge = comp.get_charge()
 
-                species.concentration = wc_lang.Concentration(
-                    value=comp.concentration, units=wc_lang.ConcentrationUnit.M)
+                species = species_type.species.get_or_create(compartment=cytosol)
+                species.concentration = wc_lang.Concentration(value=comp.concentration, units=wc_lang.ConcentrationUnit.M)
 
     def gen_observables(self):
         '''Generate observables in wc_lang model from knowledge base '''
@@ -118,7 +120,7 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
                         id=kb_observable_observable.id)
                     obs_expr_parts.append("{}*{}".format(kb_observable_observable.coefficient, kb_observable_observable.id))
                     observable_references[Observable][model_observable_observable.id] = model_observable_observable
-                obs_expr, e = ExpressionMethods.make_expression_obj(Observable, 
+                obs_expr, e = ExpressionMethods.make_expression_obj(Observable,
                     ' + '.join(obs_expr_parts), observable_references)
                 assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
                 model_observable.expression = obs_expr
