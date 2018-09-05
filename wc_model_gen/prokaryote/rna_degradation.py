@@ -98,7 +98,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='rna_degradation')
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
-        for rna_kb, rxn in zip(rnas, self.submodel.reactions):
+        for rna_kb, rxn in zip(rnas, submodel.reactions):
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
             rate_law = rxn.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward

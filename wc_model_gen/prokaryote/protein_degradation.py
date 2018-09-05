@@ -14,9 +14,16 @@ import wc_lang
 import wc_model_gen
 from wc_model_gen.prokaryote.species import SpeciesGenerator
 
-
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Gnerator for Protein degradation model"""
+    """ Generator for protein degradation model"""
+
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+
+        options = self.options
+        rate_law_dynamics = options.get('rate_law_dynamics', 'exponential')
+        assert(rate_law_dynamics in ['exponential', 'calibrated'])
+        options['rate_law_dynamics'] = rate_law_dynamics
 
     def gen_compartments(self):
         self.cell = self.knowledge_base.cell
@@ -33,69 +40,131 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         speciesGen.run()
 
     def gen_reactions(self):
-
+        """ Generate reactions associated with submodel """
         model = self.model
-        submodel = self.submodel
+        cell = self.knowledge_base.cell
+        submodel = model.submodels.get_one(id='protein_degradation')
         cytosol = model.compartments.get_one(id='c')
 
-        proteins = self.cell.species_types.get(
-            __type=wc_kb.core.ProteinSpeciesType)
+        atp = model.species_types.get_one(id='atp').species.get_one(compartment=cytosol)
+        adp = model.species_types.get_one(id='adp').species.get_one(compartment=cytosol)
+        pi = model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
+        h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
 
-        for kb_protein in proteins:
-            if kb_protein.id.startswith('protein_'):
-                rxn = submodel.reactions.get_or_create(
-                    id=kb_protein.id.replace('protein', 'protein_degradation_'))
-                rxn.name = kb_protein.name.replace(
-                    'protein ', 'protein degradation ')
-            else:
-                rxn = submodel.reactions.get_or_create(
-                    id='protein_degradation_'+str(kb_protein.id))
-                rxn.name = 'protein degradation '+str(kb_protein.name)
+        amino_acids = ['ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his',
+                       'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
+        aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
+               "S", "T", "W", "Y", "V"]
 
-            model_protein = model.species_types.get_one(
-                id=kb_protein.id).species.get_one(compartment=cytosol)
+        proteins_kb = self.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb in proteins_kb:
 
-            seq = kb_protein.get_seq()
-
+            protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
+            seq = protein_kb.get_seq()
+            rxn = submodel.reactions.get_or_create(id=protein_kb.id.replace('protein_', 'degradation_'))
             rxn.participants = []
 
-            # The protein being degraded
-            rxn.participants.add(
-                model_protein.species_coefficients.get_or_create(coefficient=-1))
+            # Adding participants to LHS
+            rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=-1))
+            rxn.participants.add(atp.species_coefficients.get_or_create(coefficient=-1))
+            rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
 
-            # ATP used to attach protein to proteosome
-            atp = model.species_types.get_one(
-                id='atp').species.get_one(compartment=cytosol)
-            adp = model.species_types.get_one(
-                id='adp').species.get_one(compartment=cytosol)
-            pi = model.species_types.get_one(
-                id='pi').species.get_one(compartment=cytosol)
-            rxn.participants.add(
-                atp.species_coefficients.get_or_create(coefficient=-1))
-            rxn.participants.add(
-                adp.species_coefficients.get_or_create(coefficient=1))
-            rxn.participants.add(
-                pi.species_coefficients.get_or_create(coefficient=1))
-
-            # Water needed for the seperation of each amino acid
-            h2o = model.species_types.get_one(
-                id='h2o').species.get_one(compartment=cytosol)
-
-            rxn.participants.add(
-                h2o.species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
-
-            # The 20 amino acids
-            amino_acids = ['ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his',
-                           'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
-            aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I",
-                   "L", "K", "M", "F", "P", "S", "T", "W", "Y", "V"]
-
+            # Adding participants to RHS
+            rxn.participants.add(adp.species_coefficients.get_or_create(coefficient=1))
+            rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=1))
             for amino_acid, aa in zip(amino_acids, aas):
-                species = model.species_types.get_one(
-                    id=amino_acid).species.get_one(compartment=cytosol)
-                rxn.participants.add(
-                    species.species_coefficients.get_or_create(coefficient=seq.count(aa)))
+                species = model.species_types.get_one(id=amino_acid).species.get_one(compartment=cytosol)
+                rxn.participants.add(species.species_coefficients.get_or_create(coefficient=seq.count(aa)))
 
+            # Add members of the degradosome
+            # Counterintuitively .specie is a KB species_coefficient object
+            for degradosome_kb in cell.observables.get_one(id='degrade_protease_obs').species:
+                degradosome_species_type_model = model.species_types.get_one(id=degradosome_kb.species.species_type.id)
+                degradosome_species_model = degradosome_species_type_model.species.get_one(compartment=cytosol)
+
+                rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
+                rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
+
+    def gen_rate_laws(self):
+
+        rate_law_dynamics = self.options.get('rate_law_dynamics')
+        if rate_law_dynamics=='exponential':
+            self.gen_rate_laws_exp()
+
+        elif rate_law_dynamics=='calibrated':
+            self.gen_rate_laws_cal()
+
+    def gen_rate_laws_exp(self):
+        """ Generate rate laws with exponential dynamics """
+
+        model = self.model
+        cell = self.knowledge_base.cell
+        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='protein_degradation')
+
+        proteins_kb = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb, rxn in zip(proteins_kb, submodel.reactions):
+            protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
+            rate_law = rxn.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            expression = '({} / {}) * {}'.format(numpy.log(2), protein_kb.half_life, protein_model.id())
+            rate_law.equation = wc_lang.RateLawEquation(expression = expression)
+            rate_law.equation.modifiers.append(rxn.participants[0].species)
+
+    def gen_rate_laws_cal(self):
+        """ Generate rate laws associated with submodel """
+        model = self.model
+        cell = self.knowledge_base.cell
+        submodel = model.submodels.get_one(id='protein_degradation')
+        mean_volume = cell.properties.get_one(id='initial_volume').value
+        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+
+        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
+
+            protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
+            rate_law = rxn.rate_laws.create()
+            rate_law.direction = wc_lang.RateLawDirection.forward
+            expression = 'k_cat*'
+            modifiers = []
+            rate_avg = ''
+            beta = 2
+
+            #TODO: replace with calculation of avg half life; 553s is avg of Mycoplasma RNAs
+            if protein_kb.half_life == 0:
+                protein_kb.half_life = 12*60*60
+
+            for participant in rxn.participants:
+                if participant.coefficient < 0:
+                    avg_conc = (3/2)*participant.species.concentration.value
+                    modifiers.append(participant.species)
+                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                    expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
+                                                              participant.species.id(),
+                                                              participant.species.concentration.value)
+
+            # Clip off trailing * character
+            expression = expression[:-1]
+            rate_avg = rate_avg[:-1]
+
+            # Create / add rate law equation
+            if 'rate_law_equation' not in locals():
+                rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
+
+            rate_law.equation = rate_law_equation
+
+            # Calculate k_cat
+            exp_expression = '({}*(1/{}+1/{})*{})'.format(
+                                numpy.log(2),
+                                cell.properties.get_one(id='doubling_time').value,
+                                protein_kb.half_life,
+                                3/2*protein_kb.concentration) #This should have units of M
+
+            rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
+
+
+
+    """
     def gen_rate_laws(self):
         model = self.model
         cell = self.knowledge_base.cell
@@ -121,3 +190,4 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # rl.equation.observables.append(deg_protease)
             rl.equation.modifiers.append(deg_protease)
             rl.equation.modifiers.append(rxn.participants[0].species)
+    """
