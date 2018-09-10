@@ -17,14 +17,6 @@ from wc_model_gen.prokaryote.species import SpeciesGenerator
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for protein degradation model"""
 
-    def clean_and_validate_options(self):
-        """ Apply default options and validate options """
-
-        options = self.options
-        rate_law_dynamics = options.get('rate_law_dynamics', 'exponential')
-        assert(rate_law_dynamics in ['exponential', 'calibrated'])
-        options['rate_law_dynamics'] = rate_law_dynamics
-
     def gen_compartments(self):
         self.cell = self.knowledge_base.cell
         model = self.model
@@ -85,16 +77,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
                 rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
 
-    def gen_rate_laws(self):
-
-        rate_law_dynamics = self.options.get('rate_law_dynamics')
-        if rate_law_dynamics=='exponential':
-            self.gen_rate_laws_exp()
-
-        elif rate_law_dynamics=='calibrated':
-            self.gen_rate_laws_cal()
-
-    def gen_rate_laws_exp(self):
+    def gen_phenomenological_rates(self):
         """ Generate rate laws with exponential dynamics """
 
         model = self.model
@@ -111,7 +94,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(rxn.participants[0].species)
 
-    def gen_rate_laws_cal(self):
+    def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
         model = self.model
         cell = self.knowledge_base.cell
@@ -161,33 +144,3 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 3/2*protein_kb.concentration) #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
-
-
-
-    """
-    def gen_rate_laws(self):
-        model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_or_create(id='c')
-
-        proteosome_conc = 5000/scipy.constants.Avogadro / \
-            cytosol.initial_volume  # PubMed ID16135238
-
-        deg_protease = model.observables.get_one(
-            id='degrade_protease_obs').expression.species[0]
-
-        prots = cell.species_types.get(
-            __type=wc_kb.ProteinSpeciesType)
-        for prot, rxn in zip(prots, self.submodel.reactions):
-            rl = rxn.rate_laws.create()
-            rl.direction = wc_lang.RateLawDirection.forward
-
-            rl.equation = wc_lang.RateLawEquation(
-                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(prot.id, deg_protease.id(), '0.1'))
-
-            rl.k_cat = 2 * numpy.log(2) / prot.half_life
-            rl.k_m = proteosome_conc
-            # rl.equation.observables.append(deg_protease)
-            rl.equation.modifiers.append(deg_protease)
-            rl.equation.modifiers.append(rxn.participants[0].species)
-    """

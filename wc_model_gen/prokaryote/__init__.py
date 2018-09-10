@@ -1,5 +1,6 @@
 from .core import ProkaryoteModelGenerator
 from .metabolism import MetabolismSubmodelGenerator
+from .min_metabolism import MinMetabolismSubmodelGenerator
 from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
 from .translation import TranslationSubmodelGenerator

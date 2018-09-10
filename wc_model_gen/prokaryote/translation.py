@@ -19,14 +19,6 @@ from wc_model_gen.prokaryote.species import SpeciesGenerator
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
-    def clean_and_validate_options(self):
-        """ Apply default options and validate options """
-
-        options = self.options
-        rate_law_dynamics = options.get('rate_law_dynamics', 'exponential')
-        assert(rate_law_dynamics in ['exponential', 'calibrated'])
-        options['rate_law_dynamics'] = rate_law_dynamics
-
     def gen_species(self):
         """ Generate protein species """
         speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
@@ -98,7 +90,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         elif rate_law_dynamics=='calibrated':
             self.gen_rate_laws_cal()
 
-    def gen_rate_laws_exp(self):
+    def gen_phenomenological_rates(self):
         """ Generate rate laws with exponential dynamics """
 
         model = self.model
@@ -123,7 +115,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(protein_model)
 
-    def gen_rate_laws_cal(self):
+    def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
         model = self.model
         cell = self.knowledge_base.cell
@@ -174,66 +166,3 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 3/2*protein_kb.concentration) #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
-
-        """ Generate the rate laws associate dwith reactions
-        model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
-        submodel = model.submodels.get_one(id='translation')
-
-        mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
-
-        IF = self.model.observables.get_one(id='translation_init_factors_obs')
-        IF_avg_conc = 0.05  # placeholder
-        EF = self.model.observables.get_one(id='translation_elongation_factors_obs')
-        EF_avg_conc = 0.05  # placeholder
-        RF = self.model.observables.get_one(id='translation_release_factors_obs')
-        RF_avg_conc = 0.05  # placeholder
-
-        exp = 'k_cat'
-
-        init_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(IF.expression.species[0].id()) +
-                                               '/ (k_m +{}))'.format(IF.expression.species[0].id()))
-        init_eq.modifiers.append(IF.expression.species[0])
-
-        elon_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(EF.expression.species[0].id()) +
-                                               '/ (k_m +{}))'.format(EF.expression.species[0].id()))
-        # elon_eq.observables.append(EF)
-        elon_eq.modifiers.append(EF.expression.species[0])
-
-        term_eq = wc_lang.core.RateLawEquation(expression=exp + ' * ({}'.format(RF.expression.species[0].id()) +
-                                               '/ (k_m +{}))'.format(RF.expression.species[0].id()))
-        # term_eq.observables.append(RF)
-        term_eq.modifiers.append(RF.expression.species[0])
-
-        for reaction in self.submodel.reactions:
-            if reaction.id.startswith('translation_init_'):
-                rl = reaction.rate_laws.create()
-                rl.direction = wc_lang.RateLawDirection.forward
-                prot_id = reaction.id[reaction.id.find('init_')+5:]
-                prot = cell.species_types.get_one(id=prot_id)
-                rl.k_cat = 2 * (numpy.log(2) / prot.half_life +
-                                numpy.log(2) / mean_doubling_time)
-                rl.equation = init_eq
-                rl.k_m = IF_avg_conc
-            elif reaction.id.startswith('translation_elon_'):
-                rl = reaction.rate_laws.create()
-                rl.direction = wc_lang.RateLawDirection.forward
-                prot_id = reaction.id[reaction.id.find('elon_')+5:]
-                prot = cell.species_types.get_one(id=prot_id)
-                rl.k_cat = 2 * (numpy.log(2) / prot.half_life +
-                                numpy.log(2) / mean_doubling_time)
-                rl.equation = elon_eq
-                rl.k_m = EF_avg_conc
-
-            else:
-                rl = reaction.rate_laws.create()
-                rl.direction = wc_lang.RateLawDirection.forward
-                prot_id = reaction.id[reaction.id.find('term_')+5:]
-                prot = cell.species_types.get_one(id=prot_id)
-                rl.k_cat = 2 * (numpy.log(2) / prot.half_life +
-                                numpy.log(2) / mean_doubling_time)
-                rl.equation = term_eq
-                rl.k_m = RF_avg_conc
-                """

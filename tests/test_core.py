@@ -17,7 +17,7 @@ class TestModelGenerator(unittest.TestCase):
     def setUp(self):
         self.knowledge_base = wc_kb.KnowledgeBase()
 
-    def test_ModelGenerator(self):
+    def test_ModelGenerator_init(self):
         generator = wc_model_gen.ModelGenerator(self.knowledge_base)
 
         self.assertEqual(generator.knowledge_base, self.knowledge_base)
@@ -26,8 +26,8 @@ class TestModelGenerator(unittest.TestCase):
 
     def test_ModelGenerator_run(self):
         generator = wc_model_gen.ModelGenerator(self.knowledge_base, options={
-            'id': 'test_model',
-        })
+            'id': 'test_model'})
+
         model = generator.run()
 
         self.assertEqual(model.id, 'test_model')
@@ -43,6 +43,7 @@ class TestModelGenerator(unittest.TestCase):
         self.assertEqual(model.version, '0.0.1')
 
     def test_ModelGenerator_run_with_submodels(self):
+
         class TestComponentGenerator1(wc_model_gen.ModelComponentGenerator):
             def run(self):
                 self.model.compartments.create(id=self.options['compartment_id'], name='Cytosol')
@@ -51,15 +52,19 @@ class TestModelGenerator(unittest.TestCase):
             def gen_species(self):
                 self.model.species_types.create(id=self.options['species_type_id'], name='ATP')
 
+            def gen_phenomenological_rates(self):
+                pass
+
         class TestSubmodelGenerator3(wc_model_gen.SubmodelGenerator):
             def gen_species(self):
                 self.model.species_types.create(id='gtp', name=self.options['species_type_name'])
 
-        component_generators = [
-            TestComponentGenerator1,
-            TestSubmodelGenerator2,
-            TestSubmodelGenerator3,
-        ]
+            def gen_phenomenological_rates(self):
+                pass
+
+        component_generators = [TestComponentGenerator1,
+                                TestSubmodelGenerator2,
+                                TestSubmodelGenerator3]
 
         options = {
             'id': 'test_model',
@@ -76,6 +81,7 @@ class TestModelGenerator(unittest.TestCase):
                 },
             },
         }
+
         kb = wc_kb.KnowledgeBase()
         model = wc_model_gen.ModelGenerator(kb, component_generators=component_generators, options=options).run()
 

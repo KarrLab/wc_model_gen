@@ -143,6 +143,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         self.gen_species()
         self.gen_reactions()
         self.gen_parameters()
+        self. clean_and_validate_options()
         self.gen_rate_laws()
 
     def gen_compartments(self):
@@ -162,5 +163,21 @@ class SubmodelGenerator(ModelComponentGenerator):
         pass  # pragma: no cover
 
     def gen_rate_laws(self):
-        """ Generate rate laws for reactions associated with submodel """
-        pass  # pragma: no cover
+        """ Choose which rate_law to generate """
+
+        rate_law_dynamics = self.options.get('rate_dynamics')
+
+        if rate_law_dynamics=='phenomenological':
+            self.gen_phenomenological_rates()
+
+        elif rate_law_dynamics=='mechanistic':
+            self.gen_mechanistic_rates()
+
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+
+        options = self.options
+
+        rate_law_dynamics = options.get('rate_dynamics', 'phenomenological')
+        assert(rate_law_dynamics in ['phenomenological', 'mechanistic'])
+        options['rate_dynamics'] = rate_law_dynamics

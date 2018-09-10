@@ -87,7 +87,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         return species_type_types
 
     def gen_reactions(self):
-        """ Generate reactions associated with metabolism """
+        """ Generate reactions encoded within KB """
 
         for kb_rxn in self.knowledge_base.cell.reactions:
             # if species are metabolites, create lang reaction in metabolism
@@ -114,10 +114,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             coefficient=participant.coefficient))
 
     def gen_rate_laws(self):
-        """ Generate rate laws for reactions associated with submodel """
+
+        """ Generate rate laws for reactions encoded in KB """
         model = self.model
         cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='metabolism')
+        c = model.compartments.get_one(id='c')
+        e = model.compartments.get_one(id='e')
 
         for kb_rxn in self.knowledge_base.cell.reactions:
             if self.get_species_type_types(kb_rxn) == set([wc_kb.core.MetaboliteSpeciesType]):
@@ -134,9 +137,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     lang_rate_law.equation = wc_lang.RateLawEquation(
                         expression=kb_rate_law.equation.expression
                     )
+
                     for kb_modifier in kb_rate_law.equation.modifiers:
                         lang_species_type = self.model.species_types.get_one(
                             id=kb_modifier.species_type.id)
                         lang_species = lang_species_type.species.get_one(
-                            compartment=cytosol)
+                            compartment=c)
                         lang_rate_law.equation.modifiers.add(lang_species)

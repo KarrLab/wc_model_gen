@@ -17,14 +17,6 @@ from wc_model_gen.prokaryote.species import SpeciesGenerator
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
 
-    def clean_and_validate_options(self):
-        """ Apply default options and validate options """
-
-        options = self.options
-        rate_law_dynamics = options.get('rate_law_dynamics', 'exponential')
-        assert(rate_law_dynamics in ['exponential', 'calibrated'])
-        options['rate_law_dynamics'] = rate_law_dynamics
-
     def gen_compartments(self):
         cell = self.knowledge_base.cell
         model = self.model
@@ -80,16 +72,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
                 rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
 
-    def gen_rate_laws(self):
-
-        rate_law_dynamics = self.options.get('rate_law_dynamics')
-        if rate_law_dynamics=='exponential':
-            self.gen_rate_laws_exp()
-
-        elif rate_law_dynamics=='calibrated':
-            self.gen_rate_laws_cal()
-
-    def gen_rate_laws_exp(self):
+    def gen_phenomenological_rates(self):
         """ Generate rate laws with exponential dynamics """
 
         model = self.model
@@ -106,7 +89,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(rxn.participants[0].species)
 
-    def gen_rate_laws_cal(self):
+    def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
 
         model = self.model
@@ -124,7 +107,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             expression = 'k_cat*'
             modifiers = []
             rate_avg = ''
-            beta = 2
+            beta = 1
 
             #TODO: replace with calculation of avg half life; 553s is avg of Mycoplasma RNAs
             if rna_kb.half_life == 0:
@@ -133,12 +116,13 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for participant in reaction.participants:
                 if participant.coefficient < 0:
                     modifiers.append(participant.species)
-                    avg_conc = (3/2)*participant.species.concentration.value
+                    avg_conc = participant.species.concentration.value
                     rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                    expression += '({}/({}+(3/2)*{}*{}))*'.format(participant.species.id(),
+                    expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               beta,
                                                               participant.species.concentration.value)
+
 
             # Clip off trailing * character
             expression = expression[:-1]
