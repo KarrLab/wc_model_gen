@@ -39,7 +39,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
 
-        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb in proteins_kbs:
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
@@ -99,7 +99,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='translation')
         cell_cycle_length = cell.properties.get_one(id='doubling_time').value
 
-        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
             protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
 
@@ -123,7 +123,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(id='doubling_time').value
 
-        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species[0]

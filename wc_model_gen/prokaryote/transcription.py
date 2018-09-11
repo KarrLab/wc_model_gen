@@ -49,7 +49,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
         # Create reaction for each RNA
-        rna_kbs = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb in rna_kbs:
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
@@ -86,7 +86,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='transcription')
         cell_cycle_length = cell.properties.get_one(id='doubling_time').value
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, rxn in zip(rnas, self.submodel.reactions):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
@@ -112,7 +112,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(id='doubling_time').value
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]

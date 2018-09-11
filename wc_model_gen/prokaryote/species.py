@@ -29,7 +29,7 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         cytosol = model.compartments.get(id='c')[0]
 
         # get or create RNA species
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna in rnas:
             species_type = model.species_types.get_or_create(id=rna.id)
             if not species_type.name:
@@ -52,7 +52,7 @@ class SpeciesGenerator(wc_model_gen.ModelComponentGenerator):
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
 
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
 
             species_type = self.model.species_types.get_or_create(
                 id=protein.id)

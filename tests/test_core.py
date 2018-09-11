@@ -15,7 +15,7 @@ import wc_lang
 
 class TestModelGenerator(unittest.TestCase):
     def setUp(self):
-        self.knowledge_base = wc_kb.KnowledgeBase()
+        self.knowledge_base = wc_kb.core.KnowledgeBase()
 
     def test_ModelGenerator_init(self):
         generator = wc_model_gen.ModelGenerator(self.knowledge_base)
@@ -82,7 +82,7 @@ class TestModelGenerator(unittest.TestCase):
             },
         }
 
-        kb = wc_kb.KnowledgeBase()
+        kb = wc_kb.core.KnowledgeBase()
         model = wc_model_gen.ModelGenerator(kb, component_generators=component_generators, options=options).run()
 
         self.assertIsInstance(model.compartments.get_one(id='c'), wc_lang.core.Compartment)

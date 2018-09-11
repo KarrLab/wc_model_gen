@@ -52,7 +52,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                 self.assertEqual(species.concentration.units, wc_lang.ConcentrationUnit.M)
 
         # check reactions generated
-        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
+        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         self.assertEqual(len(submodel.reactions), len(prots))
 
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)

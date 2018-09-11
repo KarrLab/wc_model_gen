@@ -48,7 +48,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate a species in a particular compartment
 
         Args:
-            kb_metabolite (:obj:`wc_kb.MetaboliteSpeciesType`): a knowledgebase metabolite
+            kb_metabolite (:obj:`wc_kb.core.MetaboliteSpeciesType`): a knowledgebase metabolite
             lang_compartment (:obj:`wc_lang.Compartment`): the wc_lang compartment containing the species
 
         Returns:
