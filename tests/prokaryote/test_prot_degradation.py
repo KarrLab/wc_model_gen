@@ -36,7 +36,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
          }).run()
 
         cell = rand_kb.cell
-        prots = cell.species_types.get(__type=wc_kb.ProteinSpeciesType)
+        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
 
         model = prokaryote.ProkaryoteModelGenerator(
                      knowledge_base=rand_kb,

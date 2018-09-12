@@ -31,7 +31,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
         h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
-        rna_kbs = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb in rna_kbs:
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)

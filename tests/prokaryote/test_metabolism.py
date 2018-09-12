@@ -34,7 +34,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         # check species types and species generated
         cytosol = self.model.compartments.get(id='c')[0]
 
-        for species in self.kb.cell.species_types.get(__type=wc_kb.MetaboliteSpeciesType):
+        for species in self.kb.cell.species_types.get(__type=wc_kb.core.MetaboliteSpeciesType):
             model_species = self.model.species_types.get_one(id=species.id)
             model_species_cytosol = model_species.species.get_one(
                 compartment=cytosol)

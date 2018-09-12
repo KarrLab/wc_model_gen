@@ -33,7 +33,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
-        proteins_kb = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kb = self.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+
         for protein_kb in proteins_kb:
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
@@ -70,7 +71,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='protein_degradation')
 
-        proteins_kb = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kb, submodel.reactions):
             protein_model = model.species_types.get_one(id=protein_kb.id).species[0]
             rate_law = rxn.rate_laws.create()
@@ -87,7 +88,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_doubling_time = cell.properties.get_one(id='doubling_time').value
 
-        proteins_kbs = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species[0]

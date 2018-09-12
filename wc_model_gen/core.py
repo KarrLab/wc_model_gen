@@ -18,7 +18,7 @@ class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+        knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
         component_generators (:obj:`list` of :obj:`ModelComponentGenerator`): model component generators
         options (:obj:`dict`, optional): dictionary of options whose keys are the names of component
             generator classes and whose values are dictionaries of options for the component generator
@@ -30,7 +30,7 @@ class ModelGenerator(object):
     def __init__(self, knowledge_base, component_generators=None, options=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
             component_generators (:obj:`list` of :obj:`ModelComponentGenerator`, optional): model component generators
             options (:obj:`dict`, optional): dictionary of options whose keys are the names of component
                 generator classes and whose values are dictionaries of options for the component generator
@@ -85,7 +85,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Abstract base class for model component generators
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+        knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
         model (:obj:`wc_lang.Model`): model
         options (:obj:`dict`, optional): options
     """
@@ -93,7 +93,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     def __init__(self, knowledge_base, model, options=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.Model`): model
             options (:obj:`dict`, optional): options
         """
@@ -117,7 +117,7 @@ class SubmodelGenerator(ModelComponentGenerator):
     """ Base class for submodel generators
 
     Attributes:
-        knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+        knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
         model (:obj:`wc_lang.Model`): model
         submodel (:obj:`wc_lang.Submodel`): submodel
         options (:obj:`dict`, optional): options
@@ -126,7 +126,7 @@ class SubmodelGenerator(ModelComponentGenerator):
     def __init__(self, knowledge_base, model, options=None):
         """
         Args:
-            knowledge_base (:obj:`wc_kb.KnowledgeBase`): knowledge base
+            knowledge_base (:obj:`wc_kb.core.KnowledgeBase`): knowledge base
             model (:obj:`wc_lang.Model`): model
             options (:obj:`dict`, optional): options
         """
