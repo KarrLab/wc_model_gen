@@ -12,23 +12,10 @@ import scipy
 import wc_kb
 import wc_lang
 import wc_model_gen
-from wc_model_gen.prokaryote.species import SpeciesGenerator
+#from wc_model_gen.prokaryote.species import SpeciesGenerator
 
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
-
-    def gen_compartments(self):
-        cell = self.knowledge_base.cell
-        model = self.model
-        cytosol = model.compartments.get_or_create(id='c')
-        cytosol.name = 'cytosol'
-        cytosol.initial_volume = cell.properties.get_one(
-            id='initial_volume').value
-
-    def gen_species(self):
-        """ Generate species associated with submodel """
-        speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
-        speciesGen.run()
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """

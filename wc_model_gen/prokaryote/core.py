@@ -5,30 +5,25 @@
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
-
-from .metabolism import MetabolismSubmodelGenerator
-from .rna_degradation import RnaDegradationSubmodelGenerator
-from .transcription import TranscriptionSubmodelGenerator
-from .translation import TranslationSubmodelGenerator
-from .protein_degradation import ProteinDegradationSubmodelGenerator
-from .compartments import CompartmentsGenerator
-from .parameters import ParametersGenerator
-from .species import SpeciesGenerator
 import wc_model_gen
 
+from .initalize_model import InitalizeModel
+from .metabolism import MetabolismSubmodelGenerator
+from .transcription import TranscriptionSubmodelGenerator
+from .rna_degradation import RnaDegradationSubmodelGenerator
+from .translation import TranslationSubmodelGenerator
+from .protein_degradation import ProteinDegradationSubmodelGenerator
 
 class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
     """ Generator for models based on KBs for random in silico organisms
     """
 
     DEFAULT_COMPONENT_GENERATORS = (
-        CompartmentsGenerator,
-        ParametersGenerator,
-        SpeciesGenerator,
+        InitalizeModel,
         MetabolismSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
-        #TranslationSubmodelGenerator,
+        TranslationSubmodelGenerator,
         ProteinDegradationSubmodelGenerator
     )
 

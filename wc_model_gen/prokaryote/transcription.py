@@ -12,25 +12,9 @@ import scipy
 import wc_kb
 import wc_lang
 import wc_model_gen
-from wc_model_gen.prokaryote.species import SpeciesGenerator
-
 
 class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for transcription submodel """
-
-    def gen_compartments(self):
-        cell = self.knowledge_base.cell
-        model = self.model
-        cytosol = model.compartments.get_or_create(id='c')
-        cytosol.name = 'cytosol'
-        cytosol.initial_volume = cell.properties.get_one(
-            id='initial_volume').value
-
-    def gen_species(self):
-        """ Generate species associated with submodel """
-
-        speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
-        speciesGen.run()
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -49,6 +33,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
         # Create reaction for each RNA
+        # TODO: could eliminate refering to rna_kb: rna_model already has all species
         rna_kbs = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna_kb in rna_kbs:
 

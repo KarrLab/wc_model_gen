@@ -13,16 +13,9 @@ import wc_lang
 import wc_model_gen
 import numpy
 import scipy
-from wc_model_gen.prokaryote.species import SpeciesGenerator
-
 
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
-
-    def gen_species(self):
-        """ Generate protein species """
-        speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
-        speciesGen.run()
 
     def gen_reactions(self):
         """ Generate a lumped reaction that cvers initiation, elongation and termination for each protein translated """

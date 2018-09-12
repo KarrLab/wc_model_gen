@@ -38,6 +38,7 @@ class ModelGenerator(object):
         """
 
         self.knowledge_base = knowledge_base
+
         if not component_generators:
             component_generators = list(self.DEFAULT_COMPONENT_GENERATORS)
         self.component_generators = component_generators
@@ -139,23 +140,13 @@ class SubmodelGenerator(ModelComponentGenerator):
 
     def run(self):
         """ Generate model components """
-        self.gen_compartments()
         self.gen_species()
         self.gen_reactions()
-        self.gen_parameters()
-        self. clean_and_validate_options()
+        self.clean_and_validate_options()
         self.gen_rate_laws()
-
-    def gen_compartments(self):
-        """ Generate compartments associated with submodel """
-        pass  # pragma: no cover
 
     def gen_species(self):
         """ Generate species associated with submodel """
-        pass  # pragma: no cover
-
-    def gen_parameters(self):
-        """ Generate parameters associated with submodel """
         pass  # pragma: no cover
 
     def gen_reactions(self):

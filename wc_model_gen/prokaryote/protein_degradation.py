@@ -12,24 +12,9 @@ import scipy
 import wc_kb
 import wc_lang
 import wc_model_gen
-from wc_model_gen.prokaryote.species import SpeciesGenerator
 
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for protein degradation model"""
-
-    def gen_compartments(self):
-        self.cell = self.knowledge_base.cell
-        model = self.model
-        cytosol = model.compartments.get_or_create(id='c')
-        cytosol.name = 'cytosol'
-        cytosol.initial_volume = self.cell.properties.get_one(
-            id='initial_volume').value
-
-    def gen_species(self):
-        "Generate the protein species for the model"
-
-        speciesGen = SpeciesGenerator(self.knowledge_base, self.model)
-        speciesGen.run()
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -48,7 +33,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
-        proteins_kb = self.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType)
         for protein_kb in proteins_kb:
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
