@@ -97,7 +97,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         self.model.parameters.get_or_create(id='fractionDryWeight').units = 'dimensionless'
 
         self.model.parameters.create(id='cellCycleLength',
-            value = self.knowledge_base.cell.properties.get_one(id='doubling_time').value)
+            value = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value)
         self.model.parameters.get_or_create(id='cellCycleLength').units = 's'
 
     def gen_metabolic_species(self):
@@ -140,7 +140,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
 
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ProteinSpeciesType):
+        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
 
             species_type = self.model.species_types.get_or_create(
                 id=protein.id)

@@ -83,7 +83,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='rna_degradation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+        mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
@@ -124,7 +124,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Calculate k_cat
             exp_expression = '({}*(1/{}+1/{})*{})'.format(
                                 numpy.log(2),
-                                cell.properties.get_one(id='doubling_time').value,
+                                cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
                                 3/2*rna_kb.concentration) #This should have units of M
 

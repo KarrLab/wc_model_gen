@@ -6,23 +6,21 @@
 :License: MIT
 """
 
-from wc_kb_gen import random
-from wc_model_gen.prokaryote import translation, metabolism
-import numpy
-import scipy
+import wc_kb_gen
+import wc_model_gen.prokaryote as prokaryote
 import unittest
-import wc_kb
 import wc_lang
+import wc_kb
 
 
 class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
     def test(self):
-        kb = random.RandomKbGenerator(options={
+        kb = wc_kb_gen.random.RandomKbGenerator(options={
             'component': {
                 'PropertiesGenerator': {
                     'mean_volume': 1e-15,
-                    'mean_doubling_time': 1000.,
+                    'mean_cell_cycle_length': 1000.,
                 },
                 'GenomeGenerator': {
                     'num_chromosomes': 1,
@@ -37,14 +35,16 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         }).run()
         cell = kb.cell
 
-        model = wc_lang.Model()
-        metabolism.MetabolismSubmodelGenerator(kb, model, options={}).run()
-        translation.TranslationSubmodelGenerator(kb, model, options={}).run()
+        model = prokaryote.ProkaryoteModelGenerator(
+                     knowledge_base=kb,
+                     component_generators=[prokaryote.InitalizeModel,
+                                           prokaryote.TranslationSubmodelGenerator]).run()
+
         submodel = model.submodels.get_one(id='translation')
 
         # check compartments generated
         cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'cytosol')
+        self.assertEqual(cytosol.name, 'Cytosol')
 
         for species_type in model.species_types:
             if species_type.id.startswith('prot_'):

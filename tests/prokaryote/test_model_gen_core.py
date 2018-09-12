@@ -26,7 +26,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
                              'mean_copy_number': 200,
                              'mean_half_life': 100},
                          'PropertiesGenerator': {
-                             'mean_doubling_time': 100,},
+                             'mean_cell_cycle_length': 100,},
                      },
                  }).run()
 

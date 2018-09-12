@@ -7,19 +7,25 @@
 """
 
 import wc_kb_gen
-from wc_model_gen.prokaryote import protein_degradation, metabolism
 import wc_model_gen.prokaryote as prokaryote
-import numpy
-import scipy
 import unittest
-import wc_kb
 import wc_lang
-
+import wc_kb
 
 class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
-    def test(self):
 
-        rand_kb = wc_kb_gen.random.RandomKbGenerator(options={
+    def test(self):
+        """
+        kb = wc_kb.io.Reader().run('tests/fixtures/core.xlsx',
+                                            'tests/fixtures/seq.fna', strict=False)
+
+        model = prokaryote.ProkaryoteModelGenerator(
+                    knowledge_base = kb,
+                    component_generators = [prokaryote.InitalizeModel,
+                                            prokaryote.ProteinDegradationSubmodelGenerator]).run()
+        """
+
+        kb = wc_kb_gen.random.RandomKbGenerator(options={
              'component': {
                  'GenomeGenerator': {
                      'mean_num_genes': 20,
@@ -30,28 +36,23 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                      'mean_half_life': 100
                  },
                  'PropertiesGenerator': {
-                     'mean_doubling_time': 100,
+                     'mean_cell_cycle_length': 100,
                  },
              },
          }).run()
 
-        cell = rand_kb.cell
-        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-
         model = prokaryote.ProkaryoteModelGenerator(
-                     knowledge_base=rand_kb,
-                     component_generators=[prokaryote.CompartmentsGenerator,
-                                           prokaryote.ParametersGenerator,
-                                           prokaryote.MetabolismSubmodelGenerator,
-                                           prokaryote.TranscriptionSubmodelGenerator,
-                                           prokaryote.TranslationSubmodelGenerator,
+                     knowledge_base=kb,
+                     component_generators=[prokaryote.InitalizeModel,
                                            prokaryote.ProteinDegradationSubmodelGenerator]).run()
 
+        cell = kb.cell
+        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         submodel = model.submodels.get_one(id='protein_degradation')
 
         # check compartments generated
         cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'cytosol')
+        self.assertEqual(cytosol.name, 'Cytosol')
 
         # check species types and species generated
         atp = model.species_types.get_one(id='atp')
@@ -83,10 +84,6 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             id='cys').species.get_one(compartment=cytosol)
         self.assertEqual(submodel.reactions[0].participants.get_one(
             species=aa_species).coefficient, prots[0].get_seq().count('C'))
-
-        # check rate laws
-        deg_protease = model.observables.get_one(id='deg_protease_obs')
-        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
 
         for prot, rxn in zip(prots, submodel.reactions):
             self.assertEqual(len(rxn.rate_laws), 1)

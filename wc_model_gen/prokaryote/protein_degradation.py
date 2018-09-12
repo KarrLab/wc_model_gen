@@ -33,7 +33,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
-        proteins_kb = self.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
 
         for protein_kb in proteins_kb:
 
@@ -86,7 +86,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='protein_degradation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+        mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
         proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
@@ -125,7 +125,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Calculate k_cat
             exp_expression = '({}*(1/{}+1/{})*{})'.format(
                                 numpy.log(2),
-                                cell.properties.get_one(id='doubling_time').value,
+                                cell.properties.get_one(id='cell_cycle_length').value,
                                 protein_kb.half_life,
                                 3/2*protein_kb.concentration) #This should have units of M
 

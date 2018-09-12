@@ -69,7 +69,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='transcription')
-        cell_cycle_length = cell.properties.get_one(id='doubling_time').value
+        cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
         rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, rxn in zip(rnas, self.submodel.reactions):
@@ -95,7 +95,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='transcription')
         mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_doubling_time = cell.properties.get_one(id='doubling_time').value
+        mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
         rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
@@ -135,7 +135,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Calculate k_cat
             exp_expression = '({}*(1/{}+1/{})*{})'.format(
                                 numpy.log(2),
-                                cell.properties.get_one(id='doubling_time').value,
+                                cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
                                 3/2*rna_kb.concentration) #This should have units of M
 

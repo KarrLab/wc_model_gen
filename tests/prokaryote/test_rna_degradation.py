@@ -6,50 +6,45 @@
 :License: MIT
 """
 
-from wc_kb_gen import random
-from wc_model_gen.prokaryote import rna_degradation, metabolism
-import numpy
-import scipy
+import wc_kb_gen
+import wc_model_gen.prokaryote as prokaryote
 import unittest
-import wc_kb
 import wc_lang
-
+import wc_kb
 
 class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     def test(self):
-        kb = random.RandomKbGenerator(options={
-            'component': {
-                'PropertiesGenerator': {
-                    'mean_volume': 1e-15,
-                    'mean_doubling_time': 1000.,
-                },
-                'GenomeGenerator': {
-                    'num_chromosomes': 1,
-                    'mean_num_genes': 200.,
-                    'mean_gene_len': 10.,
-                    'mean_copy_number': 10.,
-                    'mean_half_life': 120.,
-                },
-                'MetabolitesGenerator': {
-                },
-            },
-        }).run()
+
+        kb = wc_kb_gen.random.RandomKbGenerator(options={
+             'component': {
+                 'GenomeGenerator': {
+                     'mean_num_genes': 20,
+                     'mean_gene_len': 50,
+                     'num_ncRNA': 0,
+                     'translation_table': 4,
+                     'mean_copy_number': 100,
+                     'mean_half_life': 100
+                 },
+                 'PropertiesGenerator': {
+                     'mean_cell_cycle_length': 100,
+                 },
+             },
+         }).run()
+
+        model = prokaryote.ProkaryoteModelGenerator(
+                     knowledge_base=kb,
+                     component_generators=[prokaryote.InitalizeModel,
+                                           prokaryote.RnaDegradationSubmodelGenerator]).run()
+
+
         cell = kb.cell
-
         rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-
-        model = wc_lang.Model()
-        met = metabolism.MetabolismSubmodelGenerator(kb, model, options={})
-        met.run()
-        gen = rna_degradation.RnaDegradationSubmodelGenerator(
-            kb, model, options={})
-        gen.run()
 
         submodel = model.submodels.get_one(id='rna_degradation')
 
         # check compartments generated
         cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'cytosol')
+        self.assertEqual(cytosol.name, 'Cytosol')
 
         # check species types and species generated
         amp = model.species_types.get_one(id='amp')
@@ -64,8 +59,6 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 concs.append(species.concentration.value)
                 self.assertEqual(species.concentration.units,
                                  wc_lang.ConcentrationUnit.M)
-        numpy.testing.assert_almost_equal(numpy.mean(
-            concs), 10. / scipy.constants.Avogadro / 1e-15, decimal=2)
 
         # check reactions generated
         self.assertEqual(len(submodel.reactions), len(rnas))

@@ -15,7 +15,7 @@ rand_kb = wc_kb_gen.random.RandomKbGenerator(options={
                      'mean_half_life': 100
                  },
                  'PropertiesGenerator': {
-                     'mean_doubling_time': 300,
+                     'mean_cell_cycle_length': 300,
                  },
              },
          }).run()
