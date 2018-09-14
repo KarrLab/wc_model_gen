@@ -58,7 +58,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
         gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
         pi = model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
-        ribosome = model.observables.get_one(id='complex_70S_obs').expression.species[0]
+        ribosome = model.observables.get_one(id='ribosome_obs').expression.species[0]
         initiation_factors = model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]

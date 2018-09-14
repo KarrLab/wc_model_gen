@@ -32,6 +32,9 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
 
+        bases = "TCAG"
+        codons = [a + b + c for a in bases for b in bases for c in bases]
+
         proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb in proteins_kbs:
 
@@ -47,15 +50,21 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=-1))
 
             # Add tRNAs to LHS
-            bases = "TCAG"
-            codons = [a + b + c for a in bases for b in bases for c in bases]
-
             for codon in codons:
                 if codon not in ['TAG', 'TAA', 'TGA']:
-                    n = str(protein_kb.gene.get_seq()).count(codon)
+                    n=0
+                    for base in range(0,len(protein_kb.gene.get_seq()),3):
+                        n += str(protein_kb.gene.get_seq()[base:base+3]).count(codon)
                     if n > 0:
                         trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
                         rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
+
+            #for codon in codons:
+            #    if codon not in ['TAG', 'TAA', 'TGA']:
+            #        n = str(protein_kb.gene.get_seq()).count(codon)
+            #        if n > 0:
+            #            trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
+            #            rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding participants to RHS
             rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
@@ -66,7 +75,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
 
             # Add ribosome
-            for ribosome_kb in cell.observables.get_one(id='complex_70S_obs').species:
+            for ribosome_kb in cell.observables.get_one(id='ribosome_obs').species:
                 ribosome_species_type_model = model.species_types.get_one(id=ribosome_kb.species.species_type.id)
                 ribosome_model = ribosome_species_type_model.species.get_one(compartment=cytosol)
 
