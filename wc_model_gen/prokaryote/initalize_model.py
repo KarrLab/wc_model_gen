@@ -35,6 +35,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_complexes']:
             self.gen_complexes()
 
+        if options['gen_concentrations']:
+            self.gen_concentrations()    
+
         if options['gen_observables']:
             self.gen_observables()
 
@@ -62,6 +65,10 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         gen_complexes = options.get('gen_complexes', True)
         assert(isinstance(gen_complexes,bool))
         options['gen_complexes'] = gen_complexes
+
+        gen_concentrations = options.get('gen_concentrations', True)
+        assert(isinstance(gen_concentrations,bool))
+        options['gen_concentrations'] = gen_concentrations
 
         gen_observables = options.get('gen_observables', True)
         assert(isinstance(gen_observables,bool))
@@ -116,6 +123,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
 
+
         # get or create RNA species
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna in rnas:
@@ -129,9 +137,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.charge = rna.get_charge()
                 species_type.comments = rna.comments
                 species = species_type.species.get_or_create(compartment=cytosol)
-                species.concentration = wc_lang.Concentration(
-                    value=rna.concentration, units=wc_lang.ConcentrationUnit.M)
-
+                
     def gen_protein(self):
         '''Generate proteins in wc_lang model from knowledge base '''
 
@@ -155,9 +161,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
                 species = species_type.species.get_or_create(
                     compartment=cytosol)
-                species.concentration = wc_lang.Concentration(
-                    value=protein.concentration, units=wc_lang.ConcentrationUnit.M)
-
+                
     def gen_complexes(self):
         '''Generate complexes in wc_lang model from knowledge base '''
         cell = self.knowledge_base.cell
@@ -175,7 +179,25 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.charge = comp.get_charge()
 
                 species = species_type.species.get_or_create(compartment=cytosol)
-                species.concentration = wc_lang.Concentration(value=comp.concentration, units=wc_lang.ConcentrationUnit.M)
+                
+    def gen_concentrations(self):
+        '''Generate concentrations in wc_lang model from knowledge base '''
+        cell = self.knowledge_base.cell
+        model = self.model
+        cytosol = model.compartments.get(id='c')[0]
+
+        for conc in self.knowledge_base.cell.concentrations:
+            species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
+
+            if not species_type.name:
+                species_type.name = conc.species.species_type.name                
+                species_type.comments = conc.species.species_type.comments
+                species_type.references = conc.species.species_type.references
+                
+                species = species_type.species.get_or_create(compartment=cytosol)
+                species.concentration = wc_lang.Concentration(
+                    value=conc.value, units=wc_lang.ConcentrationUnit.M,
+                    comments=conc.comments, references=conc.references) 
 
     def gen_observables(self):
         '''Generate observables in wc_lang model from knowledge base '''
@@ -291,8 +313,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         species_type.comments = kb_metabolite.comments
         species = species_type.species.get_or_create(
             compartment=lang_compartment)
-        species.concentration = wc_lang.Concentration(
-            value=kb_metabolite.concentration, units=wc_lang.ConcentrationUnit.M)
+        
         return species
 
     def get_species_type_types(self, kb_rxn):

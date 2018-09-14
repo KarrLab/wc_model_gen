@@ -53,7 +53,4 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
             self.assertIsInstance(model_species_cytosol, wc_lang.Species)
-            self.assertEqual(
-                model_species_cytosol.concentration.units, wc_lang.ConcentrationUnit.M)
-            # self.assertEqual(
-            #    model_species_cytosol.concentration, species.concentration)
+            

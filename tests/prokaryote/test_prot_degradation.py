@@ -54,11 +54,13 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         cytosol = model.compartments.get_one(id='c')
         self.assertEqual(cytosol.name, 'Cytosol')
 
-        # check species types and species generated
-        atp = model.species_types.get_one(id='atp')
-        atp_cytosol = atp.species.get_one(compartment=cytosol)
-        self.assertEqual(atp_cytosol.concentration.units,
-                         wc_lang.ConcentrationUnit.M)
+        # check species types and species generated        
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
+            model_species = model.species_types.get_one(id=species.id)
+            model_species_cytosol = model_species.species.get_one(
+                compartment=cytosol)
+            self.assertIsInstance(model_species, wc_lang.SpeciesType)
+            self.assertIsInstance(model_species_cytosol, wc_lang.Species)
 
         # check reactions generated
         self.assertEqual(len(submodel.reactions), len(prots))

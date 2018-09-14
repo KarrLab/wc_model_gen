@@ -47,18 +47,12 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(cytosol.name, 'Cytosol')
 
         # check species types and species generated
-        amp = model.species_types.get_one(id='amp')
-        amp_cytosol = amp.species.get_one(compartment=cytosol)
-        self.assertEqual(amp_cytosol.concentration.units,
-                         wc_lang.ConcentrationUnit.M)
-
-        concs = []
-        for species_type in model.species_types:
-            if species_type.id.startswith('rna_'):
-                species = species_type.species.get_one(compartment=cytosol)
-                concs.append(species.concentration.value)
-                self.assertEqual(species.concentration.units,
-                                 wc_lang.ConcentrationUnit.M)
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType):
+            model_species = model.species_types.get_one(id=species.id)
+            model_species_cytosol = model_species.species.get_one(
+                compartment=cytosol)
+            self.assertIsInstance(model_species, wc_lang.SpeciesType)
+            self.assertIsInstance(model_species_cytosol, wc_lang.Species)
 
         # check reactions generated
         self.assertEqual(len(submodel.reactions), len(rnas))

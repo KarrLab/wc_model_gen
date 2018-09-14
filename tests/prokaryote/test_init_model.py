@@ -60,3 +60,13 @@ class InitalizeModelTestCase(unittest.TestCase):
             self.assertIsInstance(model_specie, wc_lang.Species)
             self.assertTrue(len(model_species_type.species)!=0)
             self.assertTrue(model_species_type.molecular_weight!=0)
+
+    def test_concentrations(self):
+        cytosol = self.model.compartments.get_one(id='c')
+        for conc in self.kb.cell.concentrations:
+            model_species_type = self.model.species_types.get_one(id=conc.species.species_type.id)
+            model_specie = model_species_type.species.get_one(compartment=cytosol)
+
+            self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
+            self.assertIsInstance(model_specie, wc_lang.Species)
+            self.assertTrue(conc.units, wc_lang.ConcentrationUnit.M)        
