@@ -59,18 +59,13 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
                         rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
-            #for codon in codons:
-            #    if codon not in ['TAG', 'TAA', 'TGA']:
-            #        n = str(protein_kb.gene.get_seq()).count(codon)
-            #        if n > 0:
-            #            trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
-            #            rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
-
             # Adding participants to RHS
             rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
+            #if model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
             rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
             rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
             rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+
             rxn.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
 

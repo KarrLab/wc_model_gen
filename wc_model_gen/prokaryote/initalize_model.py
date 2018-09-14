@@ -92,13 +92,13 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
     def gen_parameters(self):
         # Create parameters
-        self.model.parameters.create(id='fractionDryWeight',
+        self.model.parameters.create(id='fraction_dry_weight',
             value = self.knowledge_base.cell.properties.get_one(id='fraction_dry_weight').value)
-        self.model.parameters.get_or_create(id='fractionDryWeight').units = 'dimensionless'
+        self.model.parameters.get_or_create(id='fraction_dry_weight').units = 'dimensionless'
 
-        self.model.parameters.create(id='cellCycleLength',
+        self.model.parameters.create(id='cell_cycle_length',
             value = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value)
-        self.model.parameters.get_or_create(id='cellCycleLength').units = 's'
+        self.model.parameters.get_or_create(id='cell_cycle_length').units = 's'
 
     def gen_metabolic_species(self):
         """ Generate all metabolic species in the cytosol """
@@ -128,8 +128,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.molecular_weight = rna.get_mol_wt()
                 species_type.charge = rna.get_charge()
                 species_type.comments = rna.comments
-                species = species_type.species.get_or_create(
-                    compartment=cytosol)
+                species = species_type.species.get_or_create(compartment=cytosol)
                 species.concentration = wc_lang.Concentration(
                     value=rna.concentration, units=wc_lang.ConcentrationUnit.M)
 
