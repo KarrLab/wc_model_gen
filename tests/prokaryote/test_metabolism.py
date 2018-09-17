@@ -42,7 +42,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         submodel = model.submodels.get_one(id='metabolism')
 
         # check parameters generated
-        self.assertEqual(model.parameters.get_one(id='fractionDryWeight').value, 0.3)
+        self.assertEqual(model.parameters.get_one(id='fraction_dry_weight').value, 0.3)
 
         # check species types and species generated
         cytosol = model.compartments.get(id='c')[0]
@@ -53,4 +53,3 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
             self.assertIsInstance(model_species_cytosol, wc_lang.Species)
-            

@@ -60,11 +60,22 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding participants to RHS
-            rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
-            #if model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
-            rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
-            rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
-            rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+            # Taking care of special cases of 'self-production': there should only be one SCoeff not 2!
+            if protein_model==initiation_factors:
+                rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=2))
+            elif protein_model==elongation_factors:
+                rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps+1))
+            elif protein_model==release_factors:
+                rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=2))
+            else:
+                rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
+                rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+                rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+                rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+
+            #rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+            #rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+            #rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
             rxn.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
@@ -76,6 +87,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=(-1)*ribosome_kb.coefficient))
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=ribosome_kb.coefficient))
+
 
     def gen_rate_laws(self):
         """ Choose dynamics for the model """

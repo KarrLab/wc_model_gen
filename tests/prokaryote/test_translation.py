@@ -6,7 +6,6 @@
 :License: MIT
 """
 
-import wc_kb_gen
 import wc_model_gen.prokaryote as prokaryote
 import unittest
 import wc_lang
@@ -15,45 +14,57 @@ import wc_kb
 
 class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
-    def test(self):
-        kb = wc_kb_gen.random.RandomKbGenerator(options={
-            'component': {
-                'PropertiesGenerator': {
-                    'mean_volume': 1e-15,
-                    'mean_cell_cycle_length': 1000.,
-                },
-                'GenomeGenerator': {
-                    'num_chromosomes': 1,
-                    'mean_num_genes': 200,
-                    'mean_gene_len': 10,
-                    'mean_copy_number': 10,
-                    'mean_half_life': 120,
-                },
-                'MetabolitesGenerator': {
-                },
-            },
-        }).run()
-        cell = kb.cell
+    @classmethod
+    def setUpClass(cls):
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
+                                       'tests/fixtures/min_kb_seq.fna',
+                                        strict=False)
 
-        model = prokaryote.ProkaryoteModelGenerator(
-                     knowledge_base=kb,
-                     component_generators=[prokaryote.InitalizeModel,
-                                           prokaryote.TranslationSubmodelGenerator]).run()
+        cls.model = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = cls.kb,
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.TranslationSubmodelGenerator],
+                        options = {'component': {
+                             'TranscriptionSubmodelGenerator': {
+                               'rate_dynamics': 'phenomenological'}}}).run()
+
+        cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = cls.kb,
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.TranslationSubmodelGenerator],
+                        options = {'component': {
+                             'TranscriptionSubmodelGenerator': {
+                               'rate_dynamics': 'mechanistic'}}}).run()
+
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
+    def test_submodels(self):
+        model = self.model
+        kb = self.kb
 
         submodel = model.submodels.get_one(id='translation')
+        self.assertIsInstance(submodel, wc_lang.core.Submodel)
+        self.assertEqual(len(model.submodels), 1)
 
-        # check compartments generated
+    def test_species(self):
+        model = self.model
+        kb = self.kb
         cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'Cytosol')
+        submodel = model.submodels.get_one(id='translation')
 
-        for species_type in model.species_types:
-            if species_type.id.startswith('prot_'):
-                species = species_type.species.get_one(compartment=cytosol)
-                self.assertEqual(species.concentration.units, wc_lang.ConcentrationUnit.M)
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
+            model_species = model.species_types.get_one(id=species.id)
+            model_species_cytosol = model_species.species.get_one(compartment=cytosol)
+            self.assertIsInstance(model_species, wc_lang.SpeciesType)
+            self.assertIsInstance(model_species_cytosol, wc_lang.Species)
 
-        # check reactions generated
-        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        self.assertEqual(len(submodel.reactions), len(prots))
+    def test_reactions(self):
+        model = self.model
+        kb = self.kb
+        cytosol = model.compartments.get_one(id='c')
+        submodel = model.submodels.get_one(id='translation')
 
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
         gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
@@ -63,23 +74,26 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
 
-        for reaction in submodel.reactions:
-            prot_model = model.species_types.get_one(id=reaction.id[12:])
-            prot_kb = kb.cell.species_types.get_one(id=reaction.id[12:])
+        #Check that number of RNAs = number of transcription reactions
+        self.assertEqual(
+            len(kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)),
+            len(submodel.reactions))
+
+        # Check coeffs of reaction participants
+        prots_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        for rxn, prot_kb in zip(submodel.reactions, prots_kb):
+
+            print(prot_kb.id)
+            prot_model = model.species_types.get_one(id=prot_kb)
             length = len(prot_kb.get_seq())
 
-            self.assertEqual(reaction.participants.get_one(species=prot_model.species[0]).coefficient, 1)
-            self.assertEqual(reaction.participants.get_one(species=gtp).coefficient, -(length+2))
-            self.assertEqual(reaction.participants.get_one(species=gdp).coefficient, (length+2))
-            self.assertEqual(reaction.participants.get_one(species=pi).coefficient, 2*length)
-
-            # TODO: following species are on both sides of reaction, thus gettign error
-            #self.assertEqual(reaction.participants.get_one(species=initiation_factors).coefficient, 1)
-            #self.assertEqual(reaction.participants.get_one(species=elongation_factors).coefficient, length)
-            #self.assertEqual(reaction.participants.get_one(species=release_factors).coefficient, 1)
+            self.assertEqual(rxn.participants.get_one(species=prot_model.species[0]).coefficient, 1)
+            self.assertEqual(rxn.participants.get_one(species=gtp).coefficient, -(length+2))
+            self.assertEqual(rxn.participants.get_one(species=gdp).coefficient, (length+2))
+            self.assertEqual(rxn.participants.get_one(species=pi).coefficient, 2*length)
 
     @unittest.skip
-    def test(self):
+    def test_rate_laws(self):
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
