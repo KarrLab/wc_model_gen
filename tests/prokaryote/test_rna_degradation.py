@@ -13,80 +13,73 @@ import wc_lang
 import wc_kb
 
 class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
-    def test(self):
+    @classmethod
+    def setUpClass(cls):
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
+                                       'tests/fixtures/min_kb_seq.fna',
+                                        strict=False)
 
-        kb = wc_kb_gen.random.RandomKbGenerator(options={
-             'component': {
-                 'GenomeGenerator': {
-                     'mean_num_genes': 20,
-                     'mean_gene_len': 50,
-                     'num_ncRNA': 0,
-                     'translation_table': 4,
-                     'mean_copy_number': 100,
-                     'mean_half_life': 100
-                 },
-                 'PropertiesGenerator': {
-                     'mean_cell_cycle_length': 100,
-                 },
-             },
-         }).run()
+        cls.model = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = cls.kb,
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.RnaDegradationSubmodelGenerator],
+                        options = {'component': {
+                             'RnaDegradationSubmodelGenerator': {
+                               'rate_dynamics': 'phenomenological'}}}).run()
 
-        model = prokaryote.ProkaryoteModelGenerator(
-                     knowledge_base=kb,
-                     component_generators=[prokaryote.InitalizeModel,
-                                           prokaryote.RnaDegradationSubmodelGenerator]).run()
+        cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = cls.kb,
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.RnaDegradationSubmodelGenerator],
+                        options = {'component': {
+                             'RnaDegradationSubmodelGenerator': {
+                               'rate_dynamics': 'mechanistic'}}}).run()
 
+    @classmethod
+    def tearDownClass(cls):
+        pass
 
-        cell = kb.cell
-        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-
+    def test_species(self):
+        model = self.model
+        kb = self.kb
+        cell = self.kb.cell
+        cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='rna_degradation')
 
-        # check compartments generated
-        cytosol = model.compartments.get_one(id='c')
-        self.assertEqual(cytosol.name, 'Cytosol')
+        # check reactions generated
+        self.assertEqual(len(submodel.reactions),
+                         len(cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)))
 
         # check species types and species generated
         for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType):
             model_species = model.species_types.get_one(id=species.id)
-            model_species_cytosol = model_species.species.get_one(
-                compartment=cytosol)
+            model_species_cytosol = model_species.species.get_one(compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
             self.assertIsInstance(model_species_cytosol, wc_lang.Species)
 
-        # check reactions generated
-        self.assertEqual(len(submodel.reactions), len(rnas))
-        amp = model.species_types.get_one(
-            id='amp').species.get_one(compartment=cytosol)
-        cmp = model.species_types.get_one(
-            id='cmp').species.get_one(compartment=cytosol)
-        gmp = model.species_types.get_one(
-            id='gmp').species.get_one(compartment=cytosol)
-        ump = model.species_types.get_one(
-            id='ump').species.get_one(compartment=cytosol)
-        h2o = model.species_types.get_one(
-            id='h2o').species.get_one(compartment=cytosol)
-        h = model.species_types.get_one(
-            id='h').species.get_one(compartment=cytosol)
-        self.assertEqual(
-            + submodel.reactions[0].participants.get_one(species=amp).coefficient
-            + submodel.reactions[0].participants.get_one(species=cmp).coefficient
-            + submodel.reactions[0].participants.get_one(species=gmp).coefficient
-            + submodel.reactions[0].participants.get_one(species=ump).coefficient,
-            rnas[0].get_len())
-        self.assertEqual(
-            + submodel.reactions[0].participants.get_one(species=h2o).coefficient,
-            -(rnas[0].get_len() - 1))
-        self.assertEqual(
-            + submodel.reactions[0].participants.get_one(species=h).coefficient,
-            rnas[0].get_len() - 1)
 
-    """ # check rate laws
-     deg_rnase = model.observables.get_one(id='deg_rnase_obs')
-     deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
-     for rna, rxn in zip(rnas, submodel.reactions):
-         self.assertEqual(len(rxn.rate_laws), 1)
-         rl = rxn.rate_laws[0]
-         self.assertEqual(rl.direction.name, 'forward')
-         self.assertEqual(rl.k_m, deg_avg_conc)
-         self.assertEqual(rl.k_cat, 2 * numpy.log(2) / rna.half_life)"""
+        amp = model.species_types.get_one(id='amp').species.get_one(compartment=cytosol)
+        cmp = model.species_types.get_one(id='cmp').species.get_one(compartment=cytosol)
+        gmp = model.species_types.get_one(id='gmp').species.get_one(compartment=cytosol)
+        ump = model.species_types.get_one(id='ump').species.get_one(compartment=cytosol)
+        h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
+        h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
+
+        # Check coeffs of reaction participants
+        rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        for rxn, rna in zip(submodel.reactions, rnas):
+            self.assertEqual(
+                + rxn.participants.get_one(species=amp).coefficient
+                + rxn.participants.get_one(species=cmp).coefficient
+                + rxn.participants.get_one(species=gmp).coefficient
+                + rxn.participants.get_one(species=ump).coefficient,
+                rna.get_len())
+            self.assertEqual(
+                + rxn.participants.get_one(species=h2o).coefficient,
+                -(rna.get_len() - 1))
+            self.assertEqual(
+                + rxn.participants.get_one(species=h).coefficient,
+                rna.get_len() - 1)
+
+    def test_rate_laws(self):
+        pass #TODO

@@ -63,19 +63,24 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Taking care of special cases of 'self-production': there should only be one SCoeff not 2!
             if protein_model==initiation_factors:
                 rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=2))
+                rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+                rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+
             elif protein_model==elongation_factors:
                 rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps+1))
+                rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+                rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
+
             elif protein_model==release_factors:
                 rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=2))
+                rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
+                rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
+
             else:
                 rxn.participants.add(protein_model.species_coefficients.get_or_create(coefficient=1))
                 rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
                 rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
                 rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
-
-            #rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
-            #rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
-            #rxn.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
             rxn.participants.add(gdp.species_coefficients.get_or_create(coefficient=n_steps+2))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
@@ -131,6 +136,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='translation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
+        cytosol = cell.compartments.get_one(id='c')
 
         proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
@@ -172,6 +178,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 protein_kb.half_life,
-                                3/2*protein_kb.concentration) #This should have units of M
+                                3/2*protein_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)

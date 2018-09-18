@@ -36,7 +36,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             self.gen_complexes()
 
         if options['gen_concentrations']:
-            self.gen_concentrations()    
+            self.gen_concentrations()
 
         if options['gen_observables']:
             self.gen_observables()
@@ -123,7 +123,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
 
-
         # get or create RNA species
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna in rnas:
@@ -137,7 +136,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.charge = rna.get_charge()
                 species_type.comments = rna.comments
                 species = species_type.species.get_or_create(compartment=cytosol)
-                
+
     def gen_protein(self):
         '''Generate proteins in wc_lang model from knowledge base '''
 
@@ -146,10 +145,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         cytosol = model.compartments.get(id='c')[0]
 
         for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
-
-            species_type = self.model.species_types.get_or_create(
-                id=protein.id)
+            species_type = self.model.species_types.get_or_create(id=protein.id)
             if not species_type.name:
+
                 # Add functional form of protein
                 species_type.name = protein.name
                 species_type.type = wc_lang.SpeciesTypeType.protein
@@ -159,9 +157,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.charge = protein.get_charge()
                 species_type.comments = protein.comments
 
-                species = species_type.species.get_or_create(
-                    compartment=cytosol)
-                
+                species = species_type.species.get_or_create(compartment=cytosol)
+
     def gen_complexes(self):
         '''Generate complexes in wc_lang model from knowledge base '''
         cell = self.knowledge_base.cell
@@ -179,25 +176,19 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 species_type.charge = comp.get_charge()
 
                 species = species_type.species.get_or_create(compartment=cytosol)
-                
+
     def gen_concentrations(self):
         '''Generate concentrations in wc_lang model from knowledge base '''
         cell = self.knowledge_base.cell
         model = self.model
-        cytosol = model.compartments.get(id='c')[0]
+        cytosol = model.compartments.get_one(id='c')
 
         for conc in self.knowledge_base.cell.concentrations:
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
-
-            if not species_type.name:
-                species_type.name = conc.species.species_type.name                
-                species_type.comments = conc.species.species_type.comments
-                species_type.references = conc.species.species_type.references
-                
-                species = species_type.species.get_or_create(compartment=cytosol)
-                species.concentration = wc_lang.Concentration(
+            species = species_type.species.get_or_create(compartment=cytosol)
+            species.concentration = wc_lang.Concentration(
                     value=conc.value, units=wc_lang.ConcentrationUnit.M,
-                    comments=conc.comments, references=conc.references) 
+                    comments=conc.comments, references=conc.references)
 
     def gen_observables(self):
         '''Generate observables in wc_lang model from knowledge base '''
@@ -313,7 +304,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         species_type.comments = kb_metabolite.comments
         species = species_type.species.get_or_create(
             compartment=lang_compartment)
-        
+
         return species
 
     def get_species_type_types(self, kb_rxn):

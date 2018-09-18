@@ -15,41 +15,30 @@ import wc_kb
 
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
-    def test(self):
-        kb = wc_kb_gen.random.RandomKbGenerator(options={
-             'component': {
-                 'GenomeGenerator': {
-                     'mean_num_genes': 20,
-                     'mean_gene_len': 50,
-                     'num_ncRNA': 0,
-                     'translation_table': 4,
-                     'mean_copy_number': 100,
-                     'mean_half_life': 100
-                 },
-                 'PropertiesGenerator': {
-                     'mean_cell_cycle_length': 100,
-                 },
-             },
-         }).run()
+    @classmethod
+    def setUpClass(cls):
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
+                                       'tests/fixtures/min_kb_seq.fna',
+                                        strict=False)
 
-        model = prokaryote.ProkaryoteModelGenerator(
-                     knowledge_base=kb,
-                     component_generators=[prokaryote.InitalizeModel,
-                                           prokaryote.MetabolismSubmodelGenerator]).run()
+        cls.model = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = cls.kb,
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.MetabolismSubmodelGenerator],
+                        options = {'component': {
+                             'TranscriptionSubmodelGenerator': {
+                               'rate_dynamics': 'phenomenological'}}}).run()
 
-        cell = kb.cell
-        prots = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        submodel = model.submodels.get_one(id='metabolism')
+    @classmethod
+    def tearDownClass(cls):
+        pass
 
-        # check parameters generated
-        self.assertEqual(model.parameters.get_one(id='fraction_dry_weight').value, 0.3)
+    def test_metabolite_species(self):
 
-        # check species types and species generated
-        cytosol = model.compartments.get(id='c')[0]
+        cytosol = self.model.compartments.get_one(id='c')
+        for species in self.kb.cell.species_types.get(__type=wc_kb.core.MetaboliteSpeciesType):
+            model_species_type = self.model.species_types.get_one(id=species.id)
+            model_specie       = model_species_type.species.get_one(compartment=cytosol)
 
-        for species in kb.cell.species_types.get(__type=wc_kb.core.MetaboliteSpeciesType):
-            model_species = model.species_types.get_one(id=species.id)
-            model_species_cytosol = model_species.species.get_one(
-                compartment=cytosol)
-            self.assertIsInstance(model_species, wc_lang.SpeciesType)
-            self.assertIsInstance(model_species_cytosol, wc_lang.Species)
+            self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
+            self.assertIsInstance(model_specie, wc_lang.Species)

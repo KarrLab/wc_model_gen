@@ -84,6 +84,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='rna_degradation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
+        cytosol = cell.compartments.get_one(id='c')
 
         rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
@@ -126,30 +127,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
-                                3/2*rna_kb.concentration) #This should have units of M
+                                3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
-
-
-        """
-        model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
-
-        # http://bionumbers.hms.harvard.edu/bionumber.aspx?id=108959&ver=1&trm=average%20rnase%20concentration&org=
-        deg_avg_conc = 5000/scipy.constants.Avogadro / cytosol.initial_volume
-
-        deg_rnase = model.observables.get_one(
-            id='degrade_rnase_obs').expression.species[0]
-
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
-        for rna, rxn in zip(rnas, self.submodel.reactions):
-            rl = rxn.rate_laws.create()
-            rl.direction = wc_lang.RateLawDirection.forward
-            rl.equation = wc_lang.RateLawEquation(
-                expression='{0}[c] * (((k_cat * {1}) / (k_m + {1})) + {2})'.format(rna.id, deg_rnase.id(), '0.1'))
-            rl.k_cat = 2 * numpy.log(2) / rna.half_life
-            rl.k_m = deg_avg_conc
-            rl.equation.modifiers.append(deg_rnase)
-            rl.equation.modifiers.append(rxn.participants[0].species)
-        """

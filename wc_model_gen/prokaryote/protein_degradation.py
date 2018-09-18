@@ -87,6 +87,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='protein_degradation')
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
+        cytosol = cell.compartments.get_one(id='c')
 
         proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
@@ -127,6 +128,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 protein_kb.half_life,
-                                3/2*protein_kb.concentration) #This should have units of M
+                                3/2*protein_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)

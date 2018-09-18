@@ -11,27 +11,36 @@ import obj_model
 import unittest
 import wc_lang
 import wc_utils.util.string
-
+import wc_kb
 
 class ModelGeneratorTestCase(unittest.TestCase):
-    def test(self):
 
-        rand_kb = random.RandomKbGenerator(options={
-                     'component': {
-                         'GenomeGenerator': {
-                             'mean_num_genes': 30,
-                             'mean_gene_len': 50,
-                             'num_ncRNA': 0,
-                             'translation_table': 4,
-                             'mean_copy_number': 200,
-                             'mean_half_life': 100},
-                         'PropertiesGenerator': {
-                             'mean_cell_cycle_length': 100,},
-                     },
-                 }).run()
+    @classmethod
+    def setUpClass(cls):
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
+                                       'tests/fixtures/min_kb_seq.fna',
+                                        strict=False)
 
-        model = prokaryote.ProkaryoteModelGenerator(rand_kb).run()
-        self.assertIsInstance(model.submodels.get_one(id='metabolism'), wc_lang.Submodel)
+        cls.model = prokaryote.ProkaryoteModelGenerator(knowledge_base = cls.kb).run()
 
-        errors = obj_model.Validator().run(model, get_related=True)
+    @classmethod
+    def tearDownClass(cls):
+        pass
+
+    def test_submodels(self):
+        self.assertEqual(5, len(self.model.submodels))
+
+    def test_compartments(self):
+        cytosol = self.model.compartments.get_one(id='c')
+        extracellular_space = self.model.compartments.get_one(id='e')
+        self.assertIsInstance(cytosol, wc_lang.core.Compartment)
+        self.assertIsInstance(extracellular_space, wc_lang.core.Compartment)
+
+    def test_parameters(self):
+        cell_cycle_length = self.model.parameters.get_one(id='cell_cycle_length')
+        fraction_dry_weight = self.model.parameters.get_one(id='fraction_dry_weight')
+        self.assertIsInstance(cell_cycle_length, wc_lang.core.Parameter)
+        self.assertIsInstance(fraction_dry_weight, wc_lang.core.Parameter)
+
+        errors = obj_model.Validator().run(self.model, get_related=True)
         self.assertEqual(errors, None, msg=wc_utils.util.string.indent_forest(errors))

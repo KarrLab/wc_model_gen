@@ -88,21 +88,22 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         # Check coeffs of reaction participants
         rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rxn, rna in zip(submodel.reactions, rnas):
+
             self.assertEqual(
-                + submodel.reactions[0].participants.get_one(species=atp).coefficient
-                + submodel.reactions[0].participants.get_one(species=ctp).coefficient
-                + submodel.reactions[0].participants.get_one(species=gtp).coefficient
-                + submodel.reactions[0].participants.get_one(species=utp).coefficient,
-                -rnas[0].get_len())
+                + rxn.participants.get_one(species=atp).coefficient
+                + rxn.participants.get_one(species=ctp).coefficient
+                + rxn.participants.get_one(species=gtp).coefficient
+                + rxn.participants.get_one(species=utp).coefficient,
+                -rna.get_len())
             self.assertEqual(
-                + submodel.reactions[0].participants.get_one(species=ppi).coefficient,
-                rnas[0].get_len())
+                + rxn.participants.get_one(species=ppi).coefficient,
+                rna.get_len())
             self.assertEqual(
-                + submodel.reactions[0].participants.get_one(species=h2o).coefficient,
-                rnas[0].get_len() - 1)
+                + rxn.participants.get_one(species=h2o).coefficient,
+                rna.get_len() - 1)
             self.assertEqual(
-                + submodel.reactions[0].participants.get_one(species=h).coefficient,
-                -(rnas[0].get_len() - 1))
+                + rxn.participants.get_one(species=h).coefficient,
+                -(rna.get_len() - 1))
 
     def test_rate_laws(self):
         pass #TODO

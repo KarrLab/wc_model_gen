@@ -94,6 +94,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='transcription')
+        cytosol = cell.compartments.get_one(id='c')
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
@@ -137,6 +138,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
-                                3/2*rna_kb.concentration) #This should have units of M
+                                3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
