@@ -67,7 +67,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='rna_degradation')
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, rxn in zip(rnas, submodel.reactions):
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
             rate_law = rxn.rate_laws.create()
@@ -86,7 +86,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
         cytosol = cell.compartments.get_one(id='c')
 
-        rnas = cell.species_types.get(__type=wc_kb.RnaSpeciesType)
+        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
