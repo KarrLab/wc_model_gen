@@ -104,13 +104,12 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for participant in reaction.participants:
                 if participant.coefficient < 0:
                     modifiers.append(participant.species)
-                    avg_conc = participant.species.concentration.value
-                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                    avg_conc = (3/2)*participant.species.concentration.value
+                    rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
                     expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               beta,
                                                               participant.species.concentration.value)
-
 
             # Clip off trailing * character
             expression = expression[:-1]
@@ -123,9 +122,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.equation = rate_law_equation
 
             # Calculate k_cat
-            exp_expression = '({}*(1/{}+1/{})*{})'.format(
+            exp_expression = '({}*(1/{})*{})'.format(
                                 numpy.log(2),
-                                cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
                                 3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
                                 #This should have units of M

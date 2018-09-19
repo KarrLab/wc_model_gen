@@ -7,7 +7,7 @@ import wc_kb
 rand_kb = wc_kb_gen.random.RandomKbGenerator(options={
              'component': {
                  'GenomeGenerator': {
-                     'mean_num_genes': 40,
+                     'num_genes': 40,
                      'mean_gene_len': 50,
                      'num_ncRNA': 3,
                      'translation_table': 4,

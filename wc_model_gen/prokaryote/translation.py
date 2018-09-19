@@ -93,7 +93,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=(-1)*ribosome_kb.coefficient))
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=ribosome_kb.coefficient))
 
-
     def gen_rate_laws(self):
         """ Choose dynamics for the model """
 
@@ -157,8 +156,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 if participant.coefficient < 0:
                     avg_conc = (3/2)*participant.species.concentration.value
                     modifiers.append(participant.species)
-                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                    expression += '({}/({}+(3/2)*{}*{}))*'.format(participant.species.id(),
+                    rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                    expression += '({}/({}+{}*{}))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               beta,
                                                               participant.species.concentration.value)

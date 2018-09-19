@@ -94,14 +94,17 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='transcription')
-        cytosol = cell.compartments.get_one(id='c')
+        cytosol_kb    = cell.compartments.get_one(id='c')
+        cytosol_model = model.compartments.get_one(id='c')
+
+
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
         rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas, submodel.reactions):
 
-            rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
+            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol_model)
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
             expression = 'k_cat*'
@@ -115,9 +118,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             for participant in reaction.participants:
                 if participant.coefficient < 0:
-                    avg_conc = participant.species.concentration.value# *(3/2)
+                    avg_conc = (3/2)*participant.species.concentration.value
                     modifiers.append(participant.species)
-                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                    rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
                     expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
                                                               participant.species.id(),
                                                               beta,
@@ -138,7 +141,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 rna_kb.half_life,
-                                3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                3/2*rna_kb.species.get_one(compartment=cytosol_kb).concentrations.value)
                                 #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)

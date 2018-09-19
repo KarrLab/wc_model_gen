@@ -107,15 +107,26 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             value = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value)
         self.model.parameters.get_or_create(id='cell_cycle_length').units = 's'
 
+        self.model.parameters.create(id='fractionDryWeight',
+            value = self.knowledge_base.cell.properties.get_one(id='fraction_dry_weight').value)
+        self.model.parameters.get_or_create(id='fractionDryWeight').units = 'dimensionless'
+
+        self.model.parameters.create(id='cellCycleLength',
+            value = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value)
+        self.model.parameters.get_or_create(id='cellCycleLength').units = 's'
+
     def gen_metabolic_species(self):
         """ Generate all metabolic species in the cytosol """
-        cytosol = self.model.compartments.get_one(id='c')
+        cytosol  = self.model.compartments.get_one(id='c')
+        xtracell = self.model.compartments.get_one(id='e')
+
         metabolites = self.knowledge_base.cell.species_types.get(
-            __type=wc_kb.core.MetaboliteSpeciesType)
+                            __type=wc_kb.core.MetaboliteSpeciesType)
 
         # get or create metabolite species
         for kb_met in metabolites:
             self.gen_a_specie(kb_met, cytosol)
+            self.gen_a_specie(kb_met, xtracell)
 
     def gen_rna(self):
         '''Generate RNAs in wc_lang model from knowledge base '''
@@ -184,8 +195,11 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         cytosol = model.compartments.get_one(id='c')
 
         for conc in self.knowledge_base.cell.concentrations:
+            species_comp_model = model.compartments.get_one(id=conc.species.compartment.id)
+
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
-            species = species_type.species.get_or_create(compartment=cytosol)
+            species      = species_type.species.get_or_create(compartment=species_comp_model)
+
             species.concentration = wc_lang.Concentration(
                     value=conc.value, units=wc_lang.ConcentrationUnit.M,
                     comments=conc.comments, references=conc.references)
@@ -302,8 +316,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         species_type.molecular_weight = kb_metabolite.get_mol_wt()
         species_type.charge = kb_metabolite.get_charge()
         species_type.comments = kb_metabolite.comments
-        species = species_type.species.get_or_create(
-            compartment=lang_compartment)
+        species = species_type.species.get_or_create(compartment=lang_compartment)
 
         return species
 

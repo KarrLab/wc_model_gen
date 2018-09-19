@@ -70,7 +70,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with min metabolism model """
-        # rate of 0.0000000000004151 ~ 1 reaction /s
+        # If need X reactions / s, then rate = X/(V*N_Avogadro)
         # TODO: change flat rate to match xTP/AA consumption
 
         cell = self.knowledge_base.cell
@@ -84,18 +84,17 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.direction = wc_lang.RateLawDirection.forward
 
             if rxn.id[0:9]=='transfer_':
-                expression='0.0000000000005'
-                if 'rate_law_equation' not in locals():
-                    rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-
-                rate_law.equation = rate_law_equation
+                expression='0.00000000333'
+                if 'transfer_rate_law_equation' not in locals():
+                    transfer_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
+                rate_law.equation = transfer_rate_law_equation
 
             elif rxn.id[0:11]=='conversion_':
-                expression='0.0000000000006'
-                if 'rate_law_equation' not in locals():
-                    rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-
-                rate_law.equation = rate_law_equation
+                expression='0.000000001'
+                #expression='0.0000026'
+                if 'conversion_rate_law_equation' not in locals():
+                    conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
+                rate_law.equation = conversion_rate_law_equation
 
             else:
                 raise Exception('Unknown reaction type')
