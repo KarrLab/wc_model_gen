@@ -35,21 +35,19 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         tripps = {}
         for id in ['atp', 'ctp', 'gtp', 'utp']:
             tripps[id] = model.species_types.get_one(id=id)
-            tripps[id] = None
         monopps = {}
         for id in ['amp', 'cmp', 'gmp', 'ump']:
             monopps[id] = model.species_types.get_one(id=id)
-            monopps[id] = None
-        # Confirm that species were found
-        errors = []
+        # Confirm that all phosphate species were found
+        missing = []
         for d in [tripps, monopps]:
             for id, pps_type in d.items():
                 if pps_type is None:
-                    errors.append("'{}' not found in model.species".format(id))
-        if errors:
-            raise ValueError('; '.join(errors))
+                    missing.append(id)
+        if missing:
+            raise ValueError("'{}' not found in model.species".format(', '.join(missing)))
 
-        # Generate reactions associated with nucleophosphate maintenece
+        # Generate reactions associated with nucleophosphate maintenance
         for monopp, tripp in zip(monopps.values(), tripps.values()):
 
             # Create transfer reaction
