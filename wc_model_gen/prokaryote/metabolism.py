@@ -2,12 +2,13 @@
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
          Jonathan Karr <karr@mssm.edu>
          Ashwin Srinivasan <ashwins@mit.edu>
+         Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
 
-TODO: improve temrinology to better distinguish this and the metabolism species generation
+TODO: improve terminology to better distinguish this and the metabolism species generation
 """
 
 import wc_model_gen
@@ -19,7 +20,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for metabolism submodel """
 
     def gen_reactions(self):
-        """ Generate reactions assocated with min model """
+        """ Generate reactions assocated with min model
+
+        Raises:
+            :obj:`ValueError:` if any phosphate species are missing from the model
+        """
         cell = self.knowledge_base.cell
         model = self.model
         submodel = model.submodels.get_one(id='metabolism')
@@ -27,21 +32,25 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         e = model.compartments.get_one(id='e')
 
         # Get species involved in reaction
-        atp_type = model.species_types.get_one(id='atp')
-        ctp_type = model.species_types.get_one(id='ctp')
-        gtp_type = model.species_types.get_one(id='gtp')
-        utp_type = model.species_types.get_one(id='utp')
-        amp_type = model.species_types.get_one(id='amp')
-        cmp_type = model.species_types.get_one(id='cmp')
-        gmp_type = model.species_types.get_one(id='gmp')
-        ump_type = model.species_types.get_one(id='ump')
-
-        #.species.get_one(compartment=cytosol)
-        tripps  = [atp_type, ctp_type, gtp_type ,utp_type]
-        monopps = [amp_type, cmp_type, gmp_type, ump_type]
+        tripps = {}
+        for id in ['atp', 'ctp', 'gtp', 'utp']:
+            tripps[id] = model.species_types.get_one(id=id)
+            tripps[id] = None
+        monopps = {}
+        for id in ['amp', 'cmp', 'gmp', 'ump']:
+            monopps[id] = model.species_types.get_one(id=id)
+            monopps[id] = None
+        # Confirm that species were found
+        errors = []
+        for d in [tripps, monopps]:
+            for id, pps_type in d.items():
+                if pps_type is None:
+                    errors.append("'{}' not found in model.species".format(id))
+        if errors:
+            raise ValueError('; '.join(errors))
 
         # Generate reactions associated with nucleophosphate maintenece
-        for monopp, tripp in zip(monopps, tripps):
+        for monopp, tripp in zip(monopps.values(), tripps.values()):
 
             # Create transfer reaction
             rxn = submodel.reactions.get_or_create(id='transfer_'+monopp.id)
