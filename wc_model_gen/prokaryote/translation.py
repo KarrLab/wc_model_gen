@@ -123,6 +123,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
         cytosol = cell.compartments.get_one(id='c')
+        cytosol_kb = cell.compartments.get_one(id='c')
 
         proteins_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, rxn in zip(proteins_kbs, submodel.reactions):
@@ -164,7 +165,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 numpy.log(2),
                                 cell.properties.get_one(id='cell_cycle_length').value,
                                 protein_kb.half_life,
-                                3/2*protein_kb.species.get_one(compartment=cytosol).concentrations.value)
+                                3/2*protein_kb.species.get_one(compartment=cytosol_kb).concentrations.value)
                                 #This should have units of M
 
             rate_law.k_cat = eval(exp_expression) / eval(rate_avg)

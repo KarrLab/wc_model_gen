@@ -30,12 +30,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='metabolism')
         c = model.compartments.get_one(id='c')
         e = model.compartments.get_one(id='e')
+        h_type = model.species_types.get_one(id='h')
 
         # Get species involved in reaction
         tripps = {}
         for id in ['atp', 'ctp', 'gtp', 'utp']:
             tripps[id] = model.species_types.get_one(id=id)
-            
+
         monopps = {}
         for id in ['amp', 'cmp', 'gmp', 'ump']:
             monopps[id] = model.species_types.get_one(id=id)
@@ -74,8 +75,14 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     tRNA_specie_type_model = model.species_types.get_one(id=tRNA_specie_kb.species.species_type.id)
                     tRNA_model = tRNA_specie_type_model.species.get_one(compartment=c)
 
-                    rxn.participants.add(tRNA_model.species_type.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient=-1))
-                    rxn.participants.add(tRNA_model.species_type.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient=1))
+                    rxn.participants.add(tRNA_model.species_type.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient=-300))
+                    rxn.participants.add(tRNA_model.species_type.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient=300))
+
+        # Generate reactions associated with H maintenece
+        rxn = submodel.reactions.get_or_create(id='transfer_h')
+        rxn.participants = []
+        rxn.participants.add(h_type.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient=-300))
+        rxn.participants.add(h_type.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient=300))
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with min metabolism model """
@@ -93,10 +100,28 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.direction = wc_lang.RateLawDirection.forward
 
             if rxn.id[0:9]=='transfer_':
-                expression='0.00000000333'
-                if 'transfer_rate_law_equation' not in locals():
-                    transfer_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-                rate_law.equation = transfer_rate_law_equation
+
+                # rate for tRNA transfer reactions
+                if rxn.id[0:13]=='transfer_tRNA':
+                    expression='0.00000000005'
+
+                    if 'transfer_tRNA_rate_equation' not in locals():
+                        transfer_tRNA_rate_equation = wc_lang.RateLawEquation(expression=expression)
+                    rate_law.equation = transfer_tRNA_rate_equation
+
+                # rate for H transfer reactions; CALIB
+                elif rxn.id[0:10]=='transfer_h':
+                    expression='0.000000013058175578434628529'
+                    if 'transfer_H_rate_equation' not in locals():
+                        transfer_H_rate_equation = wc_lang.RateLawEquation(expression=expression)
+                    rate_law.equation = transfer_H_rate_equation
+
+                # rate for xMP molecules
+                else:
+                    expression='0.0000000007852'
+                    if 'transfer_H_rate_law_equation' not in locals():
+                        transfer_H_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
+                    rate_law.equation = transfer_H_rate_law_equation
 
             elif rxn.id[0:11]=='conversion_':
                 expression='0.000000001'

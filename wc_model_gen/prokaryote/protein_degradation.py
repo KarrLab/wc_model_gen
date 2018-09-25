@@ -34,6 +34,13 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
+        # reduced GC: I': ['ATC'], 'L': ['CTG'], 'M': ['ATG'], 'T': ['ACG']
+
+        amino_acids = ['ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his',
+                       'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
+        aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
+               "S", "T", "W", "Y", "V"]
+
         proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
 
         for protein_kb in proteins_kb:

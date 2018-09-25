@@ -98,7 +98,6 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol_kb    = cell.compartments.get_one(id='c')
         cytosol_model = model.compartments.get_one(id='c')
 
-
         mean_volume = cell.properties.get_one(id='initial_volume').value
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
 
