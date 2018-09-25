@@ -35,9 +35,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         tripps = {}
         for id in ['atp', 'ctp', 'gtp', 'utp']:
             tripps[id] = model.species_types.get_one(id=id)
+            
         monopps = {}
         for id in ['amp', 'cmp', 'gmp', 'ump']:
             monopps[id] = model.species_types.get_one(id=id)
+
         # Confirm that all phosphate species were found
         missing = []
         for d in [tripps, monopps]:

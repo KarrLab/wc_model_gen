@@ -30,6 +30,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         amino_acids = ['ala', 'arg', 'asp', 'asn', 'cys', 'gln', 'glu', 'gly', 'his',
                        'ile', 'leu', 'lys', 'met', 'phe', 'pro', 'ser', 'thr', 'trp', 'tyr', 'val']
+
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
@@ -39,7 +40,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             seq = protein_kb.get_seq()
-            rxn = submodel.reactions.get_or_create(id=protein_kb.id.replace('protein_', 'degradation_'))
+            rxn = submodel.reactions.get_or_create(id=protein_kb.id.replace('prot_gene_', 'degrad_prot_'))
+            rxn.name = protein_kb.id.replace('prot_gene_', 'degrad_prot_')
             rxn.participants = []
 
             # Adding participants to LHS
@@ -50,9 +52,22 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Adding participants to RHS
             rxn.participants.add(adp.species_coefficients.get_or_create(coefficient=1))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=1))
-            for amino_acid, aa in zip(amino_acids, aas):
-                species = model.species_types.get_one(id=amino_acid).species.get_one(compartment=cytosol)
-                rxn.participants.add(species.species_coefficients.get_or_create(coefficient=seq.count(aa)))
+
+            # The code below should be used as currently tRNAs and AAs are always associated
+            codons=[]
+            for start_position in range(0,len(protein_kb.gene.get_seq())-3,3):
+                codons.append(str(protein_kb.gene.get_seq()[start_position:start_position+3]))
+
+            for codon in set(codons):
+                obs_model_id = 'tRNA_'+ codon + '_obs'
+                obs_model = model.observables.get_one(id=obs_model_id)
+                for specie in obs_model.expression.species:
+                    rxn.participants.add(
+                        specie.species_coefficients.get_or_create(coefficient=codons.count(codon)))
+
+            #for amino_acid, aa in zip(amino_acids, aas):
+            #    species = model.species_types.get_one(id=amino_acid).species.get_one(compartment=cytosol)
+            #    rxn.participants.add(species.species_coefficients.get_or_create(coefficient=seq.count(aa)))
 
             # Add members of the degradosome
             # Counterintuitively .specie is a KB species_coefficient object

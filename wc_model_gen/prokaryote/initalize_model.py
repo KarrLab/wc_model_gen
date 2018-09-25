@@ -41,12 +41,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_observables']:
             self.gen_observables()
 
-        if options['gen_kb_reactions']:
-            self.gen_kb_reactions()
-
-        if options['gen_kb_rate_laws']:
-            self.gen_kb_rate_laws()
-
     def clean_and_validate_options(self):
         options = self.options
 
@@ -73,14 +67,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         gen_observables = options.get('gen_observables', True)
         assert(isinstance(gen_observables,bool))
         options['gen_observables'] = gen_observables
-
-        gen_kb_reactions = options.get('gen_kb_reactions', True)
-        assert(isinstance(gen_kb_reactions,bool))
-        options['gen_kb_reactions'] = gen_kb_reactions
-
-        gen_kb_rate_laws = options.get('gen_kb_rate_laws', True)
-        assert(isinstance(gen_kb_rate_laws,bool))
-        options['gen_kb_rate_laws'] = gen_kb_rate_laws
 
     def gen_compartments(self):
         cell = self.knowledge_base.cell
@@ -241,7 +227,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
     def gen_kb_reactions(self):
         """ Generate reactions encoded within KB """
-
+        print('here_kb_reactions')
         for kb_rxn in self.knowledge_base.cell.reactions:
             # if species are metabolites, create lang reaction in metabolism
             # todo: generalize to all submodels
@@ -267,6 +253,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                             coefficient=participant.coefficient))
 
     def gen_kb_rate_laws(self):
+        print('here_kb_reactions')
 
         """ Generate rate laws for reactions encoded in KB """
         model = self.model

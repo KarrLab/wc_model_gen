@@ -4,8 +4,6 @@
 :Date: 2018-01-21
 :Copyright: 2018, Karr Lab
 :License: MIT
-
-TODO: aminoacyl-tRnas are missign from observables
 """
 
 import wc_kb
@@ -41,6 +39,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
             rxn = submodel.reactions.get_or_create(id=protein_kb.id.replace('prot_', 'translation_'))
+            rxn.name = protein_kb.id.replace('prot_', 'translation_')
             rxn.participants = []
 
             # Adding participants to LHS
@@ -60,7 +59,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         rxn.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding participants to RHS
-            # Taking care of special cases of 'self-production': there should only be one SCoeff not 2!
             if protein_model==initiation_factors:
                 rxn.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=2))
                 rxn.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
@@ -93,19 +91,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=(-1)*ribosome_kb.coefficient))
                 rxn.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=ribosome_kb.coefficient))
 
-    def gen_rate_laws(self):
-        """ Choose dynamics for the model """
-
-        rate_law_dynamics = self.options.get('rate_law_dynamics')
-        if rate_law_dynamics=='exponential':
-            self.gen_rate_laws_exp()
-
-        elif rate_law_dynamics=='calibrated':
-            self.gen_rate_laws_cal()
-
     def gen_phenomenological_rates(self):
         """ Generate rate laws with exponential dynamics """
-
         model = self.model
         cell = self.knowledge_base.cell
         cytosol = model.compartments.get_one(id='c')
