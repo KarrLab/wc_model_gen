@@ -25,7 +25,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                         component_generators=[prokaryote.InitalizeModel,
                                               prokaryote.TranslationSubmodelGenerator],
                         options = {'component': {
-                             'TranscriptionSubmodelGenerator': {
+                             'TranslationSubmodelGenerator': {
                                'rate_dynamics': 'phenomenological'}}}).run()
 
         cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
@@ -33,7 +33,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
                         component_generators=[prokaryote.InitalizeModel,
                                               prokaryote.TranslationSubmodelGenerator],
                         options = {'component': {
-                             'TranscriptionSubmodelGenerator': {
+                             'TranslationSubmodelGenerator': {
                                'rate_dynamics': 'mechanistic'}}}).run()
 
     @classmethod
@@ -41,12 +41,17 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         pass
 
     def test_submodels(self):
-        model = self.model
         kb = self.kb
+        model = self.model
+        model_mechanistic = self.model_mechanistic
 
         submodel = model.submodels.get_one(id='translation')
         self.assertIsInstance(submodel, wc_lang.core.Submodel)
         self.assertEqual(len(model.submodels), 1)
+
+        submodel = model_mechanistic.submodels.get_one(id='translation')
+        self.assertIsInstance(submodel, wc_lang.core.Submodel)
+        self.assertEqual(len(model_mechanistic.submodels), 1)
 
     def test_species(self):
         model = self.model
