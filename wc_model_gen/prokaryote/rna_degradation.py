@@ -7,12 +7,11 @@
 :License: MIT
 """
 
-import numpy
-import scipy
-import wc_kb
-import wc_lang
 import wc_model_gen
-#from wc_model_gen.prokaryote.species import SpeciesGenerator
+import wc_lang
+import wc_kb
+import numpy
+import math
 
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
@@ -36,20 +35,20 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
             seq = rna_kb.get_seq()
-            rxn = submodel.reactions.get_or_create(id=rna_kb.id.replace('rna_tu_', 'degrad_tu_'))
-            rxn.name = rna_kb.id.replace('rna_', 'degrad_rna_')
-            rxn.participants = []
+            reaction = submodel.reactions.get_or_create(id=rna_kb.id.replace('rna_tu_', 'degrad_tu_'))
+            reaction.name = rna_kb.id.replace('rna_', 'degrad_rna_')
+            reaction.participants = []
 
             # Adding participants to LHS
-            rxn.participants.add(rna_model.species_coefficients.get_or_create(coefficient=-1))
-            rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=-(rna_kb.get_len() - 1)))
+            reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=-1))
+            reaction.participants.add(h2o.species_coefficients.get_or_create(coefficient=-(rna_kb.get_len() - 1)))
 
             # Adding participants to RHS
-            rxn.participants.add(amp.species_coefficients.get_or_create(coefficient=seq.count('A')))
-            rxn.participants.add(cmp.species_coefficients.get_or_create(coefficient=seq.count('C')))
-            rxn.participants.add(gmp.species_coefficients.get_or_create(coefficient=seq.count('G')))
-            rxn.participants.add(ump.species_coefficients.get_or_create(coefficient=seq.count('U')))
-            rxn.participants.add(h.species_coefficients.get_or_create(coefficient=rna_kb.get_len() - 1))
+            reaction.participants.add(amp.species_coefficients.get_or_create(coefficient=seq.count('A')))
+            reaction.participants.add(cmp.species_coefficients.get_or_create(coefficient=seq.count('C')))
+            reaction.participants.add(gmp.species_coefficients.get_or_create(coefficient=seq.count('G')))
+            reaction.participants.add(ump.species_coefficients.get_or_create(coefficient=seq.count('U')))
+            reaction.participants.add(h.species_coefficients.get_or_create(coefficient=rna_kb.get_len() - 1))
 
             # Add members of the degradosome
             # Counterintuitively .specie is a KB species_coefficient object
@@ -57,8 +56,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 degradosome_species_type_model = model.species_types.get_one(id=degradosome_kb.species.species_type.id)
                 degradosome_species_model = degradosome_species_type_model.species.get_one(compartment=cytosol)
 
-                rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
-                rxn.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
+                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
+                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
 
     def gen_phenomenological_rates(self):
         """ Generate rate laws with exponential dynamics """
@@ -68,14 +67,27 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='rna_degradation')
 
-        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        for rna_kb, rxn in zip(rnas, submodel.reactions):
-            rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
-            rate_law = rxn.rate_laws.create()
+        # Calculate avg half life, will be used for species with undefined HL
+        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        half_lifes=[]
+        for rna_kb in rnas_kb:
+            if (isinstance(rna_kb.half_life, float) and not rna_kb.half_life==0 and not math.isnan(rna_kb.half_life)):
+                half_lifes.append(rna_kb.half_life)
+        avg_half_life = numpy.mean(half_lifes)
+
+        for rna_kb, reaction in zip(rnas_kb, submodel.reactions):
+            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
+
+            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
+                rna_half_life = avg_half_life
+            else:
+                rna_half_life = rna_kb.half_life
+
+            rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), rna_kb.half_life, rna_model.id())
+            expression = '({} / {}) * {}'.format(numpy.log(2), rna_half_life, rna_model.id())
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
-            rate_law.equation.modifiers.append(rxn.participants[0].species)
+            rate_law.equation.modifiers.append(reaction.participants[0].species)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
@@ -87,10 +99,16 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
         cytosol = cell.compartments.get_one(id='c')
 
-        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        for rna_kb, reaction in zip(rnas, submodel.reactions):
+        # Calculate avg half life, will be used for species with undefined HL
+        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        half_lifes=[]
+        for rna_kb in rnas_kb:
+            if (isinstance(rna_kb.half_life, float) and not rna_kb.half_life==0 and not math.isnan(rna_kb.half_life)):
+                half_lifes.append(rna_kb.half_life)
+        avg_half_life = numpy.mean(half_lifes)
 
-            rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
+        for rna_kb, reaction in zip(rnas_kb, submodel.reactions):
+            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
             expression = 'k_cat*'
@@ -98,9 +116,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_avg = ''
             beta = 1
 
-            #TODO: replace with calculation of avg half life; 553s is avg of Mycoplasma RNAs
-            if rna_kb.half_life == 0:
-                rna_kb.half_life = 553
+            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
+                rna_half_life = avg_half_life
+            else:
+                rna_half_life = rna_kb.half_life
 
             for participant in reaction.participants:
                 if participant.coefficient < 0:
@@ -125,7 +144,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Calculate k_cat
             exp_expression = '({}*(1/{})*{})'.format(
                                 numpy.log(2),
-                                rna_kb.half_life,
+                                rna_half_life,
                                 3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
                                 #This should have units of M
 

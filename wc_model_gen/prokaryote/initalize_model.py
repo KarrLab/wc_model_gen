@@ -164,15 +164,12 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         for comp in self.knowledge_base.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
             species_type = model.species_types.get_or_create(id=comp.id)
-
-            if not species_type.name:
-                species_type.name = comp.name
-                species_type.type = wc_lang.SpeciesTypeType.pseudo_species
-                species_type.empirical_formula = comp.get_empirical_formula()
-                species_type.molecular_weight = comp.get_mol_wt()
-                species_type.charge = comp.get_charge()
-
-                species = species_type.species.get_or_create(compartment=cytosol)
+            species_type.name = comp.name
+            species_type.type = wc_lang.SpeciesTypeType.pseudo_species
+            species_type.empirical_formula = comp.get_empirical_formula()
+            species_type.molecular_weight = comp.get_mol_wt()
+            species_type.charge = comp.get_charge()
+            species = species_type.species.get_or_create(compartment=cytosol)
 
     def gen_concentrations(self):
         '''Generate concentrations in wc_lang model from knowledge base '''
@@ -225,9 +222,35 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
                 model_observable.expression = obs_expr
 
+    def gen_a_specie(self, kb_metabolite, lang_compartment):
+        """ Generate a species in a particular compartment
+
+        Args:
+            kb_metabolite (:obj:`wc_kb.MetaboliteSpeciesType`): a knowledgebase metabolite
+            lang_compartment (:obj:`wc_lang.Compartment`): the wc_lang compartment containing the species
+
+        Returns:
+            :obj:`wc_lang.Species`: the species that was found or created
+        """
+        species_type = self.model.species_types.get_or_create(id=kb_metabolite.id)
+        species_type.name = kb_metabolite.name
+        species_type.type = wc_lang.SpeciesTypeType.metabolite
+        species_type.structure = kb_metabolite.structure
+        species_type.empirical_formula = kb_metabolite.get_empirical_formula()
+        species_type.molecular_weight = kb_metabolite.get_mol_wt()
+        species_type.charge = kb_metabolite.get_charge()
+        species_type.comments = kb_metabolite.comments
+        species = species_type.species.get_or_create(compartment=lang_compartment)
+
+        return species
+
+    """
+    The functions below are not supported at the moment.
+    KB needs to be refractored before these can work.
+    GH issue: github.com/KarrLab/wc_model_gen/issues/14
+
     def gen_kb_reactions(self):
-        """ Generate reactions encoded within KB """
-        print('here_kb_reactions')
+        " Generate reactions encoded within KB ""
         for kb_rxn in self.knowledge_base.cell.reactions:
             # if species are metabolites, create lang reaction in metabolism
             # todo: generalize to all submodels
@@ -253,9 +276,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                             coefficient=participant.coefficient))
 
     def gen_kb_rate_laws(self):
-        print('here_kb_reactions')
+        "" Generate rate laws for reactions encoded in KB ""
 
-        """ Generate rate laws for reactions encoded in KB """
         model = self.model
         cell = self.knowledge_base.cell
         submodel = model.submodels.get_one(id='metabolism')
@@ -284,33 +306,4 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                         lang_species = lang_species_type.species.get_one(
                             compartment=c)
                         lang_rate_law.equation.modifiers.add(lang_species)
-
-    def gen_a_specie(self, kb_metabolite, lang_compartment):
-        """ Generate a species in a particular compartment
-
-        Args:
-            kb_metabolite (:obj:`wc_kb.MetaboliteSpeciesType`): a knowledgebase metabolite
-            lang_compartment (:obj:`wc_lang.Compartment`): the wc_lang compartment containing the species
-
-        Returns:
-            :obj:`wc_lang.Species`: the species that was found or created
-        """
-        species_type = self.model.species_types.get_or_create(id=kb_metabolite.id)
-        species_type.name = kb_metabolite.name
-        species_type.type = wc_lang.SpeciesTypeType.metabolite
-        species_type.structure = kb_metabolite.structure
-        species_type.empirical_formula = kb_metabolite.get_empirical_formula()
-        species_type.molecular_weight = kb_metabolite.get_mol_wt()
-        species_type.charge = kb_metabolite.get_charge()
-        species_type.comments = kb_metabolite.comments
-        species = species_type.species.get_or_create(compartment=lang_compartment)
-
-        return species
-
-    def get_species_type_types(self, kb_rxn):
-        """ Obtain the species type types used by a kb reaction """
-        species_type_types = set()
-        for participant in kb_rxn.participants:
-            kb_species_type = participant.species.species_type
-            species_type_types.add(type(kb_species_type))
-        return species_type_types
+    """
