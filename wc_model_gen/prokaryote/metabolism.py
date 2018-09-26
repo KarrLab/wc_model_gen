@@ -103,32 +103,34 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 # rate for tRNA transfer reactions
                 if rxn.id[0:13]=='transfer_tRNA':
-                    expression='0.00000000005'
-
+                    expression='0.0000000000589232'
                     if 'transfer_tRNA_rate_equation' not in locals():
                         transfer_tRNA_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_tRNA_rate_equation
 
+                # rate for xMP transfers
+                elif rxn.id[-2:]=='mp':
+                    expression='0.0000000007852'
+                    if 'transfer_xMP_rate_equation' not in locals():
+                        transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
+                    rate_law.equation = transfer_xMP_rate_equation
+
                 # rate for H transfer reactions; CALIB
                 elif rxn.id[0:10]=='transfer_h':
                     expression='0.000000013058175578434628529'
-                    if 'transfer_H_rate_equation' not in locals():
-                        transfer_H_rate_equation = wc_lang.RateLawEquation(expression=expression)
+                    transfer_H_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_H_rate_equation
 
-                # rate for xMP molecules
+                # Raise error if invalid id
                 else:
-                    expression='0.0000000007852'
-                    if 'transfer_H_rate_law_equation' not in locals():
-                        transfer_H_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-                    rate_law.equation = transfer_H_rate_law_equation
+                    raise Exception('Invalid transfer reaction id, no associated rate law.')
 
             elif rxn.id[0:11]=='conversion_':
-                expression='0.000000001'
+                expression='0.000000001264589'
                 #expression='0.0000026'
                 if 'conversion_rate_law_equation' not in locals():
                     conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
                 rate_law.equation = conversion_rate_law_equation
 
             else:
-                raise Exception('Unknown reaction type')
+                raise Exception('Invalid reaction id, no associated rate law.')
