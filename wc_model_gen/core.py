@@ -11,6 +11,8 @@ import abc
 import six
 import wc_kb
 import wc_lang
+import math
+import numpy
 import wc_utils.util.string
 
 
@@ -140,14 +142,18 @@ class SubmodelGenerator(ModelComponentGenerator):
 
     def run(self):
         """ Generate model components """
-        self.gen_species()
-        self.gen_reactions()
         self.clean_and_validate_options()
+        self.gen_reactions()
         self.gen_rate_laws()
 
-    def gen_species(self):
-        """ Generate species associated with submodel """
-        pass  # pragma: no cover
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+
+        options = self.options
+
+        rate_law_dynamics = options.get('rate_dynamics', 'phenomenological')
+        assert(rate_law_dynamics in ['phenomenological', 'mechanistic'])
+        options['rate_dynamics'] = rate_law_dynamics
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -159,16 +165,81 @@ class SubmodelGenerator(ModelComponentGenerator):
         rate_law_dynamics = self.options.get('rate_dynamics')
 
         if rate_law_dynamics=='phenomenological':
-            self.gen_phenomenological_rates()
-
+            self.gen_phenom_rates()
         elif rate_law_dynamics=='mechanistic':
             self.gen_mechanistic_rates()
+        else:
+            raise Exception('Invalid rate law option selected.')
 
-    def clean_and_validate_options(self):
-        """ Apply default options and validate options """
+    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_length):
+        cytosol = self.model.compartments.get_one(id='c')
+        specie_type_model = self.model.species_types.get_one(id=specie_type_kb.id)
+        specie_model = specie_type_model.species.get_one(compartment=cytosol)
 
-        options = self.options
+        rate_law = reaction.rate_laws.create()
+        rate_law.direction = wc_lang.RateLawDirection.forward
+        expression = '({} / {} + {} / {}) * {}'.format(numpy.log(2), half_life,
+                                                       numpy.log(2), cell_cycle_length,
+                                                       specie_model.id())
 
-        rate_law_dynamics = options.get('rate_dynamics', 'phenomenological')
-        assert(rate_law_dynamics in ['phenomenological', 'mechanistic'])
-        options['rate_dynamics'] = rate_law_dynamics
+        rate_law.equation = wc_lang.RateLawEquation(expression = expression)
+        rate_law.equation.modifiers.append(specie_model)
+
+    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, cell_cycle_length):
+
+        cytosol_kb    = self.knowledge_base.cell.compartments.get_one(id='c')
+        cytosol_model = self.model.compartments.get_one(id='c')
+        specie_type_model = self.model.species_types.get_one(id=specie_type_kb.id)
+        specie_model = specie_type_model.species.get_one(compartment=cytosol_model)
+
+        expression = 'k_cat*'
+        modifiers = []
+        rate_avg = ''
+
+        for participant in reaction.participants:
+            if participant.coefficient < 0:
+                avg_conc = (3/2)*participant.species.concentration.value
+                modifiers.append(participant.species)
+                rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+                expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
+                                                          participant.species.id(),
+                                                          beta,
+                                                          participant.species.concentration.value)
+
+        # Clip off trailing '*' character
+        expression = expression[:-1]
+        rate_avg = rate_avg[:-1]
+
+        # Check if RL eq already exists
+        for sm_reaction in submodel.reactions:
+            for rl in sm_reaction.rate_laws:
+                if rl.equation.expression == expression:
+                    rate_law_equation = rl.equation
+                    break
+
+        if 'rate_law_equation' not in locals():
+            rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
+
+        # Create rate law
+        rate_law = reaction.rate_laws.create()
+        rate_law.direction = wc_lang.RateLawDirection.forward
+        rate_law.equation = rate_law_equation
+
+        # Calculate k_cat
+        exp_expression = '({}*(1/{}+1/{})*{})'.format(
+                            numpy.log(2),
+                            self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value,
+                            half_life,
+                            3/2*specie_type_kb.species.get_one(compartment=cytosol_kb).concentrations.value)
+
+        rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
+
+    def calc_mean_half_life(self, species_types_kb):
+
+        half_lifes=[]
+        for species_type_kb in species_types_kb:
+            if (isinstance(species_type_kb.half_life, float) and not species_type_kb.half_life==0 and not math.isnan(species_type_kb.half_life)):
+                half_lifes.append(species_type_kb.half_life)
+        avg_half_life = numpy.mean(half_lifes)
+
+        return avg_half_life

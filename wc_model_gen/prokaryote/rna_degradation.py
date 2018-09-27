@@ -59,93 +59,40 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
 
-    def gen_phenomenological_rates(self):
+    def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """
+        submodel = self.model.submodels.get_one(id='rna_degradation')
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
+        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
-        model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
-        submodel = model.submodels.get_one(id='rna_degradation')
-
-        # Calculate avg half life, will be used for species with undefined HL
-        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        half_lifes=[]
-        for rna_kb in rnas_kb:
-            if (isinstance(rna_kb.half_life, float) and not rna_kb.half_life==0 and not math.isnan(rna_kb.half_life)):
-                half_lifes.append(rna_kb.half_life)
-        avg_half_life = numpy.mean(half_lifes)
-
-        for rna_kb, reaction in zip(rnas_kb, submodel.reactions):
-            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
-
+        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                rna_half_life = avg_half_life
+                half_life = avg_rna_half_life
             else:
-                rna_half_life = rna_kb.half_life
+                half_life = rna_kb.half_life
 
-            rate_law = reaction.rate_laws.create()
-            rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), rna_half_life, rna_model.id())
-            rate_law.equation = wc_lang.RateLawEquation(expression = expression)
-            rate_law.equation.modifiers.append(reaction.participants[0].species)
+            self.gen_phenom_rate_law_eq(specie_type_kb=rna_kb,
+                                        reaction=reaction,
+                                        half_life=half_life,
+                                        cell_cycle_length=cell_cycle_length)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
+        submodel = self.model.submodels.get_one(id='rna_degradation')
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
+        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
-        model = self.model
-        cell = self.knowledge_base.cell
-        submodel = model.submodels.get_one(id='rna_degradation')
-        mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
-        cytosol = cell.compartments.get_one(id='c')
-
-        # Calculate avg half life, will be used for species with undefined HL
-        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        half_lifes=[]
-        for rna_kb in rnas_kb:
-            if (isinstance(rna_kb.half_life, float) and not rna_kb.half_life==0 and not math.isnan(rna_kb.half_life)):
-                half_lifes.append(rna_kb.half_life)
-        avg_half_life = numpy.mean(half_lifes)
-
-        for rna_kb, reaction in zip(rnas_kb, submodel.reactions):
-            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
-            rate_law = reaction.rate_laws.create()
-            rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = 'k_cat*'
-            modifiers = []
-            rate_avg = ''
-            beta = 1
-
+        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                rna_half_life = avg_half_life
+                half_life = avg_rna_half_life
             else:
-                rna_half_life = rna_kb.half_life
+                half_life = rna_kb.half_life
 
-            for participant in reaction.participants:
-                if participant.coefficient < 0:
-                    modifiers.append(participant.species)
-                    avg_conc = (3/2)*participant.species.concentration.value
-                    rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                    expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
-                                                              participant.species.id(),
-                                                              beta,
-                                                              participant.species.concentration.value)
-
-            # Clip off trailing * character
-            expression = expression[:-1]
-            rate_avg = rate_avg[:-1]
-
-            # Create / add rate law equation
-            if 'rate_law_equation' not in locals():
-                rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
-
-            rate_law.equation = rate_law_equation
-
-            # Calculate k_cat
-            exp_expression = '({}*(1/{})*{})'.format(
-                                numpy.log(2),
-                                rna_half_life,
-                                3/2*rna_kb.species.get_one(compartment=cytosol).concentrations.value)
-                                #This should have units of M
-
-            rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
+            self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
+                                             submodel=submodel,
+                                             reaction=reaction,
+                                             beta = 1,
+                                             half_life=half_life,
+                                             cell_cycle_length=cell_cycle_length)
