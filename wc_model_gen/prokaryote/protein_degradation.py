@@ -79,95 +79,46 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
 
-    def gen_phenomenological_rates(self):
+    def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """
-        model = self.model
-        cell = self.knowledge_base.cell
-        cytosol = model.compartments.get_one(id='c')
-        submodel = model.submodels.get_one(id='protein_degradation')
+        submodel = self.model.submodels.get_one(id='protein_degradation')
+        cytosol = self.model.compartments.get_one(id='c')
+        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
+        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
-        # Calculate avg half life, will be used for species with undefined HL
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        half_lifes=[]
-        for protein_kb in proteins_kb:
-            if (isinstance(protein_kb.half_life, float) and not protein_kb.half_life==0 and not math.isnan(protein_kb.half_life)):
-                half_lifes.append(protein_kb.half_life)
-        avg_half_life = numpy.mean(half_lifes)
-
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        for protein_kb, reaction in zip(proteins_kb, submodel.reactions):
-            protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
-
+        for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                protein_half_life = avg_half_life
+                half_life = avg_protein_half_life
             else:
-                protein_half_life = protein_kb.half_life
+                half_life = protein_kb.half_life
+
+            specie_type_model = self.model.species_types.get_one(id=protein_kb.id)
+            specie_model = specie_type_model.species.get_one(compartment=cytosol)
 
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), protein_half_life, protein_model.id())
+            expression = '({} / {}) * {}'.format(numpy.log(2), half_life, specie_model.id())
+
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
-            rate_law.equation.modifiers.append(reaction.participants[0].species)
+            rate_law.equation.modifiers.append(specie_model)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
-        model = self.model
-        cell = self.knowledge_base.cell
-        submodel = model.submodels.get_one(id='protein_degradation')
-        mean_volume = cell.properties.get_one(id='initial_volume').value
-        mean_cell_cycle_length = cell.properties.get_one(id='cell_cycle_length').value
-        cytosol = cell.compartments.get_one(id='c')
+        submodel = self.model.submodels.get_one(id='protein_degradation')
+        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
+        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
-        # Calculate avg half life, will be used for species with undefined HL
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        half_lifes=[]
-        for protein_kb in proteins_kb:
-            if (isinstance(protein_kb.half_life, float) and not protein_kb.half_life==0 and not math.isnan(protein_kb.half_life)):
-                half_lifes.append(protein_kb.half_life)
-        avg_half_life = numpy.mean(half_lifes)
-
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        for protein_kb, reaction in zip(proteins_kb, submodel.reactions):
-            protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
-
-            rate_law = reaction.rate_laws.create()
-            rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = 'k_cat*'
-            modifiers = []
-            rate_avg = ''
-            beta = 1
-
+        for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                protein_half_life = avg_half_life
+                half_life = avg_protein_half_life
             else:
-                protein_half_life = protein_kb.half_life
+                half_life = protein_kb.half_life
 
-
-            for participant in reaction.participants:
-                if participant.coefficient < 0:
-                    avg_conc = (3/2)*participant.species.concentration.value
-                    modifiers.append(participant.species)
-                    rate_avg += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                    expression += '({}/({}+(3/2)*{}))*'.format(participant.species.id(),
-                                                              participant.species.id(),
-                                                              participant.species.concentration.value)
-
-            # Clip off trailing * character
-            expression = expression[:-1]
-            rate_avg = rate_avg[:-1]
-
-            # Create / add rate law equation
-            if 'rate_law_equation' not in locals():
-                rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
-
-            rate_law.equation = rate_law_equation
-
-            # Calculate k_cat
-            exp_expression = '({}*(1/{}+1/{})*{})'.format(
-                                numpy.log(2),
-                                cell.properties.get_one(id='cell_cycle_length').value,
-                                protein_half_life,
-                                3/2*protein_kb.species.get_one(compartment=cytosol).concentrations.value)
-                                #This should have units of M
-
-            rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
+            self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
+                                             submodel=submodel,
+                                             reaction=reaction,
+                                             beta = 1,
+                                             half_life=half_life,
+                                             cell_cycle_length=cell_cycle_length)
