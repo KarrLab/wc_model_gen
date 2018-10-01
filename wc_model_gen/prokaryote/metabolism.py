@@ -96,6 +96,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         e = model.compartments.get_one(id='e')
 
         for rxn in submodel.reactions:
+
+            # Mock reactions are for testing purposes, do not process them
+            if rxn.id[0:5]=='mock_':
+                continue
+
             rate_law = rxn.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
 
