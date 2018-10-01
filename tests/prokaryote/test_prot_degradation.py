@@ -11,6 +11,8 @@ import wc_model_gen.prokaryote as prokaryote
 import unittest
 import wc_lang
 import wc_kb
+import math
+
 
 class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
@@ -72,5 +74,43 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         #self.assertEqual(submodel.reactions[0].participants.get_one(
         #    species=aa_species).coefficient, prots[0].get_seq().count('C'))
 
-    def test_rate_laws(self):
-        pass #TODO
+    def test_phenom_rate_laws(self):
+        model = self.model
+        kb = self.kb
+        submodel = model.submodels.get_one(id='protein_degradation')
+
+        for rxn in submodel.reactions:
+
+            self.assertEqual(len(rxn.rate_laws), 1)
+            self.assertIsInstance(rxn.rate_laws[0], wc_lang.core.RateLaw)
+            self.assertEqual(rxn.rate_laws[0].direction, 1)
+            self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 1)
+
+            # Check that RNA produced is modifier
+            match = 0
+            for participant in rxn.participants:
+                if participant.species == rxn.rate_laws[0].equation.modifiers[0]:
+                    match = 1
+                    break
+
+            self.assertEqual(match, 1)
+
+    def test_mechanistic_rate_laws(self):
+        model = self.model_mechanistic
+        kb = self.kb
+        submodel = model.submodels.get_one(id='protein_degradation')
+
+        for rxn in submodel.reactions:
+            self.assertEqual(len(rxn.rate_laws), 1)
+            self.assertIsInstance(rxn.rate_laws[0], wc_lang.core.RateLaw)
+            self.assertEqual(rxn.rate_laws[0].direction, 1)
+            #print(len(rxn.rate_laws[0].equation.modifiers))
+            self.assertTrue(len(rxn.rate_laws[0].equation.modifiers) >= 3)
+
+            self.assertIsInstance(rxn.rate_laws[0].k_cat, float)
+            self.assertFalse(math.isnan(rxn.rate_laws[0].k_cat))
+
+            # Check that participants are modifiers
+            for participant in rxn.participants:
+                if participant.coefficient < 0:
+                    self.assertTrue(participant.species in rxn.rate_laws[0].equation.modifiers)
