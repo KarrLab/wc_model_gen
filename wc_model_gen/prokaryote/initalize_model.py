@@ -259,7 +259,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             submodel = self.model.submodels.get_or_create(id=submodel_id)
 
             lang_rxn = submodel.reactions.create(
-                    id=kb_rxn.id,
+                    id=kb_rxn.id+'_fromKB',
                     name=kb_rxn.name,
                     reversible=kb_rxn.reversible,
                     comments=kb_rxn.comments)
@@ -285,8 +285,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         for kb_rxn in self.knowledge_base.cell.reactions:
             submodel_id = kb_rxn.submodel
             submodel = self.model.submodels.get_or_create(id=submodel_id)
-            lang_rxn = submodel.reactions.get_one(id=kb_rxn.id)
-            
+            lang_rxn = submodel.reactions.get_one(id=kb_rxn.id+'_fromKB')
+
             for kb_rate_law in kb_rxn.rate_laws:
 
                 lang_rate_law = wc_lang.RateLaw(

@@ -97,8 +97,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         for rxn in submodel.reactions:
 
-            # Mock reactions are for testing purposes, do not process them
-            if rxn.id[0:5]=='mock_':
+            # KB reaction already have RL defined
+            if rxn.id[-7:]=='_fromKB':
                 continue
 
             rate_law = rxn.rate_laws.create()

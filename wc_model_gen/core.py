@@ -170,6 +170,9 @@ class SubmodelGenerator(ModelComponentGenerator):
             raise Exception('Invalid rate law option selected.')
 
     def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_length):
+        if reaction.id[-7:]=='_fromKB':
+            return
+
         cytosol = self.model.compartments.get_one(id='c')
         specie_type_model = self.model.species_types.get_one(id=specie_type_kb.id)
         specie_model = specie_type_model.species.get_one(compartment=cytosol)
@@ -184,6 +187,8 @@ class SubmodelGenerator(ModelComponentGenerator):
         rate_law.equation.modifiers.append(specie_model)
 
     def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, cell_cycle_length):
+        if reaction.id[-7:]=='_fromKB':
+            return
 
         cytosol_kb    = self.knowledge_base.cell.compartments.get_one(id='c')
         cytosol_model = self.model.compartments.get_one(id='c')
