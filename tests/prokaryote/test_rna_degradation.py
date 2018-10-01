@@ -15,6 +15,7 @@ import math
 
 
 class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
+    
     @classmethod
     def setUpClass(cls):
         cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
