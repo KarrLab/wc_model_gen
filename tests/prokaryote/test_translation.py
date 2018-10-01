@@ -47,11 +47,11 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         submodel = model.submodels.get_one(id='translation')
         self.assertIsInstance(submodel, wc_lang.core.Submodel)
-        self.assertEqual(len(model.submodels), 1)
+        self.assertEqual(len(model.submodels), 2)
 
         submodel = model_mechanistic.submodels.get_one(id='translation')
         self.assertIsInstance(submodel, wc_lang.core.Submodel)
-        self.assertEqual(len(model_mechanistic.submodels), 1)
+        self.assertEqual(len(model_mechanistic.submodels), 2)
 
     def test_species(self):
         model = self.model

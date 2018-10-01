@@ -48,7 +48,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         submodel = model.submodels.get_one(id='transcription')
         self.assertIsInstance(submodel, wc_lang.core.Submodel)
-        self.assertEqual(len(model.submodels), 1)
+        self.assertEqual(len(model.submodels), 2)
 
     def test_species(self):
         model = self.model
