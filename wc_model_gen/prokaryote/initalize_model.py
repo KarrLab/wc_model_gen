@@ -41,6 +41,12 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_observables']:
             self.gen_observables()
 
+        if options['gen_kb_reactions']:
+            self.gen_kb_reactions()
+
+        if options['gen_kb_rate_laws']:
+            self.gen_kb_rate_laws()
+
     def clean_and_validate_options(self):
         options = self.options
 
@@ -67,6 +73,14 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         gen_observables = options.get('gen_observables', True)
         assert(isinstance(gen_observables,bool))
         options['gen_observables'] = gen_observables
+
+        gen_kb_reactions = options.get('gen_kb_reactions', True)
+        assert(isinstance(gen_kb_reactions, bool))
+        options['gen_kb_reactions'] = gen_kb_reactions
+
+        gen_kb_rate_laws = options.get('gen_kb_rate_laws', True)
+        assert(isinstance(gen_kb_rate_laws,bool))
+        options['gen_kb_rate_laws'] = gen_kb_rate_laws
 
     def gen_compartments(self):
         cell = self.knowledge_base.cell
@@ -191,7 +205,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         for kb_observable in self.knowledge_base.cell.observables:
             model_observable = self.model.observables.get_or_create(id=kb_observable.id)
             obs_expr_parts = []
-            
+
             model_observable.name = kb_observable.name
             for kb_species_coefficient in kb_observable.species:
                 kb_species = kb_species_coefficient.species
@@ -237,66 +251,59 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         return species
 
-    """
-    The functions below are not supported at the moment.
-    KB needs to be refractored before these can work.
-    GH issue: github.com/KarrLab/wc_model_gen/issues/14
-
     def gen_kb_reactions(self):
-        " Generate reactions encoded within KB ""
+        """ Generate reactions encoded within KB """
+
         for kb_rxn in self.knowledge_base.cell.reactions:
-            # if species are metabolites, create lang reaction in metabolism
-            # todo: generalize to all submodels
-            if self.get_species_type_types(kb_rxn) == set([wc_kb.core.MetaboliteSpeciesType]):
-                lang_rxn = self.submodel.reactions.create(
+            submodel_id = kb_rxn.submodel
+            submodel = self.model.submodels.get_or_create(id=submodel_id)
+
+            lang_rxn = submodel.reactions.create(
                     id=kb_rxn.id,
                     name=kb_rxn.name,
                     reversible=kb_rxn.reversible,
                     comments=kb_rxn.comments)
-                for participant in kb_rxn.participants:
-                    kb_species = participant.species
-                    lang_species_type = self.model.species_types.get_one(
-                        id=kb_species.species_type.id)
-                    lang_compartment = self.model.compartments.get_one(
-                        id=kb_species.compartment.id)
-                    lang_species = lang_species_type.species.get_one(
-                        compartment=lang_compartment)
-                    # ensure that species are present in extracellular space
-                    if lang_species is None:
-                        lang_species = self.gen_a_specie(kb_species.species_type, lang_compartment)
-                    lang_rxn.participants.add(
-                        lang_species.species_coefficients.get_or_create(
-                            coefficient=participant.coefficient))
+
+            for participant in kb_rxn.participants:
+                kb_species = participant.species
+                lang_species_type = self.model.species_types.get_one(id=kb_species.species_type.id)
+                lang_compartment = self.model.compartments.get_one(id=kb_species.compartment.id)
+                lang_species = lang_species_type.species.get_one(compartment=lang_compartment)
+
+                # ensure that species are present in extracellular space
+                if lang_species is None:
+                    lang_species = self.gen_a_specie(kb_species.species_type, lang_compartment)
+                lang_rxn.participants.add(
+                    lang_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
     def gen_kb_rate_laws(self):
-        "" Generate rate laws for reactions encoded in KB ""
+        """" Generate rate laws for reactions encoded in KB """
 
-        model = self.model
-        cell = self.knowledge_base.cell
-        submodel = model.submodels.get_one(id='metabolism')
-        c = model.compartments.get_one(id='c')
-        e = model.compartments.get_one(id='e')
+        c = self.model.compartments.get_one(id='c')
+        e = self.model.compartments.get_one(id='e')
 
         for kb_rxn in self.knowledge_base.cell.reactions:
-            if self.get_species_type_types(kb_rxn) == set([wc_kb.core.MetaboliteSpeciesType]):
-                lang_rxn = self.submodel.reactions.get_one(id=kb_rxn.id)
-                for kb_rate_law in kb_rxn.rate_laws:
-                    lang_rate_law = wc_lang.RateLaw(k_cat=kb_rate_law.k_cat,
-                        k_m=kb_rate_law.k_m,
-                        comments=kb_rate_law.comments)
-                    lang_rxn.rate_laws.add(lang_rate_law)
-                    if kb_rate_law.direction == wc_kb.RateLawDirection.forward:
-                        lang_rate_law.direction = wc_lang.RateLawDirection.forward
-                    elif kb_rate_law.direction == wc_kb.RateLawDirection.backward:  # pragma branch not covered
-                        lang_rate_law.direction = wc_lang.RateLawDirection.backward
-                    lang_rate_law.equation = wc_lang.RateLawEquation(
-                        expression=kb_rate_law.equation.expression
-                    )
+            submodel_id = kb_rxn.submodel
+            submodel = self.model.submodels.get_or_create(id=submodel_id)
+            lang_rxn = submodel.reactions.get_one(id=kb_rxn.id)
+            
+            for kb_rate_law in kb_rxn.rate_laws:
 
-                    for kb_modifier in kb_rate_law.equation.modifiers:
-                        lang_species_type = self.model.species_types.get_one(
-                            id=kb_modifier.species_type.id)
-                        lang_species = lang_species_type.species.get_one(
-                            compartment=c)
-                        lang_rate_law.equation.modifiers.add(lang_species)
-    """
+                lang_rate_law = wc_lang.RateLaw(
+                                    k_cat=kb_rate_law.k_cat,
+                                    k_m=kb_rate_law.k_m,
+                                    comments=kb_rate_law.comments)
+
+                lang_rxn.rate_laws.add(lang_rate_law)
+
+                if kb_rate_law.direction == wc_kb.RateLawDirection.forward:
+                    lang_rate_law.direction = wc_lang.RateLawDirection.forward
+                elif kb_rate_law.direction == wc_kb.RateLawDirection.backward:
+                    lang_rate_law.direction = wc_lang.RateLawDirection.backward
+
+                lang_rate_law.equation = wc_lang.RateLawEquation(expression=kb_rate_law.equation.expression)
+
+                for kb_modifier in kb_rate_law.equation.modifiers:
+                    lang_species_type = self.model.species_types.get_one(id=kb_modifier.species_type.id)
+                    lang_species = lang_species_type.species.get_one(compartment=c)
+                    lang_rate_law.equation.modifiers.add(lang_species)

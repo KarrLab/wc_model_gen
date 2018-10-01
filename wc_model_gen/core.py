@@ -101,9 +101,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         """
         self.knowledge_base = knowledge_base
         self.model = model
-
         self.options = options or {}
-        self.clean_and_validate_options()
 
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
