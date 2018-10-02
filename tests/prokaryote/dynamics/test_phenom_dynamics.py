@@ -40,7 +40,7 @@ class PhenomDynamicsTestCase(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.dir)
-    @unittest.skip('WIP')
+
     def test_exponential_growth(self):
         checkpoint_period = 5
         end_time = 105
@@ -51,12 +51,13 @@ class PhenomDynamicsTestCase(unittest.TestCase):
         num_events  = results[0]
         run_results_dir = results[1]
 
-        """ Analysis """
+        self.assertIsInstance(results, tuple)
+
+        """ Analysis
         run_results = RunResults(run_results_dir)
         rna_ids=[]
         df = run_results.get('populations')
 
-        """
         for rna in model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
             rna_ids.append(rna.species[0].id())
 
