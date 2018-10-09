@@ -132,7 +132,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         '''Generate RNAs in wc_lang model from knowledge base '''
         cell = self.knowledge_base.cell
         model = self.model
-        cytosol = model.compartments.get(id='c')[0]
+        cytosol = model.compartments.get_one(id='c')
 
         # get or create RNA species
         rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)

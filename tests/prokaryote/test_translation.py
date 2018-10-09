@@ -84,19 +84,44 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             len(kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)),
             len(submodel.reactions))
 
+        # Check that each reaction has the min or more number of participants
+        for rxn in submodel.reactions:
+            self.assertTrue(len(rxn.participants)>5)
+
         # Check coeffs of reaction participants
-        """
+        # TODO: add assertions about the number of participating tRNAs
         prots_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for rxn, prot_kb in zip(submodel.reactions, prots_kb):
-
-            prot_model = model.species_types.get_one(id=prot_kb)
+            prot_model = model.species_types.get_one(id=prot_kb.id)
             length = len(prot_kb.get_seq())
 
-            self.assertEqual(rxn.participants.get_one(species=prot_model.species[0]).coefficient, 1)
             self.assertEqual(rxn.participants.get_one(species=gtp).coefficient, -(length+2))
             self.assertEqual(rxn.participants.get_one(species=gdp).coefficient, (length+2))
             self.assertEqual(rxn.participants.get_one(species=pi).coefficient, 2*length)
-        """
+
+            """
+            Need to customize assertions for translation reactions that produce:
+            ribosome
+            initiation_factors
+            elongation_factors
+            release_factors
+            
+            self.assertEqual(len(rxn.participants.get(species=ribosome)), 2)
+            self.assertEqual(abs(rxn.participants.get(species=ribosome)[0].coefficient), 1)
+            self.assertEqual(abs(rxn.participants.get(species=ribosome)[1].coefficient), 1)
+
+            self.assertEqual(len(rxn.participants.get(species=initiation_factors)), 2)
+            self.assertEqual(abs(rxn.participants.get(species=initiation_factors)[0].coefficient), 1)
+            self.assertEqual(abs(rxn.participants.get(species=initiation_factors)[1].coefficient), 1)
+
+            self.assertEqual(len(rxn.participants.get(species=initiation_factors))=2)
+            self.assertEqual(abs(rxn.participants.get(species=initiation_factors)[0].coefficient)=1)
+            self.assertEqual(abs(rxn.participants.get(species=initiation_factors)[1].coefficient)=1)
+
+            self.assertEqual(rxn.participants.get_one(species=initiation_factors).coefficient, -(length+2))
+            self.assertEqual(rxn.participants.get_one(species=elongation_factors).coefficient, -length)
+            self.assertEqual(rxn.participants.get_one(species=release_factors).coefficient, (length+2))
+            """
 
     def test_phenom_rate_laws(self):
         model = self.model

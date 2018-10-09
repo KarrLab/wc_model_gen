@@ -105,6 +105,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertIsInstance(rxn.rate_laws[0], wc_lang.core.RateLaw)
             self.assertEqual(rxn.rate_laws[0].direction, 1)
             #print(len(rxn.rate_laws[0].equation.modifiers))
+            #TODO:
             self.assertTrue(len(rxn.rate_laws[0].equation.modifiers) >= 3)
 
             self.assertIsInstance(rxn.rate_laws[0].k_cat, float)
