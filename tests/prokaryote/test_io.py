@@ -20,8 +20,8 @@ class ModelIOTestCase(unittest.TestCase):
 
     def test_generate_read_write(self):
 
-        kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
-                                   'tests/fixtures/min_kb_seq.fna',
+        kb = wc_kb.io.Reader().run('tests/fixtures/test_broken.xlsx',
+                                   'tests/fixtures/test_broken_seq.fna',
                                         strict=False)
 
         self.assertIsInstance(kb, wc_kb.core.KnowledgeBase)

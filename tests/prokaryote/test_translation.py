@@ -16,8 +16,8 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
-                                       'tests/fixtures/min_kb_seq.fna',
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken.xlsx',
+                                       'tests/fixtures/test_broken_seq.fna',
                                         strict=False)
 
         cls.model = prokaryote.ProkaryoteModelGenerator(
@@ -105,7 +105,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             initiation_factors
             elongation_factors
             release_factors
-            
+
             self.assertEqual(len(rxn.participants.get(species=ribosome)), 2)
             self.assertEqual(abs(rxn.participants.get(species=ribosome)[0].coefficient), 1)
             self.assertEqual(abs(rxn.participants.get(species=ribosome)[1].coefficient), 1)

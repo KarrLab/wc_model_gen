@@ -7,8 +7,8 @@ class InitalizeModelTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_kb.xlsx',
-                                       'tests/fixtures/min_kb_seq.fna',
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken.xlsx',
+                                       'tests/fixtures/test_broken_seq.fna',
                                         strict=False)
 
         cls.model = prokaryote.ProkaryoteModelGenerator(knowledge_base = cls.kb,
