@@ -20,7 +20,7 @@ class ModelIOTestCase(unittest.TestCase):
 
     def test_generate_read_write(self):
 
-        kb = wc_kb.io.Reader().run('tests/fixtures/test_broken.xlsx',
+        kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
                                    'tests/fixtures/test_broken_seq.fna',
                                         strict=False)
 

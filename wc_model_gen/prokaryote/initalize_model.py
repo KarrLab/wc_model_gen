@@ -10,9 +10,11 @@ TODO:
 """
 
 from wc_lang import Species, Observable, ExpressionMethods
+import numpy as np
 import wc_model_gen
 import wc_lang
 import wc_kb
+import math
 
 class InitalizeModel(wc_model_gen.ModelComponentGenerator):
     """ Generate compartments """
@@ -133,37 +135,60 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         cell = self.knowledge_base.cell
         model = self.model
         cytosol = model.compartments.get_one(id='c')
+        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
 
-        # get or create RNA species
-        rnas = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        for rna in rnas:
-            species_type = model.species_types.get_or_create(id=rna.id)
-            species_type.name = rna.name
-            species_type.type = wc_lang.SpeciesTypeType.rna
-            species_type.structure = rna.get_seq()
-            species_type.empirical_formula = rna.get_empirical_formula()
-            species_type.molecular_weight = rna.get_mol_wt()
-            species_type.charge = rna.get_charge()
-            species_type.comments = rna.comments
-            species = species_type.species.get_or_create(compartment=cytosol)
+        # Calculate average RNA hl, will be used if value is missing
+        half_lifes=[]
+        for rna_kb in rnas_kb:
+            if (isinstance(rna_kb.half_life, float) and not rna_kb.half_life==0 and not math.isnan(rna_kb.half_life)):
+                half_lifes.append(rna_kb.half_life)
+
+        avg_rna_half_life = np.mean(half_lifes)
+
+        # Create RNA species
+        for rna_kb in rnas_kb:
+            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
+                rna_kb.half_life = avg_rna_half_life
+
+            species_type_model = model.species_types.get_or_create(id=rna_kb.id)
+            species_type_model.name = rna_kb.name
+            species_type_model.type = wc_lang.SpeciesTypeType.rna
+            species_type_model.structure = rna_kb.get_seq()
+            species_type_model.empirical_formula = rna_kb.get_empirical_formula()
+            species_type_model.molecular_weight = rna_kb.get_mol_wt()
+            species_type_model.charge = rna_kb.get_charge()
+            species_type_model.comments = rna_kb.comments
+            species_model = species_type_model.species.get_or_create(compartment=cytosol)
 
     def gen_protein(self):
         '''Generate proteins in wc_lang model from knowledge base '''
 
         cell = self.knowledge_base.cell
         model = self.model
-        cytosol = model.compartments.get(id='c')[0]
+        cytosol = model.compartments.get_one(id='c')
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
 
-        for protein in self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
-            species_type = self.model.species_types.get_or_create(id=protein.id)
-            species_type.name = protein.name
-            species_type.type = wc_lang.SpeciesTypeType.protein
-            species_type.structure = protein.get_seq()
-            species_type.empirical_formula = protein.get_empirical_formula()
-            species_type.molecular_weight = protein.get_mol_wt()
-            species_type.charge = protein.get_charge()
-            species_type.comments = protein.comments
-            species = species_type.species.get_or_create(compartment=cytosol)
+        # Calculate average protein hl, will be used if value is missing
+        half_lifes=[]
+        for protein_kb in proteins_kb:
+            if (isinstance(protein_kb.half_life, float) and not protein_kb.half_life==0 and not math.isnan(protein_kb.half_life)):
+                half_lifes.append(protein_kb.half_life)
+
+        avg_protein_half_life = np.mean(half_lifes)
+
+        for protein_kb in proteins_kb:
+            if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
+                protein_kb.half_life = avg_protein_half_life
+
+            species_type_model = self.model.species_types.get_or_create(id=protein_kb.id)
+            species_type_model.name = protein_kb.name
+            species_type_model.type = wc_lang.SpeciesTypeType.protein
+            species_type_model.structure = protein_kb.get_seq()
+            species_type_model.empirical_formula = protein_kb.get_empirical_formula()
+            species_type_model.molecular_weight = protein_kb.get_mol_wt()
+            species_type_model.charge = protein_kb.get_charge()
+            species_type_model.comments = protein_kb.comments
+            species_model = species_type_model.species.get_or_create(compartment=cytosol)
 
     def gen_complexes(self):
         '''Generate complexes in wc_lang model from knowledge base '''

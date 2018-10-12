@@ -106,9 +106,18 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         volume = cell.properties.get_one(id='initial_volume').value
         cc_length = cell.properties.get_one(id='cell_cycle_length').value
 
-        mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
-        H_trasfer_rate = self.calc_H_trasfer_rate()
-        mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
+        if self.model.submodels.get_one(id='transcription') is not None and \
+           self.model.submodels.get_one(id='rna_degradation') is not None:
+
+            mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
+            H_trasfer_rate = self.calc_H_trasfer_rate()
+            mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
+
+        # If there is no transcription submodel use, flat uncalibrated rates
+        else:
+            mpp_trasfer_rate = 30
+            H_trasfer_rate = 50
+            mpp_conversion_rate = 35
 
         for rxn in submodel.reactions:
 
@@ -237,18 +246,22 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def calc_expected_n_degrad_rxns(self):
         """ Calculates the expected # of RNA degradation reactions over the CC"""
 
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        cytosol_lang = self.model.compartments.get_one(id='c')
+        cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
+        rnas_lang = self.model.species_types.get(type = wc_lang.SpeciesTypeType.rna)
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         volume = self.knowledge_base.cell.properties.get_one(id='initial_volume').value
-        cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
 
         # Calculate the # of degradation reactions over CC
         # Each Rna degrad reaction fires: (cc_length/rna.half_life)*rna_copy_number(t=0)
         n_deg_rxns=0
-        for rna in rnas_kb:
-            conc = rna.species.get_one(compartment = cytosol_kb).concentrations.value
+        for rna_lang in rnas_lang:
+            rna_kb = self.knowledge_base.cell.species_types.get_one(id=rna_lang.id)
+            half_life = rna_kb.half_life
+
+            conc = rna_lang.species.get_one(compartment=cytosol_lang).concentration.value
             rna_copy_num = round(conc*volume*Avogadro)
-            n_deg_rxns += ((cc_length/rna.half_life)*rna_copy_num)
+            n_deg_rxns += ((cc_length/half_life)*rna_copy_num)
 
         return n_deg_rxns
 

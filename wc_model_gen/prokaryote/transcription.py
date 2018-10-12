@@ -66,36 +66,24 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                half_life = avg_rna_half_life
-            else:
-                half_life = rna_kb.half_life
-
             self.gen_phenom_rate_law_eq(specie_type_kb=rna_kb,
                                         reaction=reaction,
-                                        half_life=half_life,
+                                        half_life=rna_kb.half_life,
                                         cell_cycle_length=cell_cycle_length)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                half_life = avg_rna_half_life
-            else:
-                half_life = rna_kb.half_life
-
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
                                              submodel=submodel,
                                              reaction=reaction,
                                              beta = 1,
-                                             half_life=half_life,
+                                             half_life=rna_kb.half_life,
                                              cell_cycle_length=cell_cycle_length)

@@ -95,36 +95,24 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                half_life = avg_protein_half_life
-            else:
-                half_life = protein_kb.half_life
-
             self.gen_phenom_rate_law_eq(specie_type_kb=protein_kb,
                                         reaction=reaction,
-                                        half_life=half_life,
+                                        half_life=protein_kb.half_life,
                                         cell_cycle_length=cell_cycle_length)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                half_life = avg_protein_half_life
-            else:
-                half_life = protein_kb.half_life
-
             self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
                                              submodel=submodel,
                                              reaction=reaction,
                                              beta = 1,
-                                             half_life=half_life,
+                                             half_life=protein_kb.half_life,
                                              cell_cycle_length=cell_cycle_length)

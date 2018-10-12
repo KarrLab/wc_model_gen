@@ -20,11 +20,11 @@ class ProkaryoteModelGenerator(wc_model_gen.ModelGenerator):
 
     DEFAULT_COMPONENT_GENERATORS = (
         InitalizeModel,
-        MetabolismSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
         TranslationSubmodelGenerator,
-        ProteinDegradationSubmodelGenerator
+        ProteinDegradationSubmodelGenerator,
+        MetabolismSubmodelGenerator
     )
 
     def clean_and_validate_options(self):

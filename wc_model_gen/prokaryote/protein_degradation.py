@@ -84,21 +84,15 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = self.model.submodels.get_one(id='protein_degradation')
         cytosol = self.model.compartments.get_one(id='c')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                half_life = avg_protein_half_life
-            else:
-                half_life = protein_kb.half_life
-
             specie_type_model = self.model.species_types.get_one(id=protein_kb.id)
             specie_model = specie_type_model.species.get_one(compartment=cytosol)
 
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), half_life, specie_model.id())
+            expression = '({} / {}) * {}'.format(numpy.log(2), protein_kb.half_life, specie_model.id())
 
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(specie_model)
@@ -107,18 +101,12 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws associated with submodel """
         submodel = self.model.submodels.get_one(id='protein_degradation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        avg_protein_half_life = self.calc_mean_half_life(species_types_kb=proteins_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            if (math.isnan(protein_kb.half_life) or protein_kb.half_life==0):
-                half_life = avg_protein_half_life
-            else:
-                half_life = protein_kb.half_life
-
             self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
                                              submodel=submodel,
                                              reaction=reaction,
                                              beta = 1,
-                                             half_life=half_life,
+                                             half_life=protein_kb.half_life,
                                              cell_cycle_length=cell_cycle_length)

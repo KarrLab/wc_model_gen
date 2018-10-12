@@ -82,7 +82,6 @@ class ModelGenerator(object):
 
         return model
 
-
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Abstract base class for model component generators
 
@@ -138,6 +137,8 @@ class SubmodelGenerator(ModelComponentGenerator):
         self.options = options or {}
         self.clean_and_validate_options()
 
+        # Calculate numbers needed for model construction
+
     def run(self):
         """ Generate model components """
         self.clean_and_validate_options()
@@ -167,7 +168,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         elif rate_law_dynamics=='mechanistic':
             self.gen_mechanistic_rates()
         else:
-            raise Exception('Invalid rate law option selected.')
+            raise Exception('Invalid rate law option.')
 
     def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_length):
         if reaction.id[-7:]=='_fromKB':
@@ -236,13 +237,3 @@ class SubmodelGenerator(ModelComponentGenerator):
                             3/2*specie_type_kb.species.get_one(compartment=cytosol_kb).concentrations.value)
 
         rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
-
-    def calc_mean_half_life(self, species_types_kb):
-
-        half_lifes=[]
-        for species_type_kb in species_types_kb:
-            if (isinstance(species_type_kb.half_life, float) and not species_type_kb.half_life==0 and not math.isnan(species_type_kb.half_life)):
-                half_lifes.append(species_type_kb.half_life)
-        avg_half_life = numpy.mean(half_lifes)
-
-        return avg_half_life

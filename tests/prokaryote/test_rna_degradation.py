@@ -18,7 +18,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     
     @classmethod
     def setUpClass(cls):
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken.xlsx',
+        cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
                                        'tests/fixtures/test_broken_seq.fna',
                                         strict=False)
 

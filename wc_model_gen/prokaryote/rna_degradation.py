@@ -11,7 +11,6 @@ import wc_model_gen
 import wc_lang
 import wc_kb
 import numpy
-import math
 
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
@@ -64,21 +63,15 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = self.model.submodels.get_one(id='rna_degradation')
         cytosol = self.model.compartments.get_one(id='c')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                half_life = avg_rna_half_life
-            else:
-                half_life = rna_kb.half_life
-
             specie_type_model = self.model.species_types.get_one(id=rna_kb.id)
             specie_model = specie_type_model.species.get_one(compartment=cytosol)
 
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), half_life, specie_model.id())
+            expression = '({} / {}) * {}'.format(numpy.log(2), rna_kb.half_life, specie_model.id())
 
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(specie_model)
@@ -87,18 +80,12 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with calibrated dynamics """
         submodel = self.model.submodels.get_one(id='rna_degradation')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        avg_rna_half_life = self.calc_mean_half_life(species_types_kb=rnas_kb)
         cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            if (math.isnan(rna_kb.half_life) or rna_kb.half_life==0):
-                half_life = avg_rna_half_life
-            else:
-                half_life = rna_kb.half_life
-
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
                                              submodel=submodel,
                                              reaction=reaction,
                                              beta = 1,
-                                             half_life=half_life,
+                                             half_life=rna_kb.half_life,
                                              cell_cycle_length=cell_cycle_length)
