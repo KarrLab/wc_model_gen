@@ -31,25 +31,34 @@ class PhenomDynamicsTestCase(unittest.TestCase):
 
         cls.model = prokaryote.ProkaryoteModelGenerator(
                         knowledge_base = cls.kb,
-                        options = {'component': {
-                                    'TranscriptionSubmodelGenerator': {'rate_dynamics': 'phenomenological'},
-                                    'RnaDegradationSubmodelGenerator': {'rate_dynamics': 'phenomenological'},
-                                    'TranslationSubmodelGenerator': {'rate_dynamics': 'phenomenological'},
-                                    'ProteinDegradationSubmodelGenerator': {'rate_dynamics': 'phenomenological'}}}).run()
+                        component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.TranscriptionSubmodelGenerator,
+                                              prokaryote.RnaDegradationSubmodelGenerator,
+                                              prokaryote.MetabolismSubmodelGenerator]).run()
 
     @classmethod
     def tearDownClass(cls):
         shutil.rmtree(cls.dir)
 
-    @unittest.skip('to do')
     def test_exponential_growth(self):
-        checkpoint_period = 5
-        end_time = 105
-        results_dir = self.dir
-        simulation = Simulation(self.model)
+        checkpoint_period = 10
+        end_time = 100
 
-        results = simulation.run(end_time, results_dir, checkpoint_period)
+        simulation = Simulation(self.model)
+        results = simulation.run(end_time, self.dir, checkpoint_period)
+        self.assertIsInstance(results, tuple)
+
         num_events  = results[0]
         run_results_dir = results[1]
 
-        self.assertIsInstance(results, tuple)
+        run_results = RunResults(run_results_dir)
+        rna_ids=[]
+        df = run_results.get('populations')
+        for rna in model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
+            rna_ids.append(rna.species[0].id())
+
+        avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
+        avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
+
+        # Check if RNA content has doubled after CC - 15% tolerance
+        self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.15)

@@ -138,13 +138,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     rate_law.equation = transfer_tRNA_rate_equation
 
                 elif rxn.id[-2:]=='mp':
-                    expression = str(mpp_trasfer_rate) #'0.0000000007852'
+                    expression = str(mpp_trasfer_rate)
                     if 'transfer_xMP_rate_equation' not in locals():
                         transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_xMP_rate_equation
 
                 elif rxn.id[0:10]=='transfer_h':
-                    expression= str(H_trasfer_rate) #'0.000000013058175578434628529'
+                    expression= str(H_trasfer_rate)
                     transfer_H_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_H_rate_equation
 
@@ -152,7 +152,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     raise Exception('Invalid transfer reaction id, no associated rate law.')
 
             elif rxn.id[0:11]=='conversion_':
-                expression= str(mpp_conversion_rate) #'0.000000001264589'
+                expression= str(mpp_conversion_rate)
                 if 'conversion_rate_law_equation' not in locals():
                     conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
                 rate_law.equation = conversion_rate_law_equation
@@ -192,7 +192,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
-        mpp_transfer_rate = (tpp_in_cell/cc_length/10)*1.075 # Slight boost added due to low initial conc
+        mpp_transfer_rate = (tpp_in_cell/cc_length/10)*1.025 # Slight boost added due to low initial conc
         return mpp_transfer_rate
 
     def calc_mpp_conversion_rate(self):
