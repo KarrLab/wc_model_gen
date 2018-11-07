@@ -40,6 +40,7 @@ class PhenomDynamicsTestCase(unittest.TestCase):
     def tearDownClass(cls):
         shutil.rmtree(cls.dir)
 
+    @unittest.skip()
     def test_exponential_growth(self):
         checkpoint_period = 10
         end_time = 100

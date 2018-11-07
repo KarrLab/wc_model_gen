@@ -191,7 +191,6 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
         """ Generate model components """
         pass  # pragma: no cover
 
-
 class SubmodelGenerator(ModelComponentGenerator):
     """ Base class for submodel generators
 
