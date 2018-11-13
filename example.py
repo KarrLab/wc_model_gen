@@ -1,4 +1,4 @@
-import wc_model_gen.prokaryote as prokaryote
+from wc_model_gen import prokaryote
 import wc_model_gen
 import wc_lang
 import wc_kb_gen

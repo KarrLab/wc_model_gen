@@ -1,12 +1,11 @@
-import wc_model_gen.prokaryote as prokaryote
+from wc_model_gen import prokaryote
+import os
+import shutil
+import tempfile
 import unittest
-import wc_lang
 import wc_kb_gen
 import wc_kb
-import unittest
-import tempfile
-import shutil
-import os
+import wc_lang
 
 class ModelIOTestCase(unittest.TestCase):
 
@@ -29,9 +28,9 @@ class ModelIOTestCase(unittest.TestCase):
         """ Generate  and write models from KBs """
         model         = prokaryote.ProkaryoteModelGenerator(knowledge_base=kb).run()
         wc_lang.io.Writer().run(model, os.path.join(self.dir, 'model.xlsx'), set_repo_metadata_from_path=False)
-        self.assertIsInstance(model, wc_lang.core.Model)
+        self.assertIsInstance(model, wc_lang.Model)
         self.assertTrue(os.path.isfile(os.path.join(self.dir, 'model.xlsx')))
 
         """ Read back KBs from disk """
         model_read = wc_lang.io.Reader().run(os.path.join(self.dir, 'model.xlsx'))
-        self.assertIsInstance(model_read, wc_lang.core.Model)
+        self.assertIsInstance(model_read, wc_lang.Model)

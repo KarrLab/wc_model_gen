@@ -6,11 +6,11 @@
 :License: MIT
 """
 
-import wc_model_gen.prokaryote as prokaryote
-import unittest
-import wc_lang
-import wc_kb
+from wc_model_gen import prokaryote
 import math
+import unittest
+import wc_kb
+import wc_lang
 
 class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
@@ -46,11 +46,11 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         model_mechanistic = self.model_mechanistic
 
         submodel = model.submodels.get_one(id='translation')
-        self.assertIsInstance(submodel, wc_lang.core.Submodel)
+        self.assertIsInstance(submodel, wc_lang.Submodel)
         self.assertEqual(len(model.submodels), 2)
 
         submodel = model_mechanistic.submodels.get_one(id='translation')
-        self.assertIsInstance(submodel, wc_lang.core.Submodel)
+        self.assertIsInstance(submodel, wc_lang.Submodel)
         self.assertEqual(len(model_mechanistic.submodels), 2)
 
     def test_species(self):
@@ -131,7 +131,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         for rxn in submodel.reactions:
 
             self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.core.RateLaw)
+            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
             self.assertEqual(rxn.rate_laws[0].direction, 1)
             self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 1)
 
@@ -151,7 +151,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.core.RateLaw)
+            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
             self.assertEqual(rxn.rate_laws[0].direction, 1)
             self.assertTrue(len(rxn.rate_laws[0].equation.modifiers) > 4)
 
