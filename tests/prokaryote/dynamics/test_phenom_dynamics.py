@@ -8,7 +8,7 @@
 
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
-import wc_model_gen.prokaryote as prokaryote
+from wc_model_gen import prokaryote
 import numpy as np
 import unittest
 import wc_lang
@@ -56,7 +56,7 @@ class PhenomDynamicsTestCase(unittest.TestCase):
         rna_ids=[]
         df = run_results.get('populations')
         for rna in model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
-            rna_ids.append(rna.species[0].id())
+            rna_ids.append(rna.species[0].id)
 
         avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
         avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)

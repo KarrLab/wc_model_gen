@@ -159,6 +159,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_type_model.charge = rna_kb.get_charge()
             species_type_model.comments = rna_kb.comments
             species_model = species_type_model.species.get_or_create(compartment=cytosol)
+            species_model.id = species_model.gen_id(species_model.species_type.id, species_model.compartment.id)
 
     def gen_protein(self):
         '''Generate proteins in wc_lang model from knowledge base '''
@@ -189,6 +190,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_type_model.charge = protein_kb.get_charge()
             species_type_model.comments = protein_kb.comments
             species_model = species_type_model.species.get_or_create(compartment=cytosol)
+            species_model.id = species_model.gen_id(species_model.species_type.id, species_model.compartment.id)
 
     def gen_complexes(self):
         '''Generate complexes in wc_lang model from knowledge base '''
@@ -204,6 +206,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_type.molecular_weight = comp.get_mol_wt()
             species_type.charge = comp.get_charge()
             species = species_type.species.get_or_create(compartment=cytosol)
+            species.id = species.gen_id(species.species_type.id, species.compartment.id)
 
     def gen_concentrations(self):
         '''Generate concentrations in wc_lang model from knowledge base '''
@@ -216,6 +219,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species      = species_type.species.get_or_create(compartment=species_comp_model)
+            species.id = species.gen_id(species.species_type.id, species.compartment.id)
 
             species.concentration = wc_lang.Concentration(
                     value=conc.value, units=wc_lang.ConcentrationUnit.M,
@@ -240,9 +244,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     id=kb_species_type.id)
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
-                observable_references[Species][model_species.get_id()] = model_species
+                observable_references[Species][model_species.id] = model_species
                 model_coefficient = kb_species_coefficient.coefficient
-                obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.get_id()))
+                obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.id))
 
             for kb_observable_observable in kb_observable.observables:
                 model_observable_observable = model.observables.get_or_create(
@@ -273,6 +277,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         species_type.charge = kb_metabolite.get_charge()
         species_type.comments = kb_metabolite.comments
         species = species_type.species.get_or_create(compartment=lang_compartment)
+        species.id = species.gen_id(species.species_type.id, species.compartment.id)
 
         return species
 

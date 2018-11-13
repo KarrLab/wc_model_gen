@@ -8,17 +8,18 @@
 """
 
 import abc
-import six
-import wc_kb
-import wc_lang
 import math
 import numpy
+import os
+import six
+import time
+import wc_kb
+import wc_lang
 import wc_utils.util.string
+from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
-from wc_lang.util import get_model_summary
-import time
-import os
+
 
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
@@ -151,7 +152,7 @@ class ModelGenerator(object):
         rna_ids=[]
         df = run_results.get('populations')
         for rna in model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
-            rna_ids.append(rna.species[0].id())
+            rna_ids.append(rna.species[0].id)
 
         txt = 'Init copy number mean={}; std={} \n'.format(round(np.mean(df.loc[0.0,rna_ids].values),2),
                                                             round(np.std(df.loc[0.0,rna_ids].values),2))
@@ -261,7 +262,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         rate_law.direction = wc_lang.RateLawDirection.forward
         expression = '({} / {} + {} / {}) * {}'.format(numpy.log(2), half_life,
                                                        numpy.log(2), cell_cycle_length,
-                                                       specie_model.id())
+                                                       specie_model.id)
 
         rate_law.equation = wc_lang.RateLawEquation(expression = expression)
         rate_law.equation.modifiers.append(specie_model)
@@ -284,8 +285,8 @@ class SubmodelGenerator(ModelComponentGenerator):
                 avg_conc = (3/2)*participant.species.concentration.value
                 modifiers.append(participant.species)
                 rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
-                expression += '({}/({}+({}*{})))*'.format(participant.species.id(),
-                                                          participant.species.id(),
+                expression += '({}/({}+({}*{})))*'.format(participant.species.id,
+                                                          participant.species.id,
                                                           beta,
                                                           participant.species.concentration.value)
 

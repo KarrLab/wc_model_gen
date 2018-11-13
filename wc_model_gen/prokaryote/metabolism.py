@@ -55,18 +55,25 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Generate reactions associated with nucleophosphate maintenance
         for mpp, tripp in zip(mpps.values(), tripps.values()):
+            # get/create species
+            mpp_e = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, e.id), 
+                                              compartment=e)
+            mpp_c = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, c.id), 
+                                              compartment=c)
+            tripp_c = tripp.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), 
+                                                  compartment=c)
 
             # Create transfer reaction
             rxn = submodel.reactions.get_or_create(id='transfer_'+mpp.id)
             rxn.participants = []
-            rxn.participants.add(mpp.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient = -10))
-            rxn.participants.add(mpp.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient =  10))
+            rxn.participants.add(mpp_e.species_coefficients.get_or_create(coefficient = -10))
+            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient =  10))
 
             #Create conversion reactions
             rxn = submodel.reactions.get_or_create(id='conversion_'+mpp.id+'_'+tripp.id)
             rxn.participants = []
-            rxn.participants.add(mpp.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient=-10))
-            rxn.participants.add(tripp.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient = 10))
+            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient=-10))
+            rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient = 10))
 
         # Generate reactions associated with tRna/AA maintenece
         for observable_kb in cell.observables:
@@ -78,16 +85,22 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     tRNA_specie_type_model = model.species_types.get_one(id=tRNA_specie_kb.species.species_type.id)
                     tRNA_model = tRNA_specie_type_model.species.get_one(compartment=c)
 
-                    rxn.participants.add(
-                        tRNA_model.species_type.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient = -10))
-                    rxn.participants.add(
-                        tRNA_model.species_type.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient = 10))
+                    trna_e = tRNA_model.species_type.species.get_or_create(
+                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, e.id), 
+                        compartment=e)
+                    trna_c = tRNA_model.species_type.species.get_or_create(
+                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, c.id),
+                        compartment=c)
+                    rxn.participants.add(trna_e.species_coefficients.get_or_create(coefficient = -10))
+                    rxn.participants.add(trna_c.species_coefficients.get_or_create(coefficient = 10))
 
         # Generate reactions associated with H maintenece
         rxn = submodel.reactions.get_or_create(id='transfer_h')
         rxn.participants = []
-        rxn.participants.add(h_type.species.get_or_create(compartment=e).species_coefficients.get_or_create(coefficient=-10))
-        rxn.participants.add(h_type.species.get_or_create(compartment=c).species_coefficients.get_or_create(coefficient= 10))
+        h_e = h_type.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, e.id), compartment=e)
+        h_c = h_type.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, c.id), compartment=c)
+        rxn.participants.add(h_e.species_coefficients.get_or_create(coefficient=-10))
+        rxn.participants.add(h_c.species_coefficients.get_or_create(coefficient= 10))
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with min metabolism model

@@ -92,7 +92,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rate_law = reaction.rate_laws.create()
             rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), protein_kb.half_life, specie_model.id())
+            expression = '({} / {}) * {}'.format(numpy.log(2), protein_kb.half_life, specie_model.id)
 
             rate_law.equation = wc_lang.RateLawEquation(expression = expression)
             rate_law.equation.modifiers.append(specie_model)
