@@ -1,9 +1,9 @@
 """ Generator for metabolism submodels based on KBs for random in silico organisms
-:Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
-         Jonathan Karr <karr@mssm.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
-         Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 
+:Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
+:Author: Jonathan Karr <karr@mssm.edu>
+:Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Arthur Goldberg <Arthur.Goldberg@mssm.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -273,8 +273,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = rna_kb.half_life
 
             conc = rna_lang.species.get_one(compartment=cytosol_lang).concentration.value
-            rna_copy_num = round(conc*volume*Avogadro)
-            n_deg_rxns += ((cc_length/half_life)*rna_copy_num)
+            rna_copy_num = round(conc * volume * Avogadro)
+            n_deg_rxns += ((cc_length / half_life) * rna_copy_num)
 
         return n_deg_rxns
 
@@ -285,10 +285,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
 
-        rna_copy_num=[]
+        rna_copy_num = []
         for rna in rnas_kb:
-            conc = rna.species.get_one(compartment = cytosol_kb).concentrations.value
-            rna_copy_num.append(round(conc*volume*Avogadro))
+            conc = rna.species.get_one(compartment=cytosol_kb).concentration.value
+            rna_copy_num.append(round(conc * volume * Avogadro))
 
         avg_rna_copy_num = np.mean(rna_copy_num)
         return avg_rna_copy_num

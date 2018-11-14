@@ -108,15 +108,24 @@ class ModelGenerator(object):
                          'PropertiesGenerator': {'cell_cycle_length': 100},
                          'ObservablesGenerator': {'genetic_code': 'reduced'}}}).run()
 
-        cytosol = kb.cell.compartments.get_one(id='c')
-        kb.cell.species_types.get_one(id='amp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='cmp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='gmp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='ump').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='atp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='ctp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='gtp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
-        kb.cell.species_types.get_one(id='utp').species.get_one(compartment=cytosol).concentrations.value='0.000008333'
+        cell = kb.cell
+        cytosol = cell.compartments.get_one(id='c')
+        cell.species_types.get_one(id='amp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='cmp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='gmp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='ump').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='atp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='ctp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='gtp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
+        cell.species_types.get_one(id='utp').species.get_one(compartment=cytosol).concentration = \
+            wc_kb.core.Concentration(cell=cell, value='0.000008333')
 
         if name:
             core_path = '/media/sf_VM_share/kbs/' + str(name) +'.xlsx'
@@ -314,6 +323,6 @@ class SubmodelGenerator(ModelComponentGenerator):
                             numpy.log(2),
                             self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value,
                             half_life,
-                            3/2*specie_type_kb.species.get_one(compartment=cytosol_kb).concentrations.value)
+                            3/2*specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value)
 
         rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
