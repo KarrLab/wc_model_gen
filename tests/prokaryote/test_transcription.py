@@ -125,22 +125,3 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
                     break
 
             self.assertEqual(match, 1)
-
-    def test_mechanistic_rate_laws(self):
-        model = self.model_mechanistic
-        kb = self.kb
-        submodel = model.submodels.get_one(id='transcription')
-
-        for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
-            self.assertEqual(rxn.rate_laws[0].direction, 1)
-            self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 6)
-
-            self.assertIsInstance(rxn.rate_laws[0].k_cat, float)
-            self.assertFalse(math.isnan(rxn.rate_laws[0].k_cat))
-
-            # Check that participants are modifiers
-            for participant in rxn.participants:
-                if participant.coefficient < 0:
-                    self.assertTrue(participant.species in rxn.rate_laws[0].equation.modifiers)

@@ -16,7 +16,6 @@ import wc_lang
 import wc_kb
 import math
 
-
 class InitalizeModel(wc_model_gen.ModelComponentGenerator):
     """ Generate compartments """
 
@@ -90,16 +89,11 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         # Create default compartments
-        model.compartments.create(id='c', name='Cytosol', initial_volume=1E-15)
-        model.compartments.create(id='m', name='Cell membrane', initial_volume=1E-10)
-        model.compartments.create(id='e', name='Extracellular space', initial_volume=1E-10)
-
-        # Generate the compartments that are defined in the knowledge base
         # TODO: currently no volume info in KB, talk to YH
-        # for compartment_kb in kb.cell.compartments:
-        #    compartment_model = model.compartments.get_or_create(id=kb_comp.id)
-        #    compartment_model.name = compartment_kb.name
-        #    compartment_model.initial_volume = compartment_kb.properties.get_one(id='volume').value
+
+        model.compartments.create(id='c', name='Cytosol', initial_volume=1E-15)
+        #model.compartments.create(id='m', name='Cell membrane', initial_volume=1E-10)
+        model.compartments.create(id='e', name='Extracellular space', initial_volume=1E-10)
 
     def gen_parameters(self):
         kb = self.knowledge_base
@@ -196,7 +190,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         Args:
             kb_species_type (:obj:`wc_kb.SpeciesType`): knowledge base species type
-            extra_compartment_ids (:obj:`list` of :obj:`str`, optional): compartment ids of 
+            extra_compartment_ids (:obj:`list` of :obj:`str`, optional): compartment ids of
                 additional species that should be created beyond those represented in the KB
 
         Returns:
@@ -311,7 +305,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
                 # ensure that species are present in extracellular space
                 if model_species is None:
-                    print(kb_species.species_type.id, model_compartment.id)
                     model_species = self.gen_species_type(kb_species.species_type, model_compartment)
                 model_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))

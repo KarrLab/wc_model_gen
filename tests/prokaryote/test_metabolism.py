@@ -11,6 +11,7 @@ from wc_model_gen import prokaryote
 import unittest
 import wc_lang
 import wc_kb
+import wc_test
 
 
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
@@ -47,7 +48,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         submod_gen = prokaryote.MetabolismSubmodelGenerator(
                         knowledge_base = self.kb,
                         model = self.model)
-        self.assertRaisesRegexp(Exception, 'Invalid reaction id', submod_gen.gen_rate_laws)
+        self.assertRaisesRegexp(Exception, 'invalid reaction id, no associated rate law is defined', submod_gen.gen_rate_laws)
 
         break_model = self.model
         rxn = break_model.submodels.get_one(id='metabolism').reactions[0]
@@ -55,7 +56,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         submod_gen = prokaryote.MetabolismSubmodelGenerator(
                         knowledge_base = self.kb,
                         model = self.model)
-        self.assertRaisesRegexp(Exception, 'Invalid transfer reaction id', submod_gen.gen_rate_laws)
+        self.assertRaisesRegexp(Exception, 'invalid reaction id, no associated rate law is defined', submod_gen.gen_rate_laws)
 
         break_model = self.model
         break_model.species_types.get_one(id='atp').id='pta'

@@ -21,6 +21,10 @@ import wc_kb
 class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for metabolism submodel """
 
+    # self.reaction_scale is the number of molecules transfered / converted with each reaction.
+    # Increasing the number reduces the number of metabolic reactions, significantly reducing simulation time
+    reaction_scale = 100
+
     def gen_reactions(self):
         """ Generate reactions assocated with min model
 
@@ -56,24 +60,24 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Generate reactions associated with nucleophosphate maintenance
         for mpp, tripp in zip(mpps.values(), tripps.values()):
             # get/create species
-            mpp_e = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, e.id), 
+            mpp_e = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, e.id),
                                               compartment=e)
-            mpp_c = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, c.id), 
+            mpp_c = mpp.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, c.id),
                                               compartment=c)
-            tripp_c = tripp.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), 
+            tripp_c = tripp.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id),
                                                   compartment=c)
 
             # Create transfer reaction
             rxn = submodel.reactions.get_or_create(id='transfer_'+mpp.id)
             rxn.participants = []
-            rxn.participants.add(mpp_e.species_coefficients.get_or_create(coefficient = -10))
-            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient =  10))
+            rxn.participants.add(mpp_e.species_coefficients.get_or_create(coefficient = -self.reaction_scale))
+            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient =  self.reaction_scale))
 
             #Create conversion reactions
             rxn = submodel.reactions.get_or_create(id='conversion_'+mpp.id+'_'+tripp.id)
             rxn.participants = []
-            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient=-10))
-            rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient = 10))
+            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+            rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient = self.reaction_scale))
 
         # Generate reactions associated with tRna/AA maintenece
         for observable_kb in cell.observables:
@@ -86,51 +90,62 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     tRNA_model = tRNA_specie_type_model.species.get_one(compartment=c)
 
                     trna_e = tRNA_model.species_type.species.get_or_create(
-                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, e.id), 
+                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, e.id),
                         compartment=e)
                     trna_c = tRNA_model.species_type.species.get_or_create(
                         id=wc_lang.Species.gen_id(tRNA_model.species_type.id, c.id),
                         compartment=c)
-                    rxn.participants.add(trna_e.species_coefficients.get_or_create(coefficient = -10))
-                    rxn.participants.add(trna_c.species_coefficients.get_or_create(coefficient = 10))
+                    rxn.participants.add(trna_e.species_coefficients.get_or_create(coefficient = -self.reaction_scale))
+                    rxn.participants.add(trna_c.species_coefficients.get_or_create(coefficient = self.reaction_scale))
 
         # Generate reactions associated with H maintenece
         rxn = submodel.reactions.get_or_create(id='transfer_h')
         rxn.participants = []
         h_e = h_type.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, e.id), compartment=e)
         h_c = h_type.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, c.id), compartment=c)
-        rxn.participants.add(h_e.species_coefficients.get_or_create(coefficient=-10))
-        rxn.participants.add(h_c.species_coefficients.get_or_create(coefficient= 10))
+        rxn.participants.add(h_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+        rxn.participants.add(h_c.species_coefficients.get_or_create(coefficient= self.reaction_scale))
 
     def gen_rate_laws(self):
         """ Generate rate laws associated with min metabolism model
 
             Raises:
                 :obj:`ValueError:` if any phosphate species are missing from the model
+                :obj:`Exception:` if there is a reaction with unexpected ID
         """
-        # If need X reactions / s, then rate = X/(V*N_Avogadro)
-        # TODO: change flat rate to match xTP/AA consumption
-
         cell = self.knowledge_base.cell
         model = self.model
+        submodels = self.model.submodels
         submodel = model.submodels.get_one(id='metabolism')
         c = model.compartments.get_one(id='c')
         e = model.compartments.get_one(id='e')
         volume = cell.properties.get_one(id='initial_volume').value
         cc_length = cell.properties.get_one(id='cell_cycle_length').value
+        # If need X reactions / s, then rate = X/(V*N_Avogadro)
 
-        if self.model.submodels.get_one(id='transcription') is not None and \
-           self.model.submodels.get_one(id='rna_degradation') is not None:
+        # Detect submodel composition and set appropiate rate laws
+        if submodels.get_one(id='transcription') is not None and \
+           submodels.get_one(id='rna_degradation') is not None and \
+           submodels.get_one(id='translation') is None and \
+           submodels.get_one(id='protein_degradation') is None:
 
             mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
             H_trasfer_rate = self.calc_H_trasfer_rate()
             mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
 
-        # If there is no transcription submodel use, flat uncalibrated rates
+        elif submodels.get_one(id='transcription') is not None and \
+             submodels.get_one(id='rna_degradation') is not None and \
+             submodels.get_one(id='translation') is not None and \
+             submodels.get_one(id='protein_degradation') is not None:
+
+            mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
+            H_trasfer_rate = self.calc_H_trasfer_rate()
+            mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
+
         else:
-            mpp_trasfer_rate = 30
+            mpp_trasfer_rate = 50
             H_trasfer_rate = 50
-            mpp_conversion_rate = 35
+            mpp_conversion_rate = 50
 
         for rxn in submodel.reactions:
 
@@ -144,25 +159,28 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Rates for transfer reactions form extracellular space
             if rxn.id[0:9]=='transfer_':
 
-                if rxn.id[0:13]=='transfer_tRNA':
+                # tRNA transfer
+                if rxn.id[-8:-4]=='tRNA':
                     expression='0.0000000000589232'
                     if 'transfer_tRNA_rate_equation' not in locals():
                         transfer_tRNA_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_tRNA_rate_equation
 
+                # Monophosphate reaction
                 elif rxn.id[-2:]=='mp':
                     expression = str(mpp_trasfer_rate)
                     if 'transfer_xMP_rate_equation' not in locals():
                         transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_xMP_rate_equation
 
-                elif rxn.id[0:10]=='transfer_h':
+                # Hydrogen transfer
+                elif rxn.id[-1:]=='h':
                     expression= str(H_trasfer_rate)
                     transfer_H_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_H_rate_equation
 
                 else:
-                    raise Exception('Invalid transfer reaction id, no associated rate law.')
+                    raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
 
             elif rxn.id[0:11]=='conversion_':
                 expression= str(mpp_conversion_rate)
@@ -171,7 +189,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rate_law.equation = conversion_rate_law_equation
 
             else:
-                raise Exception('Invalid reaction id, no associated rate law.')
+                raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
 
     def calc_H_trasfer_rate(self):
         """ Calculates the rate of H transfer from the extracellular space """
@@ -190,7 +208,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
-        h_transfer_rate = n_h_transfer/cc_length/10
+        h_transfer_rate = n_h_transfer/cc_length/self.reaction_scale
         return h_transfer_rate
 
     def calc_mpp_trasfer_rate(self):
@@ -205,7 +223,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
-        mpp_transfer_rate = (tpp_in_cell/cc_length/10)*1.025 # Slight boost added due to low initial conc
+        mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)*1.025
         return mpp_transfer_rate
 
     def calc_mpp_conversion_rate(self):
@@ -222,10 +240,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
-        mpp_conversion_rate = n_mpp_to_convert/cc_length/10
+        mpp_conversion_rate = n_mpp_to_convert/cc_length/self.reaction_scale
         return mpp_conversion_rate # This is only the rate from degradation, needs to add new mpp conversion!
 
-    """ auxiliary functions """
+    """ Auxiliary functions """
     def calc_avg_tpp_per_rna(self):
         """ Calculates the average triphosphate content of RNAs """
 

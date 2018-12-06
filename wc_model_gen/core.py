@@ -1,3 +1,5 @@
+
+
 """ Base classes for generating :obj:`wc_lang`-formatted models from a knowledge base.
 
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
@@ -19,7 +21,7 @@ import wc_utils.util.string
 from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
-
+from scipy.constants import Avogadro
 
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
@@ -291,13 +293,21 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         for participant in reaction.participants:
             if participant.coefficient < 0:
-                avg_conc = (3/2)*participant.species.concentration.value
                 modifiers.append(participant.species)
-                rate_avg   += '({}/({}+({}*{})))*'.format(avg_conc, avg_conc, beta, avg_conc)
+
+                # Calculate Avg copy number / concentration
+                avg_participant_conc = (3/2)*participant.species.concentration.value
+                avg_participant_cn   = round(avg_participant_conc*((3/2)*cytosol_model.initial_volume)*Avogadro)
+
+                rate_avg   += '({}/({}+({}*{})))*'.format(avg_participant_cn,
+                                                          avg_participant_cn,
+                                                          beta,
+                                                          avg_participant_cn)
+
                 expression += '({}/({}+({}*{})))*'.format(participant.species.id,
                                                           participant.species.id,
                                                           beta,
-                                                          participant.species.concentration.value)
+                                                          avg_participant_cn)
 
         # Clip off trailing '*' character
         expression = expression[:-1]
@@ -319,10 +329,14 @@ class SubmodelGenerator(ModelComponentGenerator):
         rate_law.equation = rate_law_equation
 
         # Calculate k_cat
+        avg_species_conc = specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value
+        avg_species_cn   = round(avg_species_conc*((3/2)*cytosol_model.initial_volume)*Avogadro)
+        # print(specie_type_model.id, avg_species_cn)
+
         exp_expression = '({}*(1/{}+1/{})*{})'.format(
                             numpy.log(2),
                             self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value,
                             half_life,
-                            3/2*specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value)
+                            avg_species_cn)
 
         rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
