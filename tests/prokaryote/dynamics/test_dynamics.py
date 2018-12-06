@@ -65,9 +65,9 @@ class PhenomDynamicsTestCase(unittest.TestCase):
         avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
         avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
 
-        #print(simulation.provide_event_counts())
-        #print('\n INIT:', avg_init_rna_cn)
-        #print('\n FINAL:', avg_final_rna_cn)
+        print(simulation.provide_event_counts())
+        print('\n INIT:', avg_init_rna_cn)
+        print('\n FINAL:', avg_final_rna_cn)
 
         # Check if RNA content has doubled after CC - 15% tolerance
         self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.2)
@@ -118,9 +118,9 @@ class MechanisticDynamicsTestCase(unittest.TestCase):
         avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
         avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
 
-        #print(simulation.provide_event_counts())
-        #print('\n INIT:', avg_init_rna_cn)
-        #print('\n FINAL:', avg_final_rna_cn)
+        print(simulation.provide_event_counts())
+        print('\n INIT:', avg_init_rna_cn)
+        print('\n FINAL:', avg_final_rna_cn)
 
         # Check if RNA content has doubled after CC - 15% tolerance
         self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.2)
