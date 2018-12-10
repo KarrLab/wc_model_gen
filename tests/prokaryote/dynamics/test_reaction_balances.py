@@ -38,7 +38,7 @@ class TestReactionBalances(unittest.TestCase):
 
     @unittest.skip('Test')
     def test_reaction(self):
-        mass_balanced = StaticTestCase(model=self.model).reactions_mass_balanced()
+        mass_balanced   = StaticTestCase(model=self.model).reactions_mass_balanced()
         charge_balanced = StaticTestCase(model=self.model).reactions_charge_balanced()
 
         print(mass_balanced)

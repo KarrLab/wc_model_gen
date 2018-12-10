@@ -147,7 +147,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         # Create RNA species
         for kb_species_type in kb_species_types:
             if math.isnan(kb_species_type.half_life) or kb_species_type.half_life == 0:
-                # todo: remove; KB should be treated as read only
+                # TODO: remove; KB should be treated as read only
                 kb_species_type.half_life = avg_rna_half_life
 
             self.gen_species_type(kb_species_type, ['c'])
@@ -171,7 +171,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         for kb_species_type in kb_species_types:
             if math.isnan(kb_species_type.half_life) or kb_species_type.half_life == 0:
-                # todo: remove; KB should be treated as read only
+                # TODO: remove; KB should be treated as read only
                 kb_species_type.half_life = avg_protein_half_life
 
             self.gen_species_type(kb_species_type, ['c'])
@@ -196,34 +196,42 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         Returns:
             * :obj:`wc_lang.SpeciesType`: model species type
         """
+
         model = self.model
         model_species_type = model.species_types.get_or_create(id=kb_species_type.id)
         model_species_type.name = kb_species_type.name
+
         if isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_lang.SpeciesTypeType.metabolite
             model_species_type.structure = kb_species_type.structure
+
         elif isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
             model_species_type.type = wc_lang.SpeciesTypeType.dna
             model_species_type.structure = kb_species_type.get_seq()
+
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.RnaSpeciesType):
             model_species_type.type = wc_lang.SpeciesTypeType.rna
             model_species_type.structure = kb_species_type.get_seq()
+
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.ProteinSpeciesType):
             model_species_type.type = wc_lang.SpeciesTypeType.protein
             model_species_type.structure = kb_species_type.get_seq()
+
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_lang.SpeciesTypeType.protein
             model_species_type.structure = None
+
         else:
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
+
         model_species_type.empirical_formula = kb_species_type.get_empirical_formula()
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()
         model_species_type.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
-
         compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
+
         for compartment_id in compartment_ids:
             model_compartment = model.compartments.get_one(id=compartment_id)
             model_species = model_species_type.species.get_or_create(compartment=model_compartment)

@@ -16,6 +16,7 @@ import numpy as np
 import wc_model_gen
 import wc_lang
 import wc_kb
+import math
 
 
 class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -121,31 +122,17 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         e = model.compartments.get_one(id='e')
         volume = cell.properties.get_one(id='initial_volume').value
         cc_length = cell.properties.get_one(id='cell_cycle_length').value
-        # If need X reactions / s, then rate = X/(V*N_Avogadro)
 
-        # Detect submodel composition and set appropiate rate laws
-        if submodels.get_one(id='transcription') is not None and \
-           submodels.get_one(id='rna_degradation') is not None and \
-           submodels.get_one(id='translation') is None and \
-           submodels.get_one(id='protein_degradation') is None:
+        # Calculate rates
+        mpp_trasfer_rate    = self.calc_MPP_trasfer_rate()
+        mpp_conversion_rate = self.calc_MPP_conversion_rate() + mpp_trasfer_rate
+        gtp_corr_rate       = self.calc_GTP_corr_rate()
 
-            mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
-            H_trasfer_rate = self.calc_H_trasfer_rate()
-            mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
+        gmp_trasfer_rate    = mpp_trasfer_rate + gtp_corr_rate
+        gmp_conversion_rate = mpp_conversion_rate + gtp_corr_rate
 
-        elif submodels.get_one(id='transcription') is not None and \
-             submodels.get_one(id='rna_degradation') is not None and \
-             submodels.get_one(id='translation') is not None and \
-             submodels.get_one(id='protein_degradation') is not None:
-
-            mpp_trasfer_rate = self.calc_mpp_trasfer_rate()
-            H_trasfer_rate = self.calc_H_trasfer_rate()
-            mpp_conversion_rate = self.calc_mpp_conversion_rate() + mpp_trasfer_rate
-
-        else:
-            mpp_trasfer_rate = 50
-            H_trasfer_rate = 50
-            mpp_conversion_rate = 50
+        aa_trasfer_rate = self.calc_AA_trasfer_rate()
+        H_trasfer_rate = self.calc_H_trasfer_rate()
 
         for rxn in submodel.reactions:
 
@@ -161,16 +148,23 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 # tRNA transfer
                 if rxn.id[-8:-4]=='tRNA':
-                    expression='0.0000000000589232'
+                    expression=str(aa_trasfer_rate)
                     if 'transfer_tRNA_rate_equation' not in locals():
                         transfer_tRNA_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_tRNA_rate_equation
 
-                # Monophosphate reaction
+                # Monophosphates - GMP is a special case as translation also uses it
                 elif rxn.id[-2:]=='mp':
-                    expression = str(mpp_trasfer_rate)
-                    if 'transfer_xMP_rate_equation' not in locals():
-                        transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
+                    if rxn.id[-3:]=='gmp' and submodels.get_one(id='translation') is not None:
+                        gmp_trasfer_rate = mpp_trasfer_rate + gmp_trasfer_rate
+                        expression = str(gmp_trasfer_rate)
+                        gmp_transfer_rate_equation = wc_lang.RateLawEquation(expression=expression)
+
+                    else:
+                        expression = str(mpp_trasfer_rate)
+                        if 'transfer_xMP_rate_equation' not in locals():
+                            transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
+
                     rate_law.equation = transfer_xMP_rate_equation
 
                 # Hydrogen transfer
@@ -183,24 +177,33 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
 
             elif rxn.id[0:11]=='conversion_':
-                expression= str(mpp_conversion_rate)
-                if 'conversion_rate_law_equation' not in locals():
+
+                if rxn.id[-3:]=='gtp' and submodels.get_one(id='translation') is not None:
+                    gtp_conversion_rate = mpp_conversion_rate + gmp_trasfer_rate
+                    expression = str(gtp_conversion_rate)
                     conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
+
+                else:
+                    expression= str(mpp_conversion_rate)
+                    if 'conversion_rate_law_equation' not in locals():
+                        conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
+
                 rate_law.equation = conversion_rate_law_equation
 
             else:
                 raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
 
+    """ Auxiliary functions """
     def calc_H_trasfer_rate(self):
         """ Calculates the rate of H transfer from the extracellular space """
 
         # Calculate # of H needed on avg per transcription reaction
-        avg_H_per_transcription = self.calc_avg_H_per_transcription()
+        avg_H_per_transcription = self.calc_H_per_transcript()
 
         # Calculate avg # of transcription reactions over CC = # of initial RNAs + # of degrad rxns
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        n_degrad_rxns = self.calc_expected_n_degrad_rxns()
-        n_rnas = self.calc_avg_rna_copy_num()*len(rnas_kb)
+        n_degrad_rxns = self.calc_rna_degrad_rxns()
+        n_rnas = self.calc_rna_copy_num()*len(rnas_kb)
         n_transcription_rxns = n_rnas + n_degrad_rxns
 
         # Calculate the # of H molecules needed to be transfered over the CC
@@ -209,59 +212,99 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         h_transfer_rate = n_h_transfer/cc_length/self.reaction_scale
+        print('h_transfer_rate: ', h_transfer_rate)
         return h_transfer_rate
 
-    def calc_mpp_trasfer_rate(self):
+    def calc_MPP_trasfer_rate(self):
         """ Calculates the rate of monophosphate transfer from the extracellular space """
 
         # Calculate # of new TPP molecules needed = # of TPP molecules tied up in RNAs at T=0
-        avg_tpp_per_rna = self.calc_avg_tpp_per_rna()
-        avg_rna_copy_num = self.calc_avg_rna_copy_num()
+        avg_tpp_per_rna = self.calc_TPP_per_rna()
+        avg_rna_copy_num = self.calc_rna_copy_num()
 
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         tpp_in_cell = avg_tpp_per_rna*avg_rna_copy_num*len(rnas_kb)
 
-        # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
-        mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)*1.025
+        mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)
+
+        print('mpp_transfer_rate: ', mpp_transfer_rate)
         return mpp_transfer_rate
 
-    def calc_mpp_conversion_rate(self):
-        """ Calculates the rate of conversion from mono- to triphosphate molecules """
+    def calc_AA_trasfer_rate(self):
+        """ Calculates the rate of monophosphate transfer from the extracellular space """
 
+        # Calculate # of new AA molecules needed = # of AA molecules tied up in prots at t=0
+        avg_aa_per_prot   = self.calc_AA_per_prot()
+        avg_prot_copy_num = self.calc_prot_copy_num()
+
+        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        aa_in_cell = avg_aa_per_prot*avg_prot_copy_num*len(prots_kb)
+
+        cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        aa_transfer_rate = (aa_in_cell/cc_length/self.reaction_scale)
+
+        print('aa_transfer_rate: ', aa_transfer_rate)
+        return aa_transfer_rate
+
+    def calc_MPP_conversion_rate(self):
+        """ Calculates the rate of conversion from mono- to triphosphate molecules """
         # Calculate expected # of degradation reactions over CC
-        n_deg_rxns  = self.calc_expected_n_degrad_rxns()
+        n_rna_deg_rxns  = self.calc_rna_degrad_rxns()
 
         # Calculate avg # of mpps produced per degrad rxns; same as TPP content of RNAs
-        avg_mpp_per_deg_rxn = self.calc_avg_tpp_per_rna()
+        avg_mpp_per_deg_rxn = self.calc_TPP_per_rna()
 
         # Calculate # of mpps needed to be converted
-        n_mpp_to_convert = avg_mpp_per_deg_rxn*n_deg_rxns
+        n_mpp_to_convert = avg_mpp_per_deg_rxn*n_rna_deg_rxns
 
-        # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         mpp_conversion_rate = n_mpp_to_convert/cc_length/self.reaction_scale
+
+        print('mpp_conversion_rate: ', mpp_conversion_rate)
         return mpp_conversion_rate # This is only the rate from degradation, needs to add new mpp conversion!
 
-    """ Auxiliary functions """
-    def calc_avg_tpp_per_rna(self):
+    def calc_TPP_per_rna(self):
         """ Calculates the average triphosphate content of RNAs """
 
         cell = self.knowledge_base.cell
         model = self.model
 
         n_tpp = 0
-        rna_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        for rna_kb in rna_kbs:
+        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        for rna_kb in rnas_kb:
             n_tpp += rna_kb.get_seq().count('A')
             n_tpp += rna_kb.get_seq().count('C')
             n_tpp += rna_kb.get_seq().count('G')
             n_tpp += rna_kb.get_seq().count('U')
 
-        avg_tpp_per_rna = n_tpp/4/len(rna_kbs)
+        avg_tpp_per_rna = n_tpp/4/len(rnas_kb)
+
+        print('avg_tpp_per_rna: ', avg_tpp_per_rna)
         return avg_tpp_per_rna
 
-    def calc_avg_H_per_transcription(self):
+    def calc_AA_per_prot(self):
+        """ Calculates the average amino acid content of proteins """
+        cell = self.knowledge_base.cell
+        model = self.model
+
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        n_aa = 0
+        for protein_kb in proteins_kb:
+            n_aa += len(protein_kb.get_seq())
+
+        observables_kb = cell.observables
+        n_trnas = 0 # we need to count n of TRNAs, since in reduced models there are only 4
+        for observable in observables_kb:
+            if observable.id[0:5]== 'tRNA_':
+                n_trnas += 1
+
+        avg_aa_per_prot = n_aa/(n_trnas*len(proteins_kb))
+
+        print('avg_aa_per_prot: ', avg_aa_per_prot)
+        return avg_aa_per_prot
+
+    def calc_H_per_transcript(self):
         """ Calculates the average H needed for a transcription reaction """
         submodel = self.model.submodels.get_one(id='transcription')
 
@@ -272,9 +315,26 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     h_per_transcription.append(abs(part.coefficient))
 
         avg_H_per_transcription = np.mean(h_per_transcription)
+
+        print('avg_H_per_transcription: ', avg_H_per_transcription)
         return avg_H_per_transcription
 
-    def calc_expected_n_degrad_rxns(self):
+    def calc_GTP_per_translate(self):
+        """ Calculates the average GTP needed for a translation reaction """
+        submodel = self.model.submodels.get_one(id='translation')
+
+        gtp_per_translation=[]
+        for rxn in submodel.reactions:
+            for part in rxn.participants:
+                if part.species.species_type.id=='gtp':
+                    gtp_per_translation.append(abs(part.coefficient))
+
+        avg_gtp_per_translate = np.mean(gtp_per_translation)
+
+        print('avg_gtp_per_translate: ', avg_gtp_per_translate)
+        return avg_gtp_per_translate
+
+    def calc_rna_degrad_rxns(self):
         """ Calculates the expected # of RNA degradation reactions over the CC"""
 
         cytosol_lang = self.model.compartments.get_one(id='c')
@@ -285,18 +345,45 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Calculate the # of degradation reactions over CC
         # Each Rna degrad reaction fires: (cc_length/rna.half_life)*rna_copy_number(t=0)
-        n_deg_rxns=0
+        n_rna_deg_rxns=0
         for rna_lang in rnas_lang:
             rna_kb = self.knowledge_base.cell.species_types.get_one(id=rna_lang.id)
             half_life = rna_kb.half_life
 
             conc = rna_lang.species.get_one(compartment=cytosol_lang).concentration.value
             rna_copy_num = round(conc * volume * Avogadro)
-            n_deg_rxns += ((cc_length / half_life) * rna_copy_num)
+            n_rna_deg_rxns += ((cc_length / half_life) * rna_copy_num)
 
-        return n_deg_rxns
+        print('n_rna_deg_rxns: ', n_rna_deg_rxns)
+        return n_rna_deg_rxns
 
-    def calc_avg_rna_copy_num(self):
+    def calc_prot_degrad_rxns(self):
+        """ Calculates the expected # of RNA degradation reactions over the CC"""
+
+        cytosol_lang = self.model.compartments.get_one(id='c')
+        cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
+        prots_lang = self.model.species_types.get(type = wc_lang.SpeciesTypeType.protein)
+        cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        volume = self.knowledge_base.cell.properties.get_one(id='initial_volume').value
+
+        # Calculate the # of degradation reactions over CC
+        # Each prot degrad reaction fires: (cc_length/prot.half_life)*prot_copy_number(t=0)
+        n_prot_deg_rxns=0
+        for prot_lang in prots_lang:
+            prot_kb = self.knowledge_base.cell.species_types.get_one(id=prot_lang.id)
+            if  isinstance(prot_kb, wc_kb.core.ComplexSpeciesType):
+                continue
+            half_life = prot_kb.half_life
+
+            conc = prot_lang.species.get_one(compartment=cytosol_lang).concentration.value
+            prot_copy_num = round(conc * volume * Avogadro)
+            n_prot_deg_rxns += ((cc_length / half_life) * prot_copy_num)
+
+        #n_prot_deg_rxns = round(n_prot_deg_rxns)
+        print('n_prot_deg_rxns: ', n_prot_deg_rxns)
+        return n_prot_deg_rxns
+
+    def calc_rna_copy_num(self):
         """ Calculates the # of RNA molecules at t=0 """
 
         volume = self.knowledge_base.cell.properties.get_one(id='initial_volume').value
@@ -309,4 +396,39 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_copy_num.append(round(conc * volume * Avogadro))
 
         avg_rna_copy_num = np.mean(rna_copy_num)
+
+        print('avg_rna_copy_num: ', avg_rna_copy_num)
         return avg_rna_copy_num
+
+    def calc_prot_copy_num(self):
+        """ Calculates the # of RNA molecules at t=0 """
+        #TODO: check if conc is in CN already
+
+        volume = self.knowledge_base.cell.properties.get_one(id='initial_volume').value
+        cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
+        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+
+        prot_copy_num = []
+        for prot in prots_kb:
+            conc = prot.species.get_one(compartment=cytosol_kb).concentration.value
+            prot_copy_num.append(round(conc*volume*Avogadro))
+
+        avg_prot_copy_num = np.mean(prot_copy_num)
+
+        print('avg_prot_copy_num: ', avg_prot_copy_num)
+        return avg_prot_copy_num
+
+    def calc_GTP_corr_rate(self):
+        """ Calculates the extra amount of GTP needed if model has translation subunit """
+        cell = self.knowledge_base.cell
+        cc_length = cell.properties.get_one(id='cell_cycle_length').value
+
+        avg_gtp_per_translate = self.calc_GTP_per_translate()
+        avg_prot_copy_num = self.calc_prot_copy_num() # Number of new proteins needed
+        n_prot_degrad_rxns = self.calc_prot_degrad_rxns()
+        total_translation_gtp = avg_gtp_per_translate * (avg_prot_copy_num + n_prot_degrad_rxns)
+
+        gtp_corr_rate = (total_translation_gtp/cc_length/self.reaction_scale)
+
+        print('gtp_corr_rate: ', gtp_corr_rate)
+        return gtp_corr_rate
