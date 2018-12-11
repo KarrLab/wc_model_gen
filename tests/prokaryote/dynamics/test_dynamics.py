@@ -19,18 +19,25 @@ import tempfile
 import shutil
 import os
 
-class PhenomenologicalTestCaseTranscription(unittest.TestCase):
+class PhenomenologicalTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
         cls.dir = tempfile.mkdtemp()
 
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.dir)
+
+    def test_growth_transcription(self):
+
+        # Construct model
+        self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
                                        'tests/fixtures/min_model_kb_seq.fna',
                                         strict=False)
 
-        cls.model = prokaryote.ProkaryoteModelGenerator(
-                        knowledge_base = cls.kb,
+        self.model = prokaryote.ProkaryoteModelGenerator(
+                        knowledge_base = self.kb,
                         component_generators=[prokaryote.InitalizeModel,
                                               prokaryote.TranscriptionSubmodelGenerator,
                                               prokaryote.RnaDegradationSubmodelGenerator,
@@ -41,24 +48,19 @@ class PhenomenologicalTestCaseTranscription(unittest.TestCase):
                                     'RnaDegradationSubmodelGenerator': {
                                         'rate_dynamics': 'phenomenological'}}}).run()
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.dir)
-
-    def test_exp_growth_transcription(self):
+        # Simulate model
         checkpoint_period = 10
         end_time = 100
-
         simulation = Simulation(self.model)
         results = simulation.run(end_time, self.dir, checkpoint_period)
         self.assertIsInstance(results, tuple)
 
+        # Check results
         num_events  = results[0]
         run_results_dir = results[1]
         run_results = RunResults(run_results_dir)
         df = run_results.get('populations')
 
-        # Collect RNA species IDs
         cytosol = self.model.compartments.get_one(id='c')
         rna_ids=[]
         for rna in self.model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
@@ -68,84 +70,10 @@ class PhenomenologicalTestCaseTranscription(unittest.TestCase):
         avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
 
         print(simulation.provide_event_counts())
-        print('\n INIT:', avg_init_rna_cn)
-        print('\n FINAL:', avg_final_rna_cn)
+        print('\n INIT AVG RNA COPY NUMBERS:', avg_init_rna_cn)
+        print('\n FINAL AVG RNA COPY NUMBERS:', avg_final_rna_cn)
 
-        # Check if RNA content has doubled after CC - 15% tolerance
-        self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.2)
-
-class PhenomenologicalTestCaseTranscriptionTranslation(unittest.TestCase):
-
-    @classmethod
-    def setUpClass(cls):
-        cls.dir = tempfile.mkdtemp()
-
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
-                                       'tests/fixtures/min_model_kb_seq.fna',
-                                        strict=False)
-
-        cls.model = prokaryote.ProkaryoteModelGenerator(
-                        knowledge_base = cls.kb,
-                        component_generators=[prokaryote.InitalizeModel,
-                                              prokaryote.TranscriptionSubmodelGenerator,
-                                              prokaryote.RnaDegradationSubmodelGenerator,
-                                              prokaryote.TranslationSubmodelGenerator,
-                                              prokaryote.ProteinDegradationSubmodelGenerator,
-                                              prokaryote.MetabolismSubmodelGenerator],
-                        options = {'component': {
-                                    'TranscriptionSubmodelGenerator': {
-                                        'rate_dynamics': 'phenomenological'},
-                                    'RnaDegradationSubmodelGenerator': {
-                                        'rate_dynamics': 'phenomenological'},
-                                    'TranslationSubmodelGenerator': {
-                                        'rate_dynamics': 'phenomenological'},
-                                    'ProteinDegradationSubmodelGenerator': {
-                                        'rate_dynamics': 'phenomenological'}}}).run()
-
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.dir)
-
-    @unittest.skip('disable while testing')
-    def test_exp_growth_transcription(self):
-        checkpoint_period = 10
-        end_time = 100
-
-        simulation = Simulation(self.model)
-        results = simulation.run(end_time, self.dir, checkpoint_period)
-        self.assertIsInstance(results, tuple)
-
-        num_events  = results[0]
-        run_results_dir = results[1]
-        run_results = RunResults(run_results_dir)
-        df = run_results.get('populations')
-
-        # Collect RNA species IDs
-        cytosol = self.model.compartments.get_one(id='c')
-        rna_ids=[]
-        for rna in self.model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
-            rna_ids.append(rna.species.get_one(compartment=cytosol).id)
-
-        avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
-        avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
-
-        # Collect protein species IDs
-        protein_ids=[]
-        for protein in self.model.species_types.get(type = wc_lang.SpeciesTypeType.protein):
-            protein_ids.append(protein.species.get_one(compartment=cytosol).id)
-
-        avg_init_protein_cn  = np.mean(df.loc[0.0, protein_ids].values)
-        avg_final_protein_cn = np.mean(df.loc[100.0, protein_ids].values)
-
-        print(simulation.provide_event_counts())
-        print('\n INIT:', avg_init_rna_cn)
-        print('\n FINAL:', avg_final_rna_cn)
-        print('\n INIT:', avg_init_protein_cn)
-        print('\n FINAL:', avg_final_protein_cn)
-
-        # Check if RNA, protein content has doubled after CC - 15% tolerance
         self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.15)
-        self.assertTrue(abs(2*avg_init_protein_cn-avg_final_protein_cn) < avg_init_protein_cn*0.15)
 
 class MechanisticDynamicsTestCase(unittest.TestCase):
 
@@ -153,12 +81,19 @@ class MechanisticDynamicsTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.dir = tempfile.mkdtemp()
 
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.dir)
+
+    def test_growth_transcription(self):
+
+        # Construct model
+        self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
                                        'tests/fixtures/min_model_kb_seq.fna',
                                         strict=False)
 
-        cls.model = prokaryote.ProkaryoteModelGenerator(
-                    knowledge_base = cls.kb,
+        self.model = prokaryote.ProkaryoteModelGenerator(
+                    knowledge_base = self.kb,
                     component_generators=[prokaryote.InitalizeModel,
                                           prokaryote.TranscriptionSubmodelGenerator,
                                           prokaryote.RnaDegradationSubmodelGenerator,
@@ -169,34 +104,29 @@ class MechanisticDynamicsTestCase(unittest.TestCase):
                                 'RnaDegradationSubmodelGenerator': {
                                     'rate_dynamics': 'mechanistic'}}}).run()
 
-    @classmethod
-    def tearDownClass(cls):
-        shutil.rmtree(cls.dir)
-
-    @unittest.skip('disable while testing')
-    def test_exponential_growth(self):
+        # Simulate model
         checkpoint_period = 10
         end_time = 100
-
         simulation = Simulation(self.model)
         results = simulation.run(end_time, self.dir, checkpoint_period)
         self.assertIsInstance(results, tuple)
 
+        # Check results
         num_events  = results[0]
         run_results_dir = results[1]
-
         run_results = RunResults(run_results_dir)
-        rna_ids=[]
         df = run_results.get('populations')
+
+        cytosol = self.model.compartments.get_one(id='c')
+        rna_ids=[]
         for rna in self.model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
-            rna_ids.append(rna.species[0].id)
+            rna_ids.append(rna.species.get_one(compartment=cytosol).id)
 
         avg_init_rna_cn  = np.mean(df.loc[0.0,rna_ids].values)
         avg_final_rna_cn = np.mean(df.loc[100.0,rna_ids].values)
 
         print(simulation.provide_event_counts())
-        print('\n INIT:', avg_init_rna_cn)
-        print('\n FINAL:', avg_final_rna_cn)
+        print('\n INIT AVG RNA COPY NUMBERS:', avg_init_rna_cn)
+        print('\n FINAL AVG RNA COPY NUMBERS:', avg_final_rna_cn)
 
-        # Check if RNA content has doubled after CC - 15% tolerance
-        self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.2)
+        self.assertTrue(abs(2*avg_init_rna_cn-avg_final_rna_cn) < avg_init_rna_cn*0.15)
