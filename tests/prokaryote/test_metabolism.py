@@ -25,6 +25,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         cls.model = prokaryote.ProkaryoteModelGenerator(
                         knowledge_base = cls.kb,
                         component_generators=[prokaryote.InitalizeModel,
+                                              prokaryote.TranscriptionSubmodelGenerator,                        
                                               prokaryote.MetabolismSubmodelGenerator]).run()
 
     @classmethod

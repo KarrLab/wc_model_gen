@@ -126,14 +126,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Calculate rates
         mpp_trasfer_rate    = self.calc_MPP_trasfer_rate()
         mpp_conversion_rate = self.calc_MPP_conversion_rate() + mpp_trasfer_rate
-        gtp_corr_rate       = self.calc_GTP_corr_rate()
+        aa_trasfer_rate     = self.calc_AA_trasfer_rate()
+        H_trasfer_rate      = self.calc_H_trasfer_rate()
 
-        gmp_trasfer_rate    = mpp_trasfer_rate + gtp_corr_rate
-        gmp_conversion_rate = mpp_conversion_rate + gtp_corr_rate
-
-        aa_trasfer_rate = self.calc_AA_trasfer_rate()
-        H_trasfer_rate = self.calc_H_trasfer_rate()
-
+        # Loop through reactions and set rate laws
         for rxn in submodel.reactions:
 
             # Reactions imported from KB have rate laws defined
@@ -148,23 +144,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 # tRNA transfer
                 if rxn.id[-8:-4]=='tRNA':
-                    expression=str(aa_trasfer_rate)
+                    expression='0.0000000000589232'
                     if 'transfer_tRNA_rate_equation' not in locals():
                         transfer_tRNA_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_tRNA_rate_equation
 
-                # Monophosphates - GMP is a special case as translation also uses it
+                # Monophosphate reaction
                 elif rxn.id[-2:]=='mp':
-                    if rxn.id[-3:]=='gmp' and submodels.get_one(id='translation') is not None:
-                        gmp_trasfer_rate = mpp_trasfer_rate + gmp_trasfer_rate
-                        expression = str(gmp_trasfer_rate)
-                        gmp_transfer_rate_equation = wc_lang.RateLawEquation(expression=expression)
-
-                    else:
-                        expression = str(mpp_trasfer_rate)
-                        if 'transfer_xMP_rate_equation' not in locals():
-                            transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
-
+                    expression = str(mpp_trasfer_rate)
+                    if 'transfer_xMP_rate_equation' not in locals():
+                        transfer_xMP_rate_equation = wc_lang.RateLawEquation(expression=expression)
                     rate_law.equation = transfer_xMP_rate_equation
 
                 # Hydrogen transfer
@@ -177,21 +166,25 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
 
             elif rxn.id[0:11]=='conversion_':
-
-                if rxn.id[-3:]=='gtp' and submodels.get_one(id='translation') is not None:
-                    gtp_conversion_rate = mpp_conversion_rate + gmp_trasfer_rate
-                    expression = str(gtp_conversion_rate)
+                expression= str(mpp_conversion_rate)
+                if 'conversion_rate_law_equation' not in locals():
                     conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-
-                else:
-                    expression= str(mpp_conversion_rate)
-                    if 'conversion_rate_law_equation' not in locals():
-                        conversion_rate_law_equation = wc_lang.RateLawEquation(expression=expression)
-
                 rate_law.equation = conversion_rate_law_equation
 
             else:
                 raise Exception('{}: invalid reaction id, no associated rate law is defined.'.format(rxn.id))
+
+        # Apply correction terms if translation submodel is present
+        if model.submodels.get_one(id='translation') is not None:
+            gtp_corr_rate       = self.calc_GTP_corr_rate()
+            gmp_trasfer_rate    = mpp_trasfer_rate + gtp_corr_rate
+            gmp_conversion_rate = mpp_conversion_rate + gtp_corr_rate
+
+            metabolism = model.submodels.get_one(id='metabolism')
+            transfer_rxn = metabolism.reactions.get_one(id='transfer_gmp')
+            transfer_rxn.rate_laws[0].equation.expression = str(gmp_trasfer_rate)
+            conversion_rxn = metabolism.reactions.get_one(id='conversion_gmp_gtp')
+            conversion_rxn.rate_laws[0].equation.expression = str(gmp_conversion_rate)
 
     """ Auxiliary functions """
     def calc_H_trasfer_rate(self):
@@ -212,7 +205,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         h_transfer_rate = n_h_transfer/cc_length/self.reaction_scale
-        print('h_transfer_rate: ', h_transfer_rate)
+        #print('h_transfer_rate: ', h_transfer_rate)
         return h_transfer_rate
 
     def calc_MPP_trasfer_rate(self):
@@ -228,7 +221,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)
 
-        print('mpp_transfer_rate: ', mpp_transfer_rate)
+        #print('mpp_transfer_rate: ', mpp_transfer_rate)
         return mpp_transfer_rate
 
     def calc_AA_trasfer_rate(self):
@@ -244,7 +237,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         aa_transfer_rate = (aa_in_cell/cc_length/self.reaction_scale)
 
-        print('aa_transfer_rate: ', aa_transfer_rate)
+        #print('aa_transfer_rate: ', aa_transfer_rate)
         return aa_transfer_rate
 
     def calc_MPP_conversion_rate(self):
@@ -261,7 +254,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
         mpp_conversion_rate = n_mpp_to_convert/cc_length/self.reaction_scale
 
-        print('mpp_conversion_rate: ', mpp_conversion_rate)
+        #print('mpp_conversion_rate: ', mpp_conversion_rate)
         return mpp_conversion_rate # This is only the rate from degradation, needs to add new mpp conversion!
 
     def calc_TPP_per_rna(self):
@@ -280,7 +273,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_tpp_per_rna = n_tpp/4/len(rnas_kb)
 
-        print('avg_tpp_per_rna: ', avg_tpp_per_rna)
+        #print('avg_tpp_per_rna: ', avg_tpp_per_rna)
         return avg_tpp_per_rna
 
     def calc_AA_per_prot(self):
@@ -301,7 +294,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_aa_per_prot = n_aa/(n_trnas*len(proteins_kb))
 
-        print('avg_aa_per_prot: ', avg_aa_per_prot)
+        #print('avg_aa_per_prot: ', avg_aa_per_prot)
         return avg_aa_per_prot
 
     def calc_H_per_transcript(self):
@@ -316,7 +309,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_H_per_transcription = np.mean(h_per_transcription)
 
-        print('avg_H_per_transcription: ', avg_H_per_transcription)
+        #print('avg_H_per_transcription: ', avg_H_per_transcription)
         return avg_H_per_transcription
 
     def calc_GTP_per_translate(self):
@@ -331,7 +324,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_gtp_per_translate = np.mean(gtp_per_translation)
 
-        print('avg_gtp_per_translate: ', avg_gtp_per_translate)
+        #print('avg_gtp_per_translate: ', avg_gtp_per_translate)
         return avg_gtp_per_translate
 
     def calc_rna_degrad_rxns(self):
@@ -354,7 +347,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_copy_num = round(conc * volume * Avogadro)
             n_rna_deg_rxns += ((cc_length / half_life) * rna_copy_num)
 
-        print('n_rna_deg_rxns: ', n_rna_deg_rxns)
+        #print('n_rna_deg_rxns: ', n_rna_deg_rxns)
         return n_rna_deg_rxns
 
     def calc_prot_degrad_rxns(self):
@@ -380,7 +373,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             n_prot_deg_rxns += ((cc_length / half_life) * prot_copy_num)
 
         #n_prot_deg_rxns = round(n_prot_deg_rxns)
-        print('n_prot_deg_rxns: ', n_prot_deg_rxns)
+        #print('n_prot_deg_rxns: ', n_prot_deg_rxns)
         return n_prot_deg_rxns
 
     def calc_rna_copy_num(self):
@@ -397,7 +390,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_rna_copy_num = np.mean(rna_copy_num)
 
-        print('avg_rna_copy_num: ', avg_rna_copy_num)
+        #print('avg_rna_copy_num: ', avg_rna_copy_num)
         return avg_rna_copy_num
 
     def calc_prot_copy_num(self):
@@ -415,7 +408,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_prot_copy_num = np.mean(prot_copy_num)
 
-        print('avg_prot_copy_num: ', avg_prot_copy_num)
+        #print('avg_prot_copy_num: ', avg_prot_copy_num)
         return avg_prot_copy_num
 
     def calc_GTP_corr_rate(self):
@@ -430,5 +423,5 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         gtp_corr_rate = (total_translation_gtp/cc_length/self.reaction_scale)
 
-        print('gtp_corr_rate: ', gtp_corr_rate)
+        #print('gtp_corr_rate: ', gtp_corr_rate)
         return gtp_corr_rate
