@@ -12,6 +12,7 @@ import wc_kb
 import numpy
 import math
 
+
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
@@ -25,7 +26,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Get species involved in reaction - tRna handeled on a per codon bases below
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
         gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
-        pi =  model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
+        pi = model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
         initiation_factors = model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
@@ -38,7 +39,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
-            reaction = submodel.reactions.get_or_create(id=protein_kb.id.replace('prot_', 'translation_'))
+            reaction = model.reactions.get_or_create(submodel=submodel, id=protein_kb.id.replace('prot_', 'translation_'))
             reaction.name = protein_kb.id.replace('prot_', 'translation_')
             reaction.participants = []
 
@@ -51,25 +52,25 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Add tRNAs to LHS
             for codon in codons:
                 if codon not in ['TAG', 'TAA', 'TGA']:
-                    n=0
-                    for base in range(0,len(protein_kb.gene.get_seq()),3):
+                    n = 0
+                    for base in range(0, len(protein_kb.gene.get_seq()), 3):
                         n += str(protein_kb.gene.get_seq()[base:base+3]).count(codon)
                     if n > 0:
                         trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
                         reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding participants to RHS
-            if protein_model==initiation_factors:
+            if protein_model == initiation_factors:
                 reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=2))
                 reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
                 reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
-            elif protein_model==elongation_factors:
+            elif protein_model == elongation_factors:
                 reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps+1))
                 reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
                 reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=1))
 
-            elif protein_model==release_factors:
+            elif protein_model == release_factors:
                 reaction.participants.add(release_factors.species_coefficients.get_or_create(coefficient=2))
                 reaction.participants.add(initiation_factors.species_coefficients.get_or_create(coefficient=1))
                 reaction.participants.add(elongation_factors.species_coefficients.get_or_create(coefficient=n_steps))
@@ -95,24 +96,24 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             self.gen_phenom_rate_law_eq(specie_type_kb=protein_kb,
                                         reaction=reaction,
                                         half_life=protein_kb.half_life,
-                                        cell_cycle_length=cell_cycle_length)
+                                        cell_cycle_len=cell_cycle_len)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
                                              submodel=submodel,
                                              reaction=reaction,
-                                             beta = 1,
+                                             beta=1,
                                              half_life=protein_kb.half_life,
-                                             cell_cycle_length=cell_cycle_length)
+                                             cell_cycle_len=cell_cycle_len)

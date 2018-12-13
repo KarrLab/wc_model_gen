@@ -9,12 +9,13 @@ TODO:
 - read cytosol volume from DB; currently there is only fractional volume?!
 """
 
-from wc_lang import Species, Observable, ExpressionMethods
-import numpy as np
-import wc_model_gen
-import wc_lang
-import wc_kb
 import math
+import numpy
+import scipy.constants
+import wc_kb
+import wc_lang
+import wc_model_gen
+
 
 class InitalizeModel(wc_model_gen.ModelComponentGenerator):
     """ Generate compartments """
@@ -37,8 +38,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_complexes']:
             self.gen_complexes()
 
-        if options['gen_concentrations']:
-            self.gen_concentrations()
+        if options['gen_distribution_init_concentrations']:
+            self.gen_distribution_init_concentrations()
 
         if options['gen_observables']:
             self.gen_observables()
@@ -68,9 +69,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         assert(isinstance(gen_complexes, bool))
         options['gen_complexes'] = gen_complexes
 
-        gen_concentrations = options.get('gen_concentrations', True)
-        assert(isinstance(gen_concentrations, bool))
-        options['gen_concentrations'] = gen_concentrations
+        gen_distribution_init_concentrations = options.get('gen_distribution_init_concentrations', True)
+        assert(isinstance(gen_distribution_init_concentrations, bool))
+        options['gen_distribution_init_concentrations'] = gen_distribution_init_concentrations
 
         gen_observables = options.get('gen_observables', True)
         assert(isinstance(gen_observables, bool))
@@ -85,36 +86,32 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         options['gen_kb_rate_laws'] = gen_kb_rate_laws
 
     def gen_compartments(self):
+        # Create default compartments
         kb = self.knowledge_base
         model = self.model
 
-        # Create default compartments
-        # TODO: currently no volume info in KB, talk to YH
-
-        model.compartments.create(id='c', name='Cytosol', initial_volume=1E-15)
-        #model.compartments.create(id='m', name='Cell membrane', initial_volume=1E-10)
-        model.compartments.create(id='e', name='Extracellular space', initial_volume=1E-10)
+        # TODO: get volume from KB, talk to YH
+        model.compartments.get_or_create(id='c', name='Cytosol', mean_init_volume=1E-15)
+        model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
+        model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
 
     def gen_parameters(self):
         kb = self.knowledge_base
         model = self.model
 
         # Create parameters
-        model.parameters.create(id='fraction_dry_weight',
-                                value=kb.cell.properties.get_one(id='fraction_dry_weight').value)
-        model.parameters.get_or_create(id='fraction_dry_weight').units = 'dimensionless'
-
-        model.parameters.create(id='cell_cycle_length',
-                                value=kb.cell.properties.get_one(id='cell_cycle_length').value)
-        model.parameters.get_or_create(id='cell_cycle_length').units = 's'
-
-        model.parameters.create(id='fractionDryWeight',
-                                value=kb.cell.properties.get_one(id='fraction_dry_weight').value)
-        model.parameters.get_or_create(id='fractionDryWeight').units = 'dimensionless'
-
-        model.parameters.create(id='cellCycleLength',
-                                value=kb.cell.properties.get_one(id='cell_cycle_length').value)
-        model.parameters.get_or_create(id='cellCycleLength').units = 's'
+        model.parameters.get_or_create(id='fraction_dry_weight',
+                                       type=wc_lang.ParameterType.other,
+                                       value=kb.cell.properties.get_one(id='fraction_dry_weight').value,
+                                       units='dimensionless')
+        model.parameters.get_or_create(id='fractionDryWeight',
+                                       type=wc_lang.ParameterType.other,
+                                       value=kb.cell.properties.get_one(id='fraction_dry_weight').value,
+                                       units='dimensionless')
+        model.parameters.get_or_create(id='cell_cycle_len',
+                                       type=wc_lang.ParameterType.other,
+                                       value=kb.cell.properties.get_one(id='cell_cycle_len').value,
+                                       units='s')
 
     def gen_metabolites(self):
         """ Generate all metabolic species in the cytosol """
@@ -142,7 +139,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     not math.isnan(kb_species_type.half_life)):
                 half_lifes.append(kb_species_type.half_life)
 
-        avg_rna_half_life = np.mean(half_lifes)
+        avg_rna_half_life = numpy.mean(half_lifes)
 
         # Create RNA species
         for kb_species_type in kb_species_types:
@@ -167,7 +164,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     not math.isnan(kb_species_type.half_life):
                 half_lifes.append(kb_species_type.half_life)
 
-        avg_protein_half_life = np.mean(half_lifes)
+        avg_protein_half_life = numpy.mean(half_lifes)
 
         for kb_species_type in kb_species_types:
             if math.isnan(kb_species_type.half_life) or kb_species_type.half_life == 0:
@@ -234,13 +231,13 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         for compartment_id in compartment_ids:
             model_compartment = model.compartments.get_one(id=compartment_id)
-            model_species = model_species_type.species.get_or_create(compartment=model_compartment)
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id(model_species_type.id,
                                                     model_compartment.id)
 
         return model_species_type
 
-    def gen_concentrations(self):
+    def gen_distribution_init_concentrations(self):
         """ Generate concentrations in model from knowledge base """
         kb = self.knowledge_base
         model = self.model
@@ -250,11 +247,13 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_comp_model = model.compartments.get_one(id=conc.species.compartment.id)
 
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
-            species = species_type.species.get_or_create(compartment=species_comp_model)
+            species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id(species.species_type.id, species.compartment.id)
 
-            species.concentration = wc_lang.Concentration(
-                value=conc.value, units=wc_lang.ConcentrationUnit.M,
+            model.distribution_init_concentrations.create(
+                id=wc_lang.DistributionInitConcentration.gen_id(species.id),
+                species=species,
+                mean=conc.value, units=wc_lang.ConcentrationUnit.M,
                 comments=conc.comments, references=conc.references)
 
     def gen_observables(self):
@@ -262,7 +261,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
         cytosol = model.compartments.get(id='c')[0]
-        observable_references = {Species: {}, Observable: {}}
+        observable_references = {wc_lang.Species: {}, wc_lang.Observable: {}}
         for kb_observable in kb.cell.observables:
             model_observable = model.observables.get_or_create(id=kb_observable.id)
             obs_expr_parts = []
@@ -276,7 +275,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     id=kb_species_type.id)
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
-                observable_references[Species][model_species.id] = model_species
+                observable_references[wc_lang.Species][model_species.id] = model_species
                 model_coefficient = kb_species_coefficient.coefficient
                 obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.id))
 
@@ -284,9 +283,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 model_observable_observable = model.observables.get_or_create(
                     id=kb_observable_observable.id)
                 obs_expr_parts.append("{}*{}".format(kb_observable_observable.coefficient, kb_observable_observable.id))
-                observable_references[Observable][model_observable_observable.id] = model_observable_observable
-            obs_expr, e = ExpressionMethods.make_expression_obj(Observable,
-                                                                ' + '.join(obs_expr_parts), observable_references)
+                observable_references[wc_lang.Observable][model_observable_observable.id] = model_observable_observable
+            obs_expr, e = wc_lang.expression.Expression.make_expression_obj(wc_lang.Observable,
+                                                                            ' + '.join(obs_expr_parts), observable_references)
             assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
             model_observable.expression = obs_expr
 
@@ -299,8 +298,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             submodel_id = kb_rxn.submodel
             submodel = model.submodels.get_or_create(id=submodel_id)
 
-            model_rxn = submodel.reactions.create(
-                id=kb_rxn.id+'_fromKB',
+            model_rxn = model.reactions.create(
+                submodel=submodel,
+                id=kb_rxn.id + '_kb',
                 name=kb_rxn.name,
                 reversible=kb_rxn.reversible,
                 comments=kb_rxn.comments)
@@ -322,31 +322,68 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
-        c = model.compartments.get_one(id='c')
-        e = model.compartments.get_one(id='e')
+        Avogadro = model.parameters.get_or_create(id='Avogadro')
+        Avogadro.type = wc_lang.ParameterType.other
+        Avogadro.value = scipy.constants.Avogadro
+        Avogadro.units = 'molecule mol^-1'
 
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
             submodel = model.submodels.get_or_create(id=submodel_id)
-            model_rxn = submodel.reactions.get_one(id=kb_rxn.id+'_fromKB')
+            model_rxn = submodel.reactions.get_one(id=kb_rxn.id + '_kb')
 
             for kb_rate_law in kb_rxn.rate_laws:
-
-                model_rate_law = wc_lang.RateLaw(
-                    k_cat=kb_rate_law.k_cat,
-                    k_m=kb_rate_law.k_m,
+                model_rate_law = model.rate_laws.create(
+                    id=wc_lang.RateLaw.gen_id(model_rxn.id, kb_rate_law.direction.name),
+                    reaction=model_rxn,
+                    direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
 
-                model_rxn.rate_laws.add(model_rate_law)
+                objects = {
+                    wc_lang.Compartment: {
+                    },
+                    wc_lang.Species: {
+                    },
+                    wc_lang.Parameter: {
+                        Avogadro.id: Avogadro,
+                    },
+                }
 
-                if kb_rate_law.direction == wc_kb.RateLawDirection.forward:
-                    model_rate_law.direction = wc_lang.RateLawDirection.forward
-                elif kb_rate_law.direction == wc_kb.RateLawDirection.backward:
-                    model_rate_law.direction = wc_lang.RateLawDirection.backward
+                reactant_terms = []
+                for part in model_rxn.participants:
+                    if part.coefficient < 0:
+                        objects[wc_lang.Species][part.species.id] = part.species
+                        objects[wc_lang.Compartment][part.species.compartment.id] = part.species.compartment
 
-                model_rate_law.equation = wc_lang.RateLawEquation(expression=kb_rate_law.equation.expression)
+                        K_m = model.parameters.create(
+                            id='K_m_{}_{}_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name,
+                                                        part.species.species_type.id, part.species.compartment.id),
+                            type=wc_lang.ParameterType.K_m,
+                            value=kb_rate_law.k_m,
+                            units='M')
+                        objects[wc_lang.Parameter][K_m.id] = K_m
 
+                        reactant_terms.append(' * {} / ({} * {} * {} + {})'.format(
+                            part.species.id, K_m.id, Avogadro.id, part.species.compartment.id, part.species.id,))
+
+                enz_terms = []
                 for kb_modifier in kb_rate_law.equation.modifiers:
-                    model_species_type = model.species_types.get_one(id=kb_modifier.species_type.id)
-                    model_species = model_species_type.species.get_one(compartment=c)
-                    model_rate_law.equation.modifiers.add(model_species)
+                    enz_species_type = model.species_types.get_one(id=kb_modifier.species_type.id)
+                    enz_compartment = model.compartments.get_one(id=kb_modifier.compartment.id)
+                    enz_species = model.species.get_or_create(
+                        id=wc_lang.Species.gen_id(enz_species_type.id, enz_compartment.id),
+                        species_type=enz_species_type, compartment=enz_compartment)
+                    objects[wc_lang.Species][enz_species.id] = enz_species
+                    enz_terms.append(' * ' + enz_species.id)
+
+                k_cat = model.parameters.create(
+                    id='k_cat_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name),
+                    type=wc_lang.ParameterType.k_cat,
+                    value=kb_rate_law.k_cat,
+                    units='molecule^-{} s^-1'.format(len(enz_terms)))
+                objects[wc_lang.Parameter][k_cat.id] = k_cat
+
+                model_rate_law.expression, error = wc_lang.RateLawExpression.deserialize(
+                    '{}{}{}'.format(k_cat.id, ''.join(enz_terms), ''.join(reactant_terms)),
+                    objects)
+                assert error is None, str(error)

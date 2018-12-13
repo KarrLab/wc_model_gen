@@ -10,9 +10,10 @@
 from wc_model_gen import prokaryote
 import math
 import unittest
+import wc_lang
 import wc_kb
 import wc_kb_gen
-import wc_lang
+
 
 class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
@@ -20,23 +21,23 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
     def setUpClass(cls):
         cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
                                        'tests/fixtures/test_broken_seq.fna',
-                                        strict=False)
+                                       strict=False)
 
         cls.model = prokaryote.ProkaryoteModelGenerator(
-                        knowledge_base = cls.kb,
-                        component_generators=[prokaryote.InitalizeModel,
-                                              prokaryote.TranscriptionSubmodelGenerator],
-                        options = {'component': {
-                             'TranscriptionSubmodelGenerator': {
-                               'rate_dynamics': 'phenomenological'}}}).run()
+            knowledge_base=cls.kb,
+            component_generators=[prokaryote.InitalizeModel,
+                                  prokaryote.TranscriptionSubmodelGenerator],
+            options={'component': {
+                'TranscriptionSubmodelGenerator': {
+                    'rate_dynamics': 'phenomenological'}}}).run()
 
         cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
-                        knowledge_base = cls.kb,
-                        component_generators=[prokaryote.InitalizeModel,
-                                              prokaryote.TranscriptionSubmodelGenerator],
-                        options = {'component': {
-                             'TranscriptionSubmodelGenerator': {
-                               'rate_dynamics': 'mechanistic'}}}).run()
+            knowledge_base=cls.kb,
+            component_generators=[prokaryote.InitalizeModel,
+                                  prokaryote.TranscriptionSubmodelGenerator],
+            options={'component': {
+                'TranscriptionSubmodelGenerator': {
+                    'rate_dynamics': 'mechanistic'}}}).run()
 
     @classmethod
     def tearDownClass(cls):
@@ -74,16 +75,16 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         utp = model.species_types.get_one(id='utp').species.get_one(compartment=cytosol)
         ppi = model.species_types.get_one(id='ppi').species.get_one(compartment=cytosol)
         h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=cytosol)
-        h   = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
+        h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
-        #Check that number of RNAs = number of transcription reactions
+        # Check that number of RNAs = number of transcription reactions
         self.assertEqual(
             len(kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)),
             len(submodel.reactions))
 
         # Check that each reaction has the right number of participants
         for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.participants),10)
+            self.assertEqual(len(rxn.participants), 10)
 
         # Check coeffs of reaction participants
         rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
@@ -111,17 +112,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         submodel = model.submodels.get_one(id='transcription')
 
         for rxn in submodel.reactions:
-
-            self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
-            self.assertEqual(rxn.rate_laws[0].direction, 1)
-            self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 1)
-
-            # Check that RNA produced is modifier
-            match = 0
-            for participant in rxn.participants:
-                if participant.species == rxn.rate_laws[0].equation.modifiers[0]:
-                    match = 1
-                    break
-
-            self.assertEqual(match, 1)
+            rl = rxn.rate_laws[0]
+            self.assertIsInstance(rl, wc_lang.RateLaw)
+            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
+            self.assertEqual(len(rl.expression.species), 1)
+            self.assertEqual(rl.expression.species[0].species_type.type, wc_lang.SpeciesTypeType.rna)
+            self.assertIn(rl.expression.species[0], rxn.get_products())

@@ -13,6 +13,7 @@ import abc
 import math
 import numpy
 import os
+import scipy.constants
 import six
 import time
 import wc_kb
@@ -21,7 +22,7 @@ import wc_utils.util.string
 from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
-from scipy.constants import Avogadro
+
 
 class ModelGenerator(object):
     """ Generator for models (:obj:`wc_lang.Model`)
@@ -95,20 +96,20 @@ class ModelGenerator(object):
         """ Generates a random min model KB """
 
         kb = wc_kb_gen.random.RandomKbGenerator(options={
-                     'component': {
-                         'GenomeGenerator': {
-                             'genetic_code': 'reduced',
-                             'num_genes': 16,
-                             'mean_gene_len': 50,
-                             'num_tRNA': 4,
-                             'num_rRNA': 0,
-                             'num_ncRNA': 0,
-                             'min_prots': 5,
-                             'translation_table': 4,
-                             'mean_rna_copy_number': 100,
-                             'mean_protein_copy_number': 100},
-                         'PropertiesGenerator': {'cell_cycle_length': 100},
-                         'ObservablesGenerator': {'genetic_code': 'reduced'}}}).run()
+            'component': {
+                'GenomeGenerator': {
+                    'genetic_code': 'reduced',
+                    'num_genes': 16,
+                    'mean_gene_len': 50,
+                    'num_tRNA': 4,
+                    'num_rRNA': 0,
+                    'num_ncRNA': 0,
+                    'min_prots': 5,
+                    'translation_table': 4,
+                    'mean_rna_copy_number': 100,
+                    'mean_protein_copy_number': 100},
+                'PropertiesGenerator': {'cell_cycle_len': 100},
+                'ObservablesGenerator': {'genetic_code': 'reduced'}}}).run()
 
         cell = kb.cell
         cytosol = cell.compartments.get_one(id='c')
@@ -130,11 +131,11 @@ class ModelGenerator(object):
             wc_kb.core.Concentration(cell=cell, value='0.000008333')
 
         if name:
-            core_path = '/media/sf_VM_share/kbs/' + str(name) +'.xlsx'
-            seq_path  = '/media/sf_VM_share/kbs/' + str(name) +'_seq.fna'
+            core_path = '/media/sf_VM_share/kbs/' + str(name) + '.xlsx'
+            seq_path = '/media/sf_VM_share/kbs/' + str(name) + '_seq.fna'
 
             wc_kb.io.Writer().run(knowledge_base=kb,
-                                  core_path=core_path ,
+                                  core_path=core_path,
                                   seq_path=seq_path,
                                   set_repo_metadata_from_path=False)
 
@@ -156,23 +157,24 @@ class ModelGenerator(object):
     def analyze_model(self, results):
         """ Prints the standard analysis of simulation results """
 
-        num_events  = results[0]
+        num_events = results[0]
         run_results_dir = results[1]
         run_results = RunResults(run_results_dir)
 
-        rna_ids=[]
+        rna_ids = []
         df = run_results.get('populations')
-        for rna in model.species_types.get(type = wc_lang.SpeciesTypeType.rna):
+        for rna in model.species_types.get(type=wc_lang.SpeciesTypeType.rna):
             rna_ids.append(rna.species[0].id)
 
-        txt = 'Init copy number mean={}; std={} \n'.format(round(np.mean(df.loc[0.0,rna_ids].values),2),
-                                                            round(np.std(df.loc[0.0,rna_ids].values),2))
-        txt += 'Final copy number mean={}; std={}'.format(round(np.mean(df.loc[100.0,rna_ids].values),2),
-                                                          round(np.std(df.loc[100.0,rna_ids].values),2))
+        txt = 'Init copy number mean={}; std={} \n'.format(round(np.mean(df.loc[0.0, rna_ids].values), 2),
+                                                           round(np.std(df.loc[0.0, rna_ids].values), 2))
+        txt += 'Final copy number mean={}; std={}'.format(round(np.mean(df.loc[100.0, rna_ids].values), 2),
+                                                          round(np.std(df.loc[100.0, rna_ids].values), 2))
         print(txt)
-        print(df['h[c]'],'\n')
-        print(df[['amp[c]','cmp[c]','gmp[c]','ump[c]']],'\n')
-        print(df[['atp[c]','ctp[c]','gtp[c]','utp[c]']],'\n')
+        print(df['h[c]'], '\n')
+        print(df[['amp[c]', 'cmp[c]', 'gmp[c]', 'ump[c]']], '\n')
+        print(df[['atp[c]', 'ctp[c]', 'gtp[c]', 'utp[c]']], '\n')
+
 
 class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     """ Abstract base class for model component generators
@@ -202,6 +204,7 @@ class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
     def run(self):
         """ Generate model components """
         pass  # pragma: no cover
+
 
 class SubmodelGenerator(ModelComponentGenerator):
     """ Base class for submodel generators
@@ -254,89 +257,131 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         rate_law_dynamics = self.options.get('rate_dynamics')
 
-        if rate_law_dynamics=='phenomenological':
+        if rate_law_dynamics == 'phenomenological':
             self.gen_phenom_rates()
-        elif rate_law_dynamics=='mechanistic':
+        elif rate_law_dynamics == 'mechanistic':
             self.gen_mechanistic_rates()
         else:
             raise Exception('Invalid rate law option.')
 
-    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_length):
-        if reaction.id[-7:]=='_fromKB':
+    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_len):
+        if reaction.id.endswith('_kb'):
             return
 
-        cytosol = self.model.compartments.get_one(id='c')
-        specie_type_model = self.model.species_types.get_one(id=specie_type_kb.id)
-        specie_model = specie_type_model.species.get_one(compartment=cytosol)
+        model = self.model
+        cytosol = model.compartments.get_one(id='c')
+        species_type_model = model.species_types.get_one(id=specie_type_kb.id)
+        species_model = species_type_model.species.get_one(compartment=cytosol)
 
-        rate_law = reaction.rate_laws.create()
-        rate_law.direction = wc_lang.RateLawDirection.forward
-        expression = '({} / {} + {} / {}) * {}'.format(numpy.log(2), half_life,
-                                                       numpy.log(2), cell_cycle_length,
-                                                       specie_model.id)
+        rate_law_model = model.rate_laws.create(
+            id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
+            reaction=reaction,
+            direction=wc_lang.RateLawDirection.forward)
 
-        rate_law.equation = wc_lang.RateLawEquation(expression = expression)
-        rate_law.equation.modifiers.append(specie_model)
+        half_life_model = model.parameters.get_or_create(
+            id='half_life_{}'.format(species_type_model.id),
+            type=wc_lang.ParameterType.other,
+            value=half_life,
+            units='s')
+        cell_cycle_len_model = model.parameters.get_or_create(
+            id='cell_cycle_len',
+            type=wc_lang.ParameterType.other,
+            value=cell_cycle_len,
+            units='s')
+        molecule_units = model.parameters.get_or_create(
+            id='molecule_units',
+            type=wc_lang.ParameterType.other,
+            value=1.,
+            units='molecule')
 
-    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, cell_cycle_length):
-        if reaction.id[-7:]=='_fromKB':
+        expression = '(log(2) / {} + log(2) / {}) / {} * {}'.format(half_life_model.id,
+                                                                    cell_cycle_len_model.id,
+                                                                    molecule_units.id,
+                                                                    species_model.id)
+        rate_law_model.expression, error = wc_lang.RateLawExpression.deserialize(expression, {
+            wc_lang.Parameter: {
+                half_life_model.id: half_life_model,
+                cell_cycle_len_model.id: cell_cycle_len_model,
+                molecule_units.id: molecule_units,
+            },
+            wc_lang.Species: {
+                species_model.id: species_model,
+            },
+        })
+        assert error is None, str(error)
+
+    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, cell_cycle_len):
+        if reaction.id.endswith('_kb'):
             return
 
-        cytosol_kb    = self.knowledge_base.cell.compartments.get_one(id='c')
-        cytosol_model = self.model.compartments.get_one(id='c')
-        specie_type_model = self.model.species_types.get_one(id=specie_type_kb.id)
+        kb = self.knowledge_base
+        model = self.model
+        cytosol_kb = kb.cell.compartments.get_one(id='c')
+        cytosol_model = model.compartments.get_one(id='c')
+        specie_type_model = model.species_types.get_one(id=specie_type_kb.id)
         specie_model = specie_type_model.species.get_one(compartment=cytosol_model)
 
-        expression = 'k_cat*'
-        modifiers = []
-        rate_avg = ''
-
-        for participant in reaction.participants:
-            if participant.coefficient < 0:
-                modifiers.append(participant.species)
-
-                # Calculate Avg copy number / concentration
-                avg_participant_conc = (3/2)*participant.species.concentration.value
-                avg_participant_cn   = round(avg_participant_conc*((3/2)*cytosol_model.initial_volume)*Avogadro)
-
-                rate_avg   += '({}/({}+({}*{})))*'.format(avg_participant_cn,
-                                                          avg_participant_cn,
-                                                          beta,
-                                                          avg_participant_cn)
-
-                expression += '({}/({}+({}*{})))*'.format(participant.species.id,
-                                                          participant.species.id,
-                                                          beta,
-                                                          avg_participant_cn)
-
-        # Clip off trailing '*' character
-        expression = expression[:-1]
-        rate_avg = rate_avg[:-1]
-
-        # Check if RL eq already exists
-        for sm_reaction in submodel.reactions:
-            for rl in sm_reaction.rate_laws:
-                if rl.equation.expression == expression:
-                    rate_law_equation = rl.equation
-                    break
-
-        if 'rate_law_equation' not in locals():
-            rate_law_equation = wc_lang.RateLawEquation(expression=expression, modifiers=modifiers)
-
         # Create rate law
-        rate_law = reaction.rate_laws.create()
-        rate_law.direction = wc_lang.RateLawDirection.forward
-        rate_law.equation = rate_law_equation
+        rate_law = model.rate_laws.create(
+            id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
+            reaction=reaction,
+            direction=wc_lang.RateLawDirection.forward)
 
-        # Calculate k_cat
-        avg_species_conc = specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value
-        avg_species_cn   = round(avg_species_conc*((3/2)*cytosol_model.initial_volume)*Avogadro)
-        # print(specie_type_model.id, avg_species_cn)
+        objects = {
+            wc_lang.Compartment: {},
+            wc_lang.Species: {},
+            wc_lang.Parameter: {},
+        }
 
-        exp_expression = '({}*(1/{}+1/{})*{})'.format(
-                            numpy.log(2),
-                            self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value,
-                            half_life,
-                            avg_species_cn)
+        Avogadro = model.parameters.get_or_create(id='Avogadro',
+                                                  type=wc_lang.ParameterType.other,
+                                                     value=scipy.constants.Avogadro,
+                                                     units='molecule mol^-1')
+        objects[wc_lang.Parameter][Avogadro.id] = Avogadro
 
-        rate_law.k_cat = eval(exp_expression) / eval(rate_avg)
+        model_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
+                                              type=wc_lang.ParameterType.k_cat,
+                                              value=1.,
+                                              units='s^-1')
+        objects[wc_lang.Parameter][model_k_cat.id] = model_k_cat
+
+        expression_terms = []
+        init_species_counts = {}
+        init_compartment_volumes = {}
+        for species in reaction.get_reactants():
+            objects[wc_lang.Compartment][species.compartment.id] = species.compartment
+            objects[wc_lang.Species][species.id] = species
+
+            model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
+                                                type=wc_lang.ParameterType.K_m,
+                                                value=beta * species.distribution_init_concentration.mean,
+                                                units='M')
+            objects[wc_lang.Parameter][model_k_m.id] = model_k_m
+
+            expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.id,
+                                                                        species.id,
+                                                                        model_k_m.id, Avogadro.id,
+                                                                        species.compartment.id))
+
+            # Calculate Avg copy number / concentration
+            if species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.molecule:
+                init_species_counts[species.id] = species.distribution_init_concentration.mean
+            elif species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.M:
+                init_species_counts[species.id] = species.distribution_init_concentration.mean \
+                    * species.compartment.mean_init_volume \
+                    * scipy.constants.Avogadro
+            else:
+                raise Exception('Unsupported units: {}'.format(species.distribution_init_concentration.units.name))
+            init_compartment_volumes[species.compartment.id] = species.compartment.mean_init_volume
+        expression = '{} * {}'.format(model_k_cat.id, ' * '.join(expression_terms))
+        rate_law.expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
+        assert error is None, str(error)
+
+        # Calculate k_cat value
+        init_species_conc = specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value
+        int_species_cn = init_species_conc * cytosol_model.mean_init_volume * scipy.constants.Avogadro
+
+        avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='cell_cycle_len').value + 1. / half_life) * int_species_cn
+        rate_avg = rate_law.expression._parsed_expression.eval(species_counts=init_species_counts,
+                                                               compartment_volumes=init_compartment_volumes)
+        model_k_cat.value = avg_deg_rate / rate_avg

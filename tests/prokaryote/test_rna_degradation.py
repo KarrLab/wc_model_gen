@@ -92,18 +92,12 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         for rxn in submodel.reactions:
 
             self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
-            self.assertEqual(rxn.rate_laws[0].direction, 1)
-            self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 1)
-
-            # Check that RNA produced is modifier
-            match = 0
-            for participant in rxn.participants:
-                if participant.species == rxn.rate_laws[0].equation.modifiers[0]:
-                    match = 1
-                    break
-
-            self.assertEqual(match, 1)
+            rl = rxn.rate_laws[0]
+            self.assertIsInstance(rl, wc_lang.RateLaw)
+            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
+            self.assertEqual(len(rl.expression.species), 1)
+            self.assertEqual(rl.expression.species[0].species_type.type, wc_lang.SpeciesTypeType.rna)
+            self.assertIn(rl.expression.species[0], rxn.get_reactants())
 
     def test_mechanistic_rate_laws(self):
         model = self.model_mechanistic
@@ -112,14 +106,15 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
-            self.assertIsInstance(rxn.rate_laws[0], wc_lang.RateLaw)
-            self.assertEqual(rxn.rate_laws[0].direction, 1)
-            self.assertEqual(len(rxn.rate_laws[0].equation.modifiers), 3)
+            rl = rxn.rate_laws[0]
+            self.assertIsInstance(rl, wc_lang.RateLaw)
+            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
+            
+            self.assertEqual(rxn.get_modifiers(), [])
 
-            self.assertIsInstance(rxn.rate_laws[0].k_cat, float)
-            self.assertFalse(math.isnan(rxn.rate_laws[0].k_cat))
+            k_cat_value = rl.expression.parameters.get_one(type=wc_lang.ParameterType.k_cat).value
+            self.assertIsInstance(k_cat_value, float)
+            self.assertFalse(math.isnan(k_cat_value))
 
-            # Check that participants are modifiers
-            for participant in rxn.participants:
-                if participant.coefficient < 0:
-                    self.assertTrue(participant.species in rxn.rate_laws[0].equation.modifiers)
+            # Check that reactants participate in rate law
+            self.assertEqual(set(rxn.get_reactants()).difference(set(rl.expression.species)), set())

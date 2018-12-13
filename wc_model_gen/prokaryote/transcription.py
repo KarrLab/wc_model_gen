@@ -13,6 +13,7 @@ import wc_kb
 import numpy
 import math
 
+
 class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for transcription submodel """
 
@@ -37,7 +38,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb in rna_kbs:
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
-            reaction = submodel.reactions.get_or_create(id=rna_kb.id.replace('rna_', 'transcription_'))
+            reaction = model.reactions.get_or_create(submodel=submodel, id=rna_kb.id.replace('rna_', 'transcription_'))
             reaction.name = rna_kb.id.replace('rna_', 'transcription_')
             reaction.participants = []
             seq = rna_kb.get_seq()
@@ -66,24 +67,24 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_phenom_rate_law_eq(specie_type_kb=rna_kb,
                                         reaction=reaction,
                                         half_life=rna_kb.half_life,
-                                        cell_cycle_length=cell_cycle_length)
+                                        cell_cycle_len=cell_cycle_len)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
                                              submodel=submodel,
                                              reaction=reaction,
-                                             beta = 1,
+                                             beta=1.,
                                              half_life=rna_kb.half_life,
-                                             cell_cycle_length=cell_cycle_length)
+                                             cell_cycle_len=cell_cycle_len)

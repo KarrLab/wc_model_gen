@@ -25,9 +25,9 @@ class InitalizeModelTestCase(unittest.TestCase):
         self.assertIsInstance(extracellular_space, wc_lang.Compartment)
 
     def test_parameters(self):
-        cell_cycle_length = self.model.parameters.get_one(id='cell_cycle_length')
+        cell_cycle_len = self.model.parameters.get_one(id='cell_cycle_len')
         fraction_dry_weight = self.model.parameters.get_one(id='fraction_dry_weight')
-        self.assertIsInstance(cell_cycle_length, wc_lang.Parameter)
+        self.assertIsInstance(cell_cycle_len, wc_lang.Parameter)
         self.assertIsInstance(fraction_dry_weight, wc_lang.Parameter)
 
     def test_metabolite_species(self):

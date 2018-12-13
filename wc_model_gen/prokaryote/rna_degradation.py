@@ -12,13 +12,15 @@ import wc_lang
 import wc_kb
 import numpy
 
+
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for RNA degradation submodel """
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
-        cell = self.knowledge_base.cell
+        kb = self.knowledge_base
+        cell = kb.cell
         submodel = model.submodels.get_one(id='rna_degradation')
         cytosol = model.compartments.get_one(id='c')
 
@@ -34,7 +36,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
             seq = rna_kb.get_seq()
-            reaction = submodel.reactions.get_or_create(id=rna_kb.id.replace('rna_tu_', 'degrad_tu_'))
+            reaction = model.reactions.get_or_create(submodel=submodel, id=rna_kb.id.replace('rna_tu_', 'degrad_tu_'))
             reaction.name = rna_kb.id.replace('rna_', 'degrad_rna_')
             reaction.participants = []
 
@@ -55,37 +57,64 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 degradosome_species_type_model = model.species_types.get_one(id=degradosome_kb.species.species_type.id)
                 degradosome_species_model = degradosome_species_type_model.species.get_one(compartment=cytosol)
 
-                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=(-1)*degradosome_kb.coefficient))
-                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(coefficient=degradosome_kb.coefficient))
+                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(
+                    coefficient=(-1)*degradosome_kb.coefficient))
+                reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(
+                    coefficient=degradosome_kb.coefficient))
 
     def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """
-        submodel = self.model.submodels.get_one(id='rna_degradation')
-        cytosol = self.model.compartments.get_one(id='c')
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        model = self.model
+        kb = self.knowledge_base
+        submodel = model.submodels.get_one(id='rna_degradation')
+        cytosol = model.compartments.get_one(id='c')
+        rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        cell_cycle_len = kb.cell.properties.get_one(id='cell_cycle_len').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            specie_type_model = self.model.species_types.get_one(id=rna_kb.id)
-            specie_model = specie_type_model.species.get_one(compartment=cytosol)
+            objects = {
+                wc_lang.Species: {},
+                wc_lang.Parameter: {},
+            }
 
-            rate_law = reaction.rate_laws.create()
-            rate_law.direction = wc_lang.RateLawDirection.forward
-            expression = '({} / {}) * {}'.format(numpy.log(2), rna_kb.half_life, specie_model.id)
+            species_type_model = model.species_types.get_one(id=rna_kb.id)
+            species_model = species_type_model.species.get_one(compartment=cytosol)
+            objects[wc_lang.Species][species_model.id] = species_model
 
-            rate_law.equation = wc_lang.RateLawEquation(expression = expression)
-            rate_law.equation.modifiers.append(specie_model)
+            rate_law = model.rate_laws.create(
+                id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
+                reaction=reaction,
+                direction=wc_lang.RateLawDirection.forward)
+
+            half_life_model = model.parameters.get_or_create(id='half_life_{}'.format(species_type_model.id),
+                                                             type=wc_lang.ParameterType.other,
+                                                             value=rna_kb.half_life,
+                                                             units='s')
+            objects[wc_lang.Parameter][half_life_model.id] = half_life_model
+
+            molecule_units = model.parameters.get_or_create(id='molecule_units',
+                                                            type=wc_lang.ParameterType.other,
+                                                            value=1.,
+                                                            units='molecule')
+            objects[wc_lang.Parameter][molecule_units.id] = molecule_units
+
+            expression = '(log(2) / {}) / {} * {}'.format(half_life_model.id, molecule_units.id, species_model.id)
+            rate_law.expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
+            assert error is None, str(error)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
-        submodel = self.model.submodels.get_one(id='rna_degradation')
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_length = self.knowledge_base.cell.properties.get_one(id='cell_cycle_length').value
+        model = self.model
+        kb = self.knowledge_base
+
+        submodel = model.submodels.get_one(id='rna_degradation')
+        rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        cell_cycle_len = kb.cell.properties.get_one(id='cell_cycle_len').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
                                              submodel=submodel,
                                              reaction=reaction,
-                                             beta = 1,
+                                             beta=1.,
                                              half_life=rna_kb.half_life,
-                                             cell_cycle_length=cell_cycle_length)
+                                             cell_cycle_len=cell_cycle_len)
