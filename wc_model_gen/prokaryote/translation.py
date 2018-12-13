@@ -39,8 +39,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
-            reaction = model.reactions.get_or_create(submodel=submodel, id=protein_kb.id.replace('prot_', 'translation_'))
-            reaction.name = protein_kb.id.replace('prot_', 'translation_')
+            reaction = model.reactions.get_or_create(submodel=submodel, id='translation_' + protein_kb.id)
+            reaction.name = 'translation ' + protein_kb.name
             reaction.participants = []
 
             # Adding participants to LHS

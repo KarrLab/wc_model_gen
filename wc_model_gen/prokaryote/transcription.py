@@ -38,8 +38,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb in rna_kbs:
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
-            reaction = model.reactions.get_or_create(submodel=submodel, id=rna_kb.id.replace('rna_', 'transcription_'))
-            reaction.name = rna_kb.id.replace('rna_', 'transcription_')
+            reaction = model.reactions.get_or_create(submodel=submodel, id='transcription_' + rna_kb.id)
+            reaction.name = 'transcription ' + rna_kb.name
             reaction.participants = []
             seq = rna_kb.get_seq()
 

@@ -36,8 +36,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
             seq = rna_kb.get_seq()
-            reaction = model.reactions.get_or_create(submodel=submodel, id=rna_kb.id.replace('rna_tu_', 'degrad_tu_'))
-            reaction.name = rna_kb.id.replace('rna_', 'degrad_rna_')
+            reaction = model.reactions.get_or_create(submodel=submodel, id='degradation_' + rna_kb.id)
+            reaction.name = 'degradation ' + rna_kb.name
             reaction.participants = []
 
             # Adding participants to LHS

@@ -42,8 +42,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             seq = protein_kb.get_seq()
-            reaction = model.reactions.get_or_create(submodel=submodel, id=protein_kb.id.replace('prot_gene_', 'degrad_prot_'))
-            reaction.name = protein_kb.id.replace('prot_gene_', 'degrad_prot_')
+            reaction = model.reactions.get_or_create(submodel=submodel, id='degradation_' + protein_kb.id)
+            reaction.name = 'degradation ' + protein_kb.name
             reaction.participants = []
 
             # Adding participants to LHS
