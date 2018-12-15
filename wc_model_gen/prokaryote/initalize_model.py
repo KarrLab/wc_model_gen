@@ -9,6 +9,7 @@ TODO:
 - read cytosol volume from DB; currently there is only fractional volume?!
 """
 
+from wc_utils.util.chem import EmpiricalFormula
 import math
 import numpy
 import scipy.constants
@@ -222,7 +223,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
 
-        model_species_type.empirical_formula = kb_species_type.get_empirical_formula()
+        if kb_species_type.get_empirical_formula():
+            model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()
         model_species_type.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
