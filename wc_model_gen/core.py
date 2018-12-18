@@ -347,7 +347,25 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         expression_terms = []
         init_species_counts = {}
-        init_compartment_volumes = {}
+        
+        init_compartment_masses = {}
+        for comp in model.compartments:
+            init_comp_mass = 0
+            for species in comp.species:
+                if species.distribution_init_concentration:                                    
+                    if species.distribution_init_concentration.mean.units == wc_lang.ConcentrationUnit.molecule:
+                        mass += species.distribution_init_concentration.mean \
+                            / scipy.constants.Avogadro \
+                            * species.species_type.molecular_weight                            
+                    elif species.distribution_init_concentration.mean.units == wc_lang.ConcentrationUnit.M:
+                        mass += species.distribution_init_concentration.mean \
+                            * comp.mean_init_volume \
+                            * species.species_type.molecular_weight                            
+                    else:
+                        raise Exception('Unsupported concentration unit {}'.format(
+                            species.distribution_init_concentration.mean.units))
+            init_compartment_masses[comp.id] = init_comp_mass
+
         for species in reaction.get_reactants():
             objects[wc_lang.Compartment][species.compartment.id] = species.compartment
             objects[wc_lang.Species][species.id] = species
@@ -383,5 +401,5 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='cell_cycle_len').value + 1. / half_life) * int_species_cn
         rate_avg = rate_law.expression._parsed_expression.eval(species_counts=init_species_counts,
-                                                               compartment_volumes=init_compartment_volumes)
+                                                               compartment_masses=init_compartment_masses)
         model_k_cat.value = avg_deg_rate / rate_avg

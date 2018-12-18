@@ -92,9 +92,32 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         # TODO: get volume from KB, talk to YH
-        model.compartments.get_or_create(id='c', name='Cytosol', mean_init_volume=1E-15)
-        model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
-        model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
+        c = model.compartments.get_or_create(id='c', name='Cytosol', mean_init_volume=1E-15)
+        c.init_density = model.parameters.create(id='density_c', value=1100., units='g l^-1')
+        volume_c = model.functions.create(id='volume_c', units='l')
+        volume_c.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+            wc_lang.Compartment: {c.id: c},
+            wc_lang.Parameter: {c.init_density.id: c.init_density},
+            })
+        assert error is None, str(error)
+
+        m = model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
+        m.init_density = model.parameters.create(id='density_m', value=1100., units='g l^-1')
+        volume_m = model.functions.create(id='volume_m', units='l')
+        volume_m.expression, error = wc_lang.FunctionExpression.deserialize(f'{m.id} / {m.init_density.id}', {
+            wc_lang.Compartment: {m.id: m},
+            wc_lang.Parameter: {m.init_density.id: m.init_density},
+            })
+        assert error is None, str(error)
+
+        e = model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
+        e.init_density = model.parameters.create(id='density_e', value=1000., units='g l^-1')
+        volume_e = model.functions.create(id='volume_e', units='l')
+        volume_e.expression, error = wc_lang.FunctionExpression.deserialize(f'{e.id} / {e.init_density.id}', {
+            wc_lang.Compartment: {e.id: e},
+            wc_lang.Parameter: {e.init_density.id: e.init_density},
+            })
+        assert error is None, str(error)
 
     def gen_parameters(self):
         kb = self.knowledge_base
