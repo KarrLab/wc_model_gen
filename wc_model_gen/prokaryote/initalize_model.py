@@ -309,7 +309,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     id=kb_observable_observable.id)
                 obs_expr_parts.append("{}*{}".format(kb_observable_observable.coefficient, kb_observable_observable.id))
                 observable_references[wc_lang.Observable][model_observable_observable.id] = model_observable_observable
-            obs_expr, e = wc_lang.expression.Expression.make_expression_obj(wc_lang.Observable,
+            obs_expr, e = wc_lang.ObservableExpression.make_expression_obj(wc_lang.Observable,
                                                                             ' + '.join(obs_expr_parts), observable_references)
             assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
             model_observable.expression = obs_expr

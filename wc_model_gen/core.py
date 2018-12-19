@@ -400,6 +400,8 @@ class SubmodelGenerator(ModelComponentGenerator):
         int_species_cn = init_species_conc * cytosol_model.mean_init_volume * scipy.constants.Avogadro
 
         avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='cell_cycle_len').value + 1. / half_life) * int_species_cn
-        rate_avg = rate_law.expression._parsed_expression.eval(species_counts=init_species_counts,
-                                                               compartment_masses=init_compartment_masses)
+        rate_avg = rate_law.expression._parsed_expression.eval({
+                wc_lang.Species: init_species_counts,
+                wc_lang.Compartment: init_compartment_masses,
+                })
         model_k_cat.value = avg_deg_rate / rate_avg
