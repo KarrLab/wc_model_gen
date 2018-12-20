@@ -246,6 +246,10 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
 
+        if kb_species_type.id=='ppi':
+            import pdb
+            pdb.set_trace()
+            
         if kb_species_type.get_empirical_formula():
             model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()

@@ -48,12 +48,12 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(ctp.species_coefficients.get_or_create(coefficient=-seq.count('C')))
             reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-seq.count('G')))
             reaction.participants.add(utp.species_coefficients.get_or_create(coefficient=-seq.count('U')))
-            reaction.participants.add(h.species_coefficients.get_or_create(coefficient=-(rna_kb.get_len() - 1)))
+            reaction.participants.add(h2o.species_coefficients.get_or_create(coefficient=-1))
 
             # Adding participants to RHS
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
             reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()))
-            reaction.participants.add(h2o.species_coefficients.get_or_create(coefficient=rna_kb.get_len() - 1))
+            reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1))
 
             # Add RNA polymerease
             for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').species:
