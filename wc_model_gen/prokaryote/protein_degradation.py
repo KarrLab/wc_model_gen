@@ -89,7 +89,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='protein_degradation')
         cytosol = model.compartments.get_one(id='c')
         proteins_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_len = kb.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             species_type_model = model.species_types.get_one(id=protein_kb.id)
@@ -122,7 +122,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws associated with submodel """
         submodel = self.model.submodels.get_one(id='protein_degradation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
@@ -130,4 +130,4 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                              reaction=reaction,
                                              beta=1,
                                              half_life=protein_kb.half_life,
-                                             cell_cycle_len=cell_cycle_len)
+                                             mean_doubling_time=mean_doubling_time)

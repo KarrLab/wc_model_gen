@@ -108,7 +108,7 @@ class ModelGenerator(object):
                     'translation_table': 4,
                     'mean_rna_copy_number': 100,
                     'mean_protein_copy_number': 100},
-                'PropertiesGenerator': {'cell_cycle_len': 100},
+                'PropertiesGenerator': {'mean_doubling_time': 100},
                 'ObservablesGenerator': {'genetic_code': 'reduced'}}}).run()
 
         cell = kb.cell
@@ -264,7 +264,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         else:
             raise Exception('Invalid rate law option.')
 
-    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, cell_cycle_len):
+    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, mean_doubling_time):
         if reaction.id.endswith('_kb'):
             return
 
@@ -283,10 +283,10 @@ class SubmodelGenerator(ModelComponentGenerator):
             type=wc_lang.ParameterType.other,
             value=half_life,
             units='s')
-        cell_cycle_len_model = model.parameters.get_or_create(
-            id='cell_cycle_len',
+        mean_doubling_time_model = model.parameters.get_or_create(
+            id='mean_doubling_time',
             type=wc_lang.ParameterType.other,
-            value=cell_cycle_len,
+            value=mean_doubling_time,
             units='s')
         molecule_units = model.parameters.get_or_create(
             id='molecule_units',
@@ -295,13 +295,13 @@ class SubmodelGenerator(ModelComponentGenerator):
             units='molecule')
 
         expression = '(log(2) / {} + log(2) / {}) / {} * {}'.format(half_life_model.id,
-                                                                    cell_cycle_len_model.id,
+                                                                    mean_doubling_time_model.id,
                                                                     molecule_units.id,
                                                                     species_model.id)
         rate_law_model.expression, error = wc_lang.RateLawExpression.deserialize(expression, {
             wc_lang.Parameter: {
                 half_life_model.id: half_life_model,
-                cell_cycle_len_model.id: cell_cycle_len_model,
+                mean_doubling_time_model.id: mean_doubling_time_model,
                 molecule_units.id: molecule_units,
             },
             wc_lang.Species: {
@@ -310,7 +310,7 @@ class SubmodelGenerator(ModelComponentGenerator):
         })
         assert error is None, str(error)
 
-    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, cell_cycle_len):
+    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, mean_doubling_time):
         if reaction.id.endswith('_kb'):
             return
 
@@ -328,8 +328,8 @@ class SubmodelGenerator(ModelComponentGenerator):
             direction=wc_lang.RateLawDirection.forward)
 
         objects = {
-            wc_lang.Compartment: {},
             wc_lang.Species: {},
+            wc_lang.Function: {},
             wc_lang.Parameter: {},
         }
 
@@ -347,27 +347,26 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         expression_terms = []
         init_species_counts = {}
-        
+
         init_compartment_masses = {}
         for comp in model.compartments:
             init_comp_mass = 0
             for species in comp.species:
-                if species.distribution_init_concentration:                                    
-                    if species.distribution_init_concentration.mean.units == wc_lang.ConcentrationUnit.molecule:
-                        mass += species.distribution_init_concentration.mean \
+                if species.distribution_init_concentration:
+                    if species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.molecule:
+                        init_comp_mass += species.distribution_init_concentration.mean \
                             / scipy.constants.Avogadro \
-                            * species.species_type.molecular_weight                            
-                    elif species.distribution_init_concentration.mean.units == wc_lang.ConcentrationUnit.M:
-                        mass += species.distribution_init_concentration.mean \
+                            * species.species_type.molecular_weight
+                    elif species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.M:
+                        init_comp_mass += species.distribution_init_concentration.mean \
                             * comp.mean_init_volume \
-                            * species.species_type.molecular_weight                            
+                            * species.species_type.molecular_weight
                     else:
                         raise Exception('Unsupported concentration unit {}'.format(
-                            species.distribution_init_concentration.mean.units))
+                            species.distribution_init_concentration.units))
             init_compartment_masses[comp.id] = init_comp_mass
 
         for species in reaction.get_reactants():
-            objects[wc_lang.Compartment][species.compartment.id] = species.compartment
             objects[wc_lang.Species][species.id] = species
 
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
@@ -376,10 +375,13 @@ class SubmodelGenerator(ModelComponentGenerator):
                                                 units='M')
             objects[wc_lang.Parameter][model_k_m.id] = model_k_m
 
+            volume = species.compartment.init_density.function_expressions[0].function
+            objects[wc_lang.Function][volume.id] = volume
+
             expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.id,
                                                                         species.id,
                                                                         model_k_m.id, Avogadro.id,
-                                                                        species.compartment.id))
+                                                                        volume.id))
 
             # Calculate Avg copy number / concentration
             if species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.molecule:
@@ -390,7 +392,7 @@ class SubmodelGenerator(ModelComponentGenerator):
                     * scipy.constants.Avogadro
             else:
                 raise Exception('Unsupported units: {}'.format(species.distribution_init_concentration.units.name))
-            init_compartment_volumes[species.compartment.id] = species.compartment.mean_init_volume
+
         expression = '{} * {}'.format(model_k_cat.id, ' * '.join(expression_terms))
         rate_law.expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
         assert error is None, str(error)
@@ -399,9 +401,9 @@ class SubmodelGenerator(ModelComponentGenerator):
         init_species_conc = specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value
         int_species_cn = init_species_conc * cytosol_model.mean_init_volume * scipy.constants.Avogadro
 
-        avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='cell_cycle_len').value + 1. / half_life) * int_species_cn
+        avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='mean_doubling_time').value + 1. / half_life) * int_species_cn
         rate_avg = rate_law.expression._parsed_expression.eval({
-                wc_lang.Species: init_species_counts,
-                wc_lang.Compartment: init_compartment_masses,
-                })
+            wc_lang.Species: init_species_counts,
+            wc_lang.Compartment: init_compartment_masses,
+        })
         model_k_cat.value = avg_deg_rate / rate_avg

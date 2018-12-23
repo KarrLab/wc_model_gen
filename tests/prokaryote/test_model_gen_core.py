@@ -34,14 +34,10 @@ class ModelGeneratorTestCase(unittest.TestCase):
     def test_compartments(self):
         cytosol = self.model.compartments.get_one(id='c')
         extracellular_space = self.model.compartments.get_one(id='e')
-        self.assertIsInstance(cytosol, wc_lang.Compartment)
-        self.assertIsInstance(extracellular_space, wc_lang.Compartment)
 
     def test_parameters(self):
-        cell_cycle_len = self.model.parameters.get_one(id='cell_cycle_len')
-        fraction_dry_weight = self.model.parameters.get_one(id='fraction_dry_weight')
-        self.assertIsInstance(cell_cycle_len, wc_lang.Parameter)
-        self.assertIsInstance(fraction_dry_weight, wc_lang.Parameter)
+        mean_doubling_time = self.model.parameters.get_one(id='mean_doubling_time')
 
+    def test_validation(self):
         errors = obj_model.Validator().run(self.model, get_related=True)
         self.assertEqual(errors, None, msg=wc_utils.util.string.indent_forest(errors))

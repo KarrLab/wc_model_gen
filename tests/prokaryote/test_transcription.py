@@ -101,10 +101,10 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
                 rna.get_len())
             self.assertEqual(
                 + rxn.participants.get_one(species=h2o).coefficient,
-                rna.get_len() - 1)
+                -1)
             self.assertEqual(
                 + rxn.participants.get_one(species=h).coefficient,
-                -(rna.get_len() - 1))
+                rna.get_len() + 1)
 
     def test_phenom_rate_laws(self):
         model = self.model

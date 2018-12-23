@@ -96,19 +96,19 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             self.gen_phenom_rate_law_eq(specie_type_kb=protein_kb,
                                         reaction=reaction,
                                         half_life=protein_kb.half_life,
-                                        cell_cycle_len=cell_cycle_len)
+                                        mean_doubling_time=mean_doubling_time)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws associated with submodel """
         submodel = self.model.submodels.get_one(id='translation')
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
@@ -116,4 +116,4 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                              reaction=reaction,
                                              beta=1,
                                              half_life=protein_kb.half_life,
-                                             cell_cycle_len=cell_cycle_len)
+                                             mean_doubling_time=mean_doubling_time)

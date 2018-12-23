@@ -101,6 +101,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             })
         assert error is None, str(error)
 
+        """
         m = model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
         m.init_density = model.parameters.create(id='density_m', value=1100., units='g l^-1')
         volume_m = model.functions.create(id='volume_m', units='l')
@@ -109,6 +110,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             wc_lang.Parameter: {m.init_density.id: m.init_density},
             })
         assert error is None, str(error)
+        """
 
         e = model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
         e.init_density = model.parameters.create(id='density_e', value=1000., units='g l^-1')
@@ -124,17 +126,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         # Create parameters
-        model.parameters.get_or_create(id='fraction_dry_weight',
+        model.parameters.get_or_create(id='mean_doubling_time',
                                        type=wc_lang.ParameterType.other,
-                                       value=kb.cell.properties.get_one(id='fraction_dry_weight').value,
-                                       units='dimensionless')
-        model.parameters.get_or_create(id='fractionDryWeight',
-                                       type=wc_lang.ParameterType.other,
-                                       value=kb.cell.properties.get_one(id='fraction_dry_weight').value,
-                                       units='dimensionless')
-        model.parameters.get_or_create(id='cell_cycle_len',
-                                       type=wc_lang.ParameterType.other,
-                                       value=kb.cell.properties.get_one(id='cell_cycle_len').value,
+                                       value=kb.cell.properties.get_one(id='mean_doubling_time').value,
                                        units='s')
 
     def gen_metabolites(self):
@@ -245,10 +239,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         else:
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
-
-        if kb_species_type.id=='ppi':
-            import pdb
-            pdb.set_trace()
             
         if kb_species_type.get_empirical_formula():
             model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
@@ -369,10 +359,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     comments=kb_rate_law.comments)
 
                 objects = {
-                    wc_lang.Compartment: {
-                    },
-                    wc_lang.Species: {
-                    },
+                    wc_lang.Species: {},
+                    wc_lang.Function: {},
                     wc_lang.Parameter: {
                         Avogadro.id: Avogadro,
                     },
@@ -382,7 +370,6 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 for part in model_rxn.participants:
                     if part.coefficient < 0:
                         objects[wc_lang.Species][part.species.id] = part.species
-                        objects[wc_lang.Compartment][part.species.compartment.id] = part.species.compartment
 
                         K_m = model.parameters.create(
                             id='K_m_{}_{}_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name,
@@ -392,8 +379,11 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                             units='M')
                         objects[wc_lang.Parameter][K_m.id] = K_m
 
+                        volume = part.species.compartment.init_density.function_expressions[0].function
+                        objects[wc_lang.Function][volume.id] = volume
+
                         reactant_terms.append(' * {} / ({} * {} * {} + {})'.format(
-                            part.species.id, K_m.id, Avogadro.id, part.species.compartment.id, part.species.id,))
+                            part.species.id, K_m.id, Avogadro.id, volume.id, part.species.id,))
 
                 enz_terms = []
                 for kb_modifier in kb_rate_law.equation.modifiers:

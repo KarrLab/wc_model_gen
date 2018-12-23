@@ -53,33 +53,33 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Adding participants to RHS
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
             reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()))
-            reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1))
+            reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1 + rna_kb.get_len()))
 
             # Add RNA polymerease
             for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').species:
                 rnap_species_type_model = model.species_types.get_one(id=rnap_kb.species.species_type.id)
                 rnap_model = rnap_species_type_model.species.get_one(compartment=cytosol)
 
-                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=(-1)*rnap_kb.coefficient))
+                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1*rnap_kb.coefficient))
                 reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=rnap_kb.coefficient))
 
     def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_phenom_rate_law_eq(specie_type_kb=rna_kb,
                                         reaction=reaction,
                                         half_life=rna_kb.half_life,
-                                        cell_cycle_len=cell_cycle_len)
+                                        mean_doubling_time=mean_doubling_time)
 
     def gen_mechanistic_rates(self):
         """ Generate rate laws with calibrated dynamics """
         submodel = self.model.submodels.get_one(id='transcription')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_len = self.knowledge_base.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
@@ -87,4 +87,4 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                              reaction=reaction,
                                              beta=1.,
                                              half_life=rna_kb.half_life,
-                                             cell_cycle_len=cell_cycle_len)
+                                             mean_doubling_time=mean_doubling_time)

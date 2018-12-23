@@ -69,7 +69,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='rna_degradation')
         cytosol = model.compartments.get_one(id='c')
         rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_len = kb.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             objects = {
@@ -109,7 +109,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         submodel = model.submodels.get_one(id='rna_degradation')
         rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        cell_cycle_len = kb.cell.properties.get_one(id='cell_cycle_len').value
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
@@ -117,4 +117,4 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                              reaction=reaction,
                                              beta=1.,
                                              half_life=rna_kb.half_life,
-                                             cell_cycle_len=cell_cycle_len)
+                                             mean_doubling_time=mean_doubling_time)
