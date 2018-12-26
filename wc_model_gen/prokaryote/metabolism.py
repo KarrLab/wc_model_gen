@@ -32,25 +32,34 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             :obj:`ValueError:` if any phosphate species are missing from the model
         """
 
+        # Get species, model components
         cell = self.knowledge_base.cell
         model = self.model
         submodel = model.submodels.get_one(id='metabolism')
         c = model.compartments.get_one(id='c')
         e = model.compartments.get_one(id='e')
         h_type = model.species_types.get_one(id='h')
+        h2o = model.species_types.get_one(id='h2o').species.get_one(compartment=c)
+        h = model.species_types.get_one(id='h').species.get_one(compartment=c)
+        pi = model.species_types.get_one(id='pi').species.get_one(compartment=c)
+        adp = model.species_types.get_one(id='adp').species.get_one(compartment=c)
 
         # Get species involved in reaction
-        tripps = {}
-        for id in ['atp', 'ctp', 'gtp', 'utp']:
-            tripps[id] = model.species_types.get_one(id=id)
-
         mpps = {}
         for id in ['amp', 'cmp', 'gmp', 'ump']:
             mpps[id] = model.species_types.get_one(id=id)
 
+        dpps = {}
+        for id in ['adp', 'cdp', 'gdp', 'udp']:
+            dpps[id] = model.species_types.get_one(id=id)
+
+        tpps = {}
+        for id in ['atp', 'ctp', 'gtp', 'utp']:
+            tpps[id] = model.species_types.get_one(id=id)
+
         # Confirm that all phosphate species were found
         missing = []
-        for d in [tripps, mpps]:
+        for d in [tpps, mpps]:
             for id, pps_type in d.items():
                 if pps_type is None:
                     missing.append(id)
@@ -58,26 +67,30 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             raise ValueError("'{}' not found in model.species".format(', '.join(missing)))
 
         # Generate reactions associated with nucleophosphate maintenance
-        for mpp, tripp in zip(mpps.values(), tripps.values()):
+        for mpp, dpp, tripp in zip(mpps.values(), dpps.values(), tpps.values()):
+
             # get/create species
-            mpp_e = model.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, e.id),
-                                                species_type=mpp, compartment=e)
-            mpp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(mpp.id, c.id),
-                                                species_type=mpp, compartment=c)
-            tripp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id),
-                                                  species_type=tripp, compartment=c)
+            dpp_e = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id, e.id), species_type=dpp, compartment=e)
+            dpp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id, c.id), species_type=dpp, compartment=c)
+            tripp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), species_type=tripp, compartment=c)            
 
             # Create transfer reaction
             rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_'+mpp.id)
             rxn.participants = []
-            rxn.participants.add(mpp_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
-            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
+            rxn.participants.add(dpp_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+            rxn.participants.add(dpp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
             # Create conversion reactions
             rxn = model.reactions.get_or_create(submodel=submodel, id='conversion_'+mpp.id+'_'+tripp.id)
             rxn.participants = []
-            rxn.participants.add(mpp_c.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+
+            rxn.participants.add(dpp_c.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+            rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+            #rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+
             rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
+            rxn.participants.add(h.species_coefficients.get_or_create(coefficient=self.reaction_scale))
+            rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
         # Generate reactions associated with tRna/AA maintenece
         for observable_kb in cell.observables:
@@ -103,6 +116,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Generate reactions associated with H maintenece
         rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_h')
         rxn.participants = []
+
         h_e = model.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, e.id), species_type=h_type, compartment=e)
         h_c = model.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, c.id), species_type=h_type, compartment=c)
         rxn.participants.add(h_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))

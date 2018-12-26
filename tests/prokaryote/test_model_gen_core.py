@@ -23,6 +23,7 @@ class ModelGeneratorTestCase(unittest.TestCase):
                                        strict=False)
 
         cls.model = prokaryote.ProkaryoteModelGenerator(knowledge_base=cls.kb).run()
+        wc_lang.io.Writer().run(cls.model, '/media/sf_VM_share/model_test.xlsx', False)
 
     @classmethod
     def tearDownClass(cls):
