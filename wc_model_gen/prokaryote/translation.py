@@ -27,9 +27,15 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         gtp = model.species_types.get_one(id='gtp').species.get_one(compartment=cytosol)
         gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
         pi = model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
+
         initiation_factors = model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
         elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
         release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+
+        # Check if initiation, elongation & termination factors consist of one specie
+        assert(len(model.observables.get_one(id='translation_init_factors_obs').expression.species)==1)
+        assert(len(model.observables.get_one(id='translation_elongation_factors_obs').expression.species)==1)
+        assert(len(model.observables.get_one(id='translation_release_factors_obs').expression.species)==1)
 
         bases = "TCAG"
         codons = [a + b + c for a in bases for b in bases for c in bases]
@@ -53,11 +59,31 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for codon in codons:
                 if codon not in ['TAG', 'TAA', 'TGA']:
                     n = 0
+
                     for base in range(0, len(protein_kb.gene.get_seq()), 3):
                         n += str(protein_kb.gene.get_seq()[base:base+3]).count(codon)
+
                     if n > 0:
-                        trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species[0]
+                        trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species.get_one(compartment=cytosol)
+
+                        # tRNAs are modifiers
                         reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
+                        reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=n))
+
+                        # Add appropiate amino acids
+                        # TODO: add in all AAs
+                        if codon=='ATG':
+                            aa = model.species_types.get_one(id='met').species.get_one(compartment=cytosol)
+                        elif codon=='ACT' or codon=='ACC' or codon=='ACA' or codon=='ACG':
+                            aa = model.species_types.get_one(id='thr').species.get_one(compartment=cytosol)
+                        elif codon=='ATT' or codon=='ATC' or codon=='ATA':
+                            aa = model.species_types.get_one(id='ile').species.get_one(compartment=cytosol)
+                        elif codon=='TTA' or codon=='TTG' or codon=='CTT' or codon=='CTC' or codon=='CTA' or codon=='CTG':
+                            aa = model.species_types.get_one(id='leu').species.get_one(compartment=cytosol)
+                        else:
+                            raise ValueError('Unknown codon: {}'.format(codon))
+
+                        reaction.participants.add(aa.species_coefficients.get_or_create(coefficient=-n))
 
             # Adding participants to RHS
             if protein_model == initiation_factors:

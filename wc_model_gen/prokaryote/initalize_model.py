@@ -239,7 +239,17 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         else:
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
-            
+
+        """
+        if kb_species_type.get_empirical_formula():
+            model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
+        model_species_type.molecular_weight = kb_species_type.get_mol_wt()
+        model_species_type.charge = kb_species_type.get_charge()
+        model_species_type.comments = kb_species_type.comments
+        compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
+                              (extra_compartment_ids or []))
+         """
+
         if kb_species_type.get_empirical_formula():
             model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()
