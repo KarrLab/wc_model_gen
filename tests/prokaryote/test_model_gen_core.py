@@ -5,6 +5,7 @@
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
+from test.support import EnvironmentVarGuard
 from wc_kb_gen import random
 from wc_model_gen import prokaryote
 import obj_model
@@ -18,12 +19,15 @@ class ModelGeneratorTestCase(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-        cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
-                                       'tests/fixtures/test_broken_seq.fna',
-                                       strict=False)
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
+        with env:
+            cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
+                                           'tests/fixtures/test_broken_seq.fna',
+                                           )[wc_kb.KnowledgeBase][0]
 
         cls.model = prokaryote.ProkaryoteModelGenerator(knowledge_base=cls.kb).run()
-        wc_lang.io.Writer().run(cls.model, '/media/sf_VM_share/model_test.xlsx', False)
+        wc_lang.io.Writer().run('/media/sf_VM_share/model_test.xlsx', cls.model, False)
 
     @classmethod
     def tearDownClass(cls):

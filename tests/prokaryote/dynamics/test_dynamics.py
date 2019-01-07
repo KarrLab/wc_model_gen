@@ -6,6 +6,7 @@
 :License: MIT
 """
 
+from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_sim.multialgorithm.simulation import Simulation
@@ -32,9 +33,12 @@ class PhenomenologicalTestCase(unittest.TestCase):
     def test_growth_transcription(self):
 
         # Construct model
-        self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
-                                        'tests/fixtures/min_model_kb_seq.fna',
-                                        strict=False)
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
+        with env:
+            self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+                                            'tests/fixtures/min_model_kb_seq.fna',
+                                            )[wc_kb.KnowledgeBase][0]
 
         self.model = prokaryote.ProkaryoteModelGenerator(
             knowledge_base=self.kb,
@@ -89,9 +93,12 @@ class MechanisticDynamicsTestCase(unittest.TestCase):
     def test_growth_transcription(self):
 
         # Construct model
-        self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
-                                        'tests/fixtures/min_model_kb_seq.fna',
-                                        strict=False)
+        env = EnvironmentVarGuard()
+        env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
+        with env:
+            self.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+                                            'tests/fixtures/min_model_kb_seq.fna',
+                                            )[wc_kb.KnowledgeBase][0]
 
         self.model = prokaryote.ProkaryoteModelGenerator(
             knowledge_base=self.kb,

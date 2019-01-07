@@ -134,8 +134,7 @@ class ModelGenerator(object):
             core_path = '/media/sf_VM_share/kbs/' + str(name) + '.xlsx'
             seq_path = '/media/sf_VM_share/kbs/' + str(name) + '_seq.fna'
 
-            wc_kb.io.Writer().run(knowledge_base=kb,
-                                  core_path=core_path,
+            wc_kb.io.Writer().run(core_path, kb,
                                   seq_path=seq_path,
                                   set_repo_metadata_from_path=False)
 
