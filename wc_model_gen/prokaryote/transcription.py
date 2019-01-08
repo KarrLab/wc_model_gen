@@ -52,7 +52,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Adding participants to RHS
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
-            reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()))
+            reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()-1))
             #reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1 + rna_kb.get_len()))
 
             # Add RNA polymerease
