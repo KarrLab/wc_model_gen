@@ -46,20 +46,20 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Get species involved in reaction
         mpps = {}
-        for id in ['amp', 'cmp', 'gmp', 'ump']:
+        for id in ['ump', 'amp', 'cmp', 'gmp']:
             mpps[id] = model.species_types.get_one(id=id)
 
         dpps = {}
-        for id in ['adp', 'cdp', 'gdp', 'udp']:
+        for id in ['udp', 'adp', 'cdp', 'gdp']:
             dpps[id] = model.species_types.get_one(id=id)
 
         tpps = {}
-        for id in ['atp', 'ctp', 'gtp', 'utp']:
+        for id in ['utp', 'atp', 'ctp', 'gtp']:
             tpps[id] = model.species_types.get_one(id=id)
 
         # Confirm that all phosphate species were found
         missing = []
-        for d in [tpps, mpps]:
+        for d in [tpps, dpps, mpps]:
             for id, pps_type in d.items():
                 if pps_type is None:
                     missing.append(id)
@@ -67,29 +67,28 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             raise ValueError("'{}' not found in model.species".format(', '.join(missing)))
 
         # Generate reactions associated with nucleophosphate maintenance
-        for mpp, dpp, tripp in zip(mpps.values(), dpps.values(), tpps.values()):
+        for dpp, tripp in zip(dpps.values(), tpps.values()):
 
             # get/create species
-            dpp_e = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id, e.id), species_type=dpp, compartment=e)
-            dpp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id, c.id), species_type=dpp, compartment=c)
-            tripp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), species_type=tripp, compartment=c)            
+            dpp_e   = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id,   e.id), species_type=dpp,   compartment=e)
+            dpp_c   = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id,   c.id), species_type=dpp,   compartment=c)
+            tripp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), species_type=tripp, compartment=c)
 
             # Create transfer reaction
-            rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_'+mpp.id)
+            rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_'+dpp.id)
             rxn.participants = []
             rxn.participants.add(dpp_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
             rxn.participants.add(dpp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
             # Create conversion reactions
-            rxn = model.reactions.get_or_create(submodel=submodel, id='conversion_'+mpp.id+'_'+tripp.id)
+            rxn = model.reactions.get_or_create(submodel=submodel, id='conversion_'+dpp.id+'_'+tripp.id)
             rxn.participants = []
-
             rxn.participants.add(dpp_c.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
             #rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
 
             rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
-            rxn.participants.add(h.species_coefficients.get_or_create(coefficient=self.reaction_scale))
+            #rxn.participants.add(h.species_coefficients.get_or_create(coefficient=self.reaction_scale))
             rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
         # Generate reactions associated with tRna/AA maintenece
@@ -167,7 +166,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     param.value = 0.0000000000589232
 
                 # Monophosphate reaction
-                elif rxn.id[-2:] == 'mp':
+                elif rxn.id[-2:] == 'dp':
                     param.value = mpp_transfer_rate
 
                 # Hydrogen transfer
