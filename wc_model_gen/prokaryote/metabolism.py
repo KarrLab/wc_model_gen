@@ -188,10 +188,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             assert error is None, str(error)
 
         # Apply correction terms if translation submodel is present
-        if model.submodels.get_one(id='translation'):
-            gtp_corr_rate = self.calc_gtp_corr_rate()
-            model.parameters.get_one(id='k_cat_transfer_gmp').value += gtp_corr_rate
-            model.parameters.get_one(id='k_cat_conversion_gmp_gtp').value += gtp_corr_rate
+        #if model.submodels.get_one(id='translation'):
+        #    gtp_corr_rate = self.calc_gtp_corr_rate()
+        #    model.parameters.get_one(id='k_cat_transfer_gmp').value += gtp_corr_rate
+        #    model.parameters.get_one(id='k_cat_conversion_gmp_gtp').value += gtp_corr_rate
 
     """ Auxiliary functions """
 
