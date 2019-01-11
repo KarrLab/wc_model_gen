@@ -82,9 +82,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             objects[wc_lang.Species][species_model.id] = species_model
 
             rate_law = model.rate_laws.create(
-                id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
                 reaction=reaction,
                 direction=wc_lang.RateLawDirection.forward)
+            rate_law.id = rate_law.gen_id()
 
             half_life_model = model.parameters.get_or_create(id='half_life_{}'.format(species_type_model.id),
                                                              type=wc_lang.ParameterType.other,

@@ -273,9 +273,9 @@ class SubmodelGenerator(ModelComponentGenerator):
         species_model = species_type_model.species.get_one(compartment=cytosol)
 
         rate_law_model = model.rate_laws.create(
-            id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
             reaction=reaction,
             direction=wc_lang.RateLawDirection.forward)
+        rate_law_model.id = rate_law_model.gen_id()
 
         half_life_model = model.parameters.get_or_create(
             id='half_life_{}'.format(species_type_model.id),
@@ -322,9 +322,9 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         # Create rate law
         rate_law = model.rate_laws.create(
-            id=wc_lang.RateLaw.gen_id(reaction.id, wc_lang.RateLawDirection.forward.name),
             reaction=reaction,
             direction=wc_lang.RateLawDirection.forward)
+        rate_law.id = rate_law.gen_id()
 
         objects = {
             wc_lang.Species: {},

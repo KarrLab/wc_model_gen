@@ -261,8 +261,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         for compartment_id in compartment_ids:
             model_compartment = model.compartments.get_one(id=compartment_id)
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
-            model_species.id = model_species.gen_id(model_species_type.id,
-                                                    model_compartment.id)
+            model_species.id = model_species.gen_id()
 
         return model_species_type
 
@@ -277,13 +276,13 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
-            species.id = species.gen_id(species.species_type.id, species.compartment.id)
+            species.id = species.gen_id()
 
-            model.distribution_init_concentrations.create(
-                id=wc_lang.DistributionInitConcentration.gen_id(species.id),
+            conc = model.distribution_init_concentrations.create(
                 species=species,
                 mean=conc.value, units=wc_lang.ConcentrationUnit.M,
                 comments=conc.comments, references=conc.references)
+            conc.id = conc.gen_id()
 
     def gen_observables(self):
         """ Generate observables in model from knowledge base """
@@ -363,10 +362,10 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             for kb_rate_law in kb_rxn.rate_laws:
                 model_rate_law = model.rate_laws.create(
-                    id=wc_lang.RateLaw.gen_id(model_rxn.id, kb_rate_law.direction.name),
                     reaction=model_rxn,
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
+                model_rate_law.id = model_rate_law.gen_id()
 
                 objects = {
                     wc_lang.Species: {},
@@ -400,8 +399,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     enz_species_type = model.species_types.get_one(id=kb_modifier.species_type.id)
                     enz_compartment = model.compartments.get_one(id=kb_modifier.compartment.id)
                     enz_species = model.species.get_or_create(
-                        id=wc_lang.Species.gen_id(enz_species_type.id, enz_compartment.id),
                         species_type=enz_species_type, compartment=enz_compartment)
+                    enz_species.id = enz_species.gen_id()
                     objects[wc_lang.Species][enz_species.id] = enz_species
                     enz_terms.append(' * ' + enz_species.id)
 

@@ -70,9 +70,12 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for dpp, tripp in zip(dpps.values(), tpps.values()):
 
             # get/create species
-            dpp_e   = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id,   e.id), species_type=dpp,   compartment=e)
-            dpp_c   = model.species.get_or_create(id=wc_lang.Species.gen_id(dpp.id,   c.id), species_type=dpp,   compartment=c)
-            tripp_c = model.species.get_or_create(id=wc_lang.Species.gen_id(tripp.id, c.id), species_type=tripp, compartment=c)
+            dpp_e   = model.species.get_or_create(species_type=dpp,   compartment=e)
+            dpp_c   = model.species.get_or_create(species_type=dpp,   compartment=c)
+            tripp_c = model.species.get_or_create(species_type=tripp, compartment=c)
+            dpp_e.id = dpp_e.gen_id()
+            dpp_c.id = dpp_c.gen_id()
+            tripp_c.id = tripp_c.gen_id()
 
             # Create transfer reaction
             rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_'+dpp.id)
@@ -102,13 +105,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     tRNA_model = tRNA_specie_type_model.species.get_one(compartment=c)
 
                     trna_e = model.species.get_or_create(
-                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, e.id),
                         species_type=tRNA_model.species_type,
                         compartment=e)
                     trna_c = model.species.get_or_create(
-                        id=wc_lang.Species.gen_id(tRNA_model.species_type.id, c.id),
                         species_type=tRNA_model.species_type,
                         compartment=c)
+                    trna_e.id = trna_e.gen_id()
+                    trna_c.id = trna_c.gen_id()
                     rxn.participants.add(trna_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
                     rxn.participants.add(trna_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
@@ -116,8 +119,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_h')
         rxn.participants = []
 
-        h_e = model.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, e.id), species_type=h_type, compartment=e)
-        h_c = model.species.get_or_create(id=wc_lang.Species.gen_id(h_type.id, c.id), species_type=h_type, compartment=c)
+        h_e = model.species.get_or_create(species_type=h_type, compartment=e)
+        h_c = model.species.get_or_create(species_type=h_type, compartment=c)
+        h_e.id = h_e.gen_id()
+        h_c.id = h_c.gen_id()
         rxn.participants.add(h_e.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
         rxn.participants.add(h_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
@@ -151,9 +156,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 continue
 
             rate_law = model.rate_laws.create(
-                id=wc_lang.RateLaw.gen_id(rxn.id, wc_lang.RateLawDirection.forward.name),
                 reaction=rxn,
                 direction=wc_lang.RateLawDirection.forward)
+            rate_law.id = rate_law.gen_id()
 
             param = model.parameters.create(id='k_cat_{}'.format(rxn.id),
                                             type=wc_lang.ParameterType.k_cat,
