@@ -9,6 +9,7 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
+from wc_utils.util.ontology import wcm_ontology
 import math
 import unittest
 import wc_lang
@@ -120,5 +121,5 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
             self.assertEqual(len(rl.expression.species), 1)
-            self.assertEqual(rl.expression.species[0].species_type.type, wc_lang.SpeciesTypeType.rna)
+            self.assertEqual(rl.expression.species[0].species_type.type, wcm_ontology['WCM:RNA']) # RNA
             self.assertIn(rl.expression.species[0], rxn.get_products())

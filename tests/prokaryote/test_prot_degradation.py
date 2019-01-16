@@ -8,6 +8,7 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
+from wc_utils.util.ontology import wcm_ontology
 import math
 import unittest
 import wc_kb
@@ -89,7 +90,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
             self.assertEqual(len(rl.expression.species), 1)
-            self.assertEqual(rl.expression.species[0].species_type.type, wc_lang.SpeciesTypeType.protein)
+            self.assertEqual(rl.expression.species[0].species_type.type, wcm_ontology['WCM:protein']) # protein
             self.assertIn(rl.expression.species[0], rxn.get_reactants())
 
     def test_mechanistic_rate_laws(self):
@@ -106,7 +107,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             # TODO:
             self.assertEqual(rxn.get_modifiers(), [])
 
-            k_cat_value = rl.expression.parameters.get_one(type=wc_lang.ParameterType.k_cat).value
+            k_cat_value = rl.expression.parameters.get_one(type=wcm_ontology['WCM:k_cat']).value
             self.assertIsInstance(k_cat_value, float)
             self.assertFalse(math.isnan(k_cat_value))
 

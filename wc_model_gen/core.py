@@ -22,6 +22,7 @@ import wc_utils.util.string
 from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
+from wc_utils.util.ontology import wcm_ontology
 
 
 class ModelGenerator(object):
@@ -162,7 +163,7 @@ class ModelGenerator(object):
 
         rna_ids = []
         df = run_results.get('populations')
-        for rna in model.species_types.get(type=wc_lang.SpeciesTypeType.rna):
+        for rna in model.species_types.get(type=wcm_ontology['WCM:RNA']): #RNA
             rna_ids.append(rna.species[0].id)
 
         txt = 'Init copy number mean={}; std={} \n'.format(round(np.mean(df.loc[0.0, rna_ids].values), 2),
@@ -279,17 +280,17 @@ class SubmodelGenerator(ModelComponentGenerator):
 
         half_life_model = model.parameters.get_or_create(
             id='half_life_{}'.format(species_type_model.id),
-            type=wc_lang.ParameterType.other,
+            type=None,
             value=half_life,
             units='s')
         mean_doubling_time_model = model.parameters.get_or_create(
             id='mean_doubling_time',
-            type=wc_lang.ParameterType.other,
+            type=None,
             value=mean_doubling_time,
             units='s')
         molecule_units = model.parameters.get_or_create(
             id='molecule_units',
-            type=wc_lang.ParameterType.other,
+            type=None,
             value=1.,
             units='molecule')
 
@@ -333,13 +334,13 @@ class SubmodelGenerator(ModelComponentGenerator):
         }
 
         Avogadro = model.parameters.get_or_create(id='Avogadro',
-                                                  type=wc_lang.ParameterType.other,
+                                                  type=None,
                                                      value=scipy.constants.Avogadro,
                                                      units='molecule mol^-1')
         objects[wc_lang.Parameter][Avogadro.id] = Avogadro
 
         model_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
-                                              type=wc_lang.ParameterType.k_cat,
+                                              type=wcm_ontology['WCM:k_cat'],
                                               value=1.,
                                               units='s^-1')
         objects[wc_lang.Parameter][model_k_cat.id] = model_k_cat
@@ -369,7 +370,7 @@ class SubmodelGenerator(ModelComponentGenerator):
             objects[wc_lang.Species][species.id] = species
 
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-                                                type=wc_lang.ParameterType.K_m,
+                                                type=wcm_ontology['WCM:K_m'],
                                                 value=beta * species.distribution_init_concentration.mean,
                                                 units='M')
             objects[wc_lang.Parameter][model_k_m.id] = model_k_m

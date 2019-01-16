@@ -7,6 +7,7 @@
 """
 
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.ontology import wcm_ontology
 import math
 import numpy
 import scipy.constants
@@ -151,7 +152,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             raise ValueError('The units of doubling time are unclear')
 
         model.parameters.get_or_create(id='mean_doubling_time',
-                                       type=wc_lang.ParameterType.other,
+                                       type=None,
                                        value=doubling_time_kb.value*conversion_factor,
                                        units='s')
 
@@ -244,23 +245,23 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.name = kb_species_type.name
 
         if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.dna           
+            model_species_type.type = wcm_ontology['WCM:DNA'] # DNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.PreRnaSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.pseudo_species
+            model_species_type.type = wcm_ontology['WCM:pseudo_species'] # pseudo species
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.rna
+            model_species_type.type = wcm_ontology['WCM:RNA'] # DNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.protein
+            model_species_type.type = wcm_ontology['WCM:protein'] # protein
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.metabolite
+            model_species_type.type = wcm_ontology['WCM:metabolite'] # metabolite
             model_species_type.structure = kb_species_type.structure    
             
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.protein
+            model_species_type.type = wcm_ontology['WCM:protein'] # protein
 
         else:
             raise ValueError('Unsupported species type: {}'.format(
@@ -366,7 +367,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
-        Avogadro.type = wc_lang.ParameterType.other
+        Avogadro.type = None
         Avogadro.value = scipy.constants.Avogadro
         Avogadro.units = 'molecule mol^-1'
 
@@ -398,7 +399,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         K_m = model.parameters.create(
                             id='K_m_{}_{}_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name,
                                                         part.species.species_type.id, part.species.compartment.id),
-                            type=wc_lang.ParameterType.K_m,
+                            type=wcm_ontology['WCM:K_m'],
                             value=kb_rate_law.k_m,
                             units='M')
                         objects[wc_lang.Parameter][K_m.id] = K_m
@@ -422,7 +423,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 
                 k_cat = model.parameters.create(
                     id='k_cat_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name),
-                    type=wc_lang.ParameterType.k_cat,
+                    type=wcm_ontology['WCM:k_cat'],
                     value=kb_rate_law.k_cat,
                     units='molecule^-{} s^-1'.format(len(enz_terms)))
                 objects[wc_lang.Parameter][k_cat.id] = k_cat
