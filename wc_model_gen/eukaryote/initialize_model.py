@@ -7,6 +7,7 @@
 """
 
 from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.ontology import wcm_ontology
 import math
 import numpy
 import scipy.constants
@@ -151,7 +152,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             raise ValueError('The units of doubling time are unclear')
 
         model.parameters.get_or_create(id='mean_doubling_time',
-                                       type=wc_lang.ParameterType.other,
+                                       type=None,
                                        value=doubling_time_kb.value*conversion_factor,
                                        units='s')
 
@@ -244,23 +245,23 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.name = kb_species_type.name
 
         if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.dna           
+            model_species_type.type = wcm_ontology['WCM:DNA'] # DNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.PreRnaSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.pseudo_species
+            model_species_type.type = wcm_ontology['WCM:pseudo_species'] # pseudo species
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.rna
+            model_species_type.type = wcm_ontology['WCM:RNA'] # RNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.protein
+            model_species_type.type = wcm_ontology['WCM:protein'] # protein
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.metabolite
+            model_species_type.type = wcm_ontology['WCM:metabolite'] # metabolite
             model_species_type.structure = kb_species_type.structure    
             
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            model_species_type.type = wc_lang.SpeciesTypeType.protein
+            model_species_type.type = wcm_ontology['WCM:pseudo_species'] # pseudo species
 
         else:
             raise ValueError('Unsupported species type: {}'.format(
@@ -272,7 +273,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()
         model_species_type.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
-        compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
+        
+        if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
+            compartment_ids = set([s.compartment.id for sub in kb_species_type.subunits 
+                              for s in sub.species_type.species] +
+                              (extra_compartment_ids or []))
+        else:    
+            compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
 
         for compartment_id in compartment_ids:
@@ -294,11 +301,23 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id()
 
-            conc = model.distribution_init_concentrations.create(
+            conc_model = model.distribution_init_concentrations.create(
                 species=species,
                 mean=conc.value, units=wc_lang.ConcentrationUnit.M,
-                comments=conc.comments, references=conc.references)
-            conc.id = conc.gen_id()
+                comments=conc.comments)
+            conc_model.id = conc_model.gen_id()
+
+            if conc.references:
+                for ref in conc.references:
+                    ref_model = wc_lang.Reference(model=model, id=ref.id, name=ref.standard_id, 
+                        type=wcm_ontology['WCM:article'])
+                    conc_model.references.append(ref_model)
+
+            if conc.database_references:
+                for db_ref in conc.database_references:
+                    db_ref_model = wc_lang.DatabaseReference(model=model, 
+                        database=db_ref.database, id=db_ref.id)
+                    conc_model.db_refs.append(db_ref_model)                
 
     def gen_observables(self):
         """ Generate observables for the model from knowledge base """
@@ -319,14 +338,17 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     id=kb_species_type.id)
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
-                observable_references[wc_lang.Species][model_species.id] = model_species
+
                 model_coefficient = kb_species_coefficient.coefficient
+                observable_references[wc_lang.Species][model_species.id] = model_species                
                 obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.id))
 
             for kb_observable_observable in kb_observable.observables:
                 model_observable_observable = model.observables.get_or_create(
-                    id=kb_observable_observable.id)
-                obs_expr_parts.append("{}*{}".format(kb_observable_observable.coefficient, kb_observable_observable.id))
+                    id=kb_observable_observable.observable.id)
+                obs_expr_parts.append("{}*{}".format(
+                    kb_observable_observable.coefficient, 
+                    kb_observable_observable.observable.id))
                 observable_references[wc_lang.Observable][model_observable_observable.id] = model_observable_observable
             obs_expr, e = wc_lang.ObservableExpression.make_expression_obj(wc_lang.Observable,
                                                                             ' + '.join(obs_expr_parts), observable_references)
@@ -366,7 +388,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
-        Avogadro.type = wc_lang.ParameterType.other
+        Avogadro.type = None
         Avogadro.value = scipy.constants.Avogadro
         Avogadro.units = 'molecule mol^-1'
 
@@ -398,7 +420,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         K_m = model.parameters.create(
                             id='K_m_{}_{}_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name,
                                                         part.species.species_type.id, part.species.compartment.id),
-                            type=wc_lang.ParameterType.K_m,
+                            type=wcm_ontology['WCM:K_m'],
                             value=kb_rate_law.k_m,
                             units='M')
                         objects[wc_lang.Parameter][K_m.id] = K_m
@@ -422,7 +444,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 
                 k_cat = model.parameters.create(
                     id='k_cat_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name),
-                    type=wc_lang.ParameterType.k_cat,
+                    type=wcm_ontology['WCM:k_cat'],
                     value=kb_rate_law.k_cat,
                     units='molecule^-{} s^-1'.format(len(enz_terms)))
                 objects[wc_lang.Parameter][k_cat.id] = k_cat
