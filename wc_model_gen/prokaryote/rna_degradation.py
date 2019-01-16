@@ -87,13 +87,13 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.id = rate_law.gen_id()
 
             half_life_model = model.parameters.get_or_create(id='half_life_{}'.format(species_type_model.id),
-                                                             type=wc_lang.ParameterType.other,
+                                                             type=None,
                                                              value=rna_kb.half_life,
                                                              units='s')
             objects[wc_lang.Parameter][half_life_model.id] = half_life_model
 
             molecule_units = model.parameters.get_or_create(id='molecule_units',
-                                                            type=wc_lang.ParameterType.other,
+                                                            type=None,
                                                             value=1.,
                                                             units='molecule')
             objects[wc_lang.Parameter][molecule_units.id] = molecule_units
