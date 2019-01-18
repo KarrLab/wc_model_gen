@@ -119,14 +119,13 @@ class TestCase(unittest.TestCase):
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp1', name='complex1',
             subunits=[species_type_coeff1, species_type_coeff2])
 
-        species_coeff1 = wc_kb.core.SpeciesCoefficient(species=prot1_spec, coefficient=2.5)
-        species_coeff2 = wc_kb.core.SpeciesCoefficient(species=prot3_spec, coefficient=1.3)
-        observable1 = wc_kb.core.Observable(cell=cell, id='obs1', name='observable1', 
-            species = [species_coeff1, species_coeff2])      
+        expr1 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] + 1.3 * prot3[m]',
+            species = [prot1_spec, prot3_spec])
+        observable1 = wc_kb.core.Observable(cell=cell, id='obs1', name='observable1', expression=expr1)      
 
-        observable_coeff = wc_kb.core.ObservableCoefficient(observable=observable1, coefficient=4.0)
-        observable2 = wc_kb.core.Observable(cell=cell, id='obs2', name='observable2', 
-            species=[species_coeff1], observables=[observable_coeff])       
+        expr2 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] / obs1',
+            species = [prot1_spec], observables=[observable1])
+        observable2 = wc_kb.core.Observable(cell=cell, id='obs2', name='observable2', expression=expr2)
 
     def tearDown(self):    
         shutil.rmtree(self.tmp_dirname)  
@@ -346,5 +345,32 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_extra.references[0].id, 'ref1')
         self.assertEqual(met1_extra.references[0].name, 'doi:1234')
         self.assertEqual(met1_nucleus.db_refs, [])
-        self.assertEqual(met1_extra.db_refs[0].serialize(), 'ECMDB: 12345')       
+        self.assertEqual(met1_extra.db_refs[0].serialize(), 'ECMDB: 12345')
+
+    def test_gen_observables(self):
+
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel], 
+            options={'component': {'InitializeModel': self.set_options(['gen_protein', 'gen_observables'])}}).run()
+
+        self.assertEqual(model.observables.get_one(id='obs1').name, 'observable1')
+        self.assertEqual(model.observables.get_one(id='obs1').expression.expression, '2.5 * prot1[n] + 1.3 * prot3[m]')
+        self.assertEqual(set([i.species_type.id for i in model.observables.get_one(id='obs1').expression.species]), 
+            set(['prot1', 'prot3']))
+        self.assertEqual(set([i.compartment.id for i in model.observables.get_one(id='obs1').expression.species]), 
+            set(['n', 'm']))    
+        self.assertEqual(model.observables.get_one(id='obs2').expression.expression, '2.5 * prot1[n] / obs1')
+        self.assertEqual(set([i.species_type.id for i in model.observables.get_one(id='obs2').expression.species]), 
+            set(['prot1']))
+        self.assertEqual(set([i.compartment.id for i in model.observables.get_one(id='obs2').expression.species]), 
+            set(['n']))
+        self.assertEqual(model.observables.get_one(id='obs2').expression.observables[0],  
+            model.observables.get_one(id='obs1'))     
+
+    def test_gen_kb_reactions(self):
+        pass 
+
+    def test_gen_kb_rate_laws(self):
+        pass         
+
         

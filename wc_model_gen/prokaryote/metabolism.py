@@ -101,8 +101,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rxn = model.reactions.get_or_create(submodel=submodel, id='transfer_'+observable_kb.name)
                 rxn.participants = []
 
-                for tRNA_specie_kb in observable_kb.species:
-                    tRNA_specie_type_model = model.species_types.get_one(id=tRNA_specie_kb.species.species_type.id)
+                for tRNA_specie_kb in observable_kb.expression.species:
+                    tRNA_specie_type_model = model.species_types.get_one(id=tRNA_specie_kb.species_type.id)
                     tRNA_model = tRNA_specie_type_model.species.get_one(compartment=c)
 
                     trna_e = model.species.get_or_create(

@@ -73,14 +73,14 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Add members of the degradosome
             # Counterintuitively .specie is a KB species_coefficient object
-            for degradosome_kb in cell.observables.get_one(id='degrade_protease_obs').species:
-                degradosome_species_type_model = model.species_types.get_one(id=degradosome_kb.species.species_type.id)
+            for degradosome_kb in cell.observables.get_one(id='degrade_protease_obs').expression.species:
+                degradosome_species_type_model = model.species_types.get_one(id=degradosome_kb.species_type.id)
                 degradosome_species_model = degradosome_species_type_model.species.get_one(compartment=cytosol)
 
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(
-                    coefficient=(-1)*degradosome_kb.coefficient))
+                    coefficient=-1))
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(
-                    coefficient=degradosome_kb.coefficient))
+                    coefficient=1))
 
     def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """

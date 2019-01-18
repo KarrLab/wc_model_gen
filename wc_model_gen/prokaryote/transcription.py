@@ -56,12 +56,13 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             #reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1 + rna_kb.get_len()))
 
             # Add RNA polymerease
-            for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').species:
-                rnap_species_type_model = model.species_types.get_one(id=rnap_kb.species.species_type.id)
+            for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').expression.species:
+                rnap_species_type_model = model.species_types.get_one(id=rnap_kb.species_type.id)
                 rnap_model = rnap_species_type_model.species.get_one(compartment=cytosol)
-
-                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1*rnap_kb.coefficient))
-                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=rnap_kb.coefficient))
+                
+                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1))
+                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=1))
+                
 
     def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """

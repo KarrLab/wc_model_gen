@@ -324,39 +324,28 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
         
-        observable_references = {wc_lang.Species: {}, wc_lang.Observable: {}}
         for kb_observable in kb.cell.observables:
-            model_observable = model.observables.get_or_create(id=kb_observable.id)
-            obs_expr_parts = []
-
+            model_observable = model.observables.get_or_create(id=kb_observable.id)            
             model_observable.name = kb_observable.name
-            for kb_species_coefficient in kb_observable.species:
-                kb_species = kb_species_coefficient.species
+            model_observable.expression = wc_lang.ObservableExpression(
+                expression=kb_observable.expression.expression)
+            
+            for kb_species in kb_observable.expression.species:
                 kb_species_type = kb_species.species_type
                 kb_compartment = kb_species.compartment
                 model_species_type = model.species_types.get_one(
                     id=kb_species_type.id)
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
-
-                model_coefficient = kb_species_coefficient.coefficient
-                observable_references[wc_lang.Species][model_species.id] = model_species                
-                obs_expr_parts.append("{}*{}".format(model_coefficient, model_species.id))
-
-            for kb_observable_observable in kb_observable.observables:
+                model_observable.expression.species.append(model_species)
+                
+            for kb_observable_observable in kb_observable.expression.observables:
                 model_observable_observable = model.observables.get_or_create(
-                    id=kb_observable_observable.observable.id)
-                obs_expr_parts.append("{}*{}".format(
-                    kb_observable_observable.coefficient, 
-                    kb_observable_observable.observable.id))
-                observable_references[wc_lang.Observable][model_observable_observable.id] = model_observable_observable
-            obs_expr, e = wc_lang.ObservableExpression.make_expression_obj(wc_lang.Observable,
-                                                                            ' + '.join(obs_expr_parts), observable_references)
-            assert e is None, "cannot deserialize ObservableExpression: {}".format(e)
-            model_observable.expression = obs_expr
+                    id=kb_observable_observable.id)
+                model_observable.expression.observables.append(model_observable_observable)
 
     def gen_kb_reactions(self):
-        """ Generate reactions encoded within the knowledge base """
+        """ Generate the reactions encoded within the knowledge base """
         kb = self.knowledge_base
         model = self.model
 
@@ -383,7 +372,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
     def gen_kb_rate_laws(self):
-        """ Generate rate laws for reactions encoded in knowledge base """
+        """ Generate the rate laws for reactions encoded in the knowledge base """
         kb = self.knowledge_base
         model = self.model
 

@@ -111,12 +111,13 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
 
             # Add ribosome
-            for ribosome_kb in cell.observables.get_one(id='ribosome_obs').species:
-                ribosome_species_type_model = model.species_types.get_one(id=ribosome_kb.species.species_type.id)
+            for ribosome_kb in cell.observables.get_one(id='ribosome_obs').expression.species:
+                ribosome_species_type_model = model.species_types.get_one(id=ribosome_kb.species_type.id)
                 ribosome_model = ribosome_species_type_model.species.get_one(compartment=cytosol)
 
-                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=(-1)*ribosome_kb.coefficient))
-                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=ribosome_kb.coefficient))
+                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=-1))
+                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))
+
 
     def gen_phenom_rates(self):
         """ Generate rate laws with exponential dynamics """
