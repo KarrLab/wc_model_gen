@@ -1,4 +1,4 @@
-[//]: # ( [![PyPI package](https://img.shields.io/pypi/v/wc_model_gen.svg)](https://pypi.python.org/pypi/wc_model_gen) )
+[![PyPI package](https://img.shields.io/pypi/v/wc_model_gen.svg)](https://pypi.python.org/pypi/wc_model_gen)
 [![Documentation](https://readthedocs.org/projects/wc-model-gen/badge/?version=latest)](http://docs.karrlab.org/wc_model_gen)
 [![Test results](https://circleci.com/gh/KarrLab/wc_model_gen.svg?style=shield)](https://circleci.com/gh/KarrLab/wc_model_gen)
 [![Test coverage](https://coveralls.io/repos/github/KarrLab/wc_model_gen/badge.svg)](https://coveralls.io/github/KarrLab/wc_model_gen)
