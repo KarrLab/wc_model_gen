@@ -132,6 +132,18 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                                        value=kb.cell.properties.get_one(id='mean_doubling_time').value,
                                        units='s')
 
+        for param in kb.cell.parameters:
+            model_param = model.parameters.create(
+                            id=param.id,                            
+                            value=param.value,
+                            units=param.units)
+            if 'K_m' in param.id:
+                model_param.type = wcm_ontology['WCM:K_m']
+            elif 'k_cat' in param.id:
+                model_param.type = wcm_ontology['WCM:k_cat']
+            else:
+                model_param.type = None
+
     def gen_metabolites(self):
         """ Generate all metabolic species in the cytosol """
         kb = self.knowledge_base
@@ -341,12 +353,12 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
     def gen_kb_rate_laws(self):
         """ Generate rate laws for reactions encoded in KB """
         kb = self.knowledge_base
-        model = self.model
+        model = self.model  
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
         Avogadro.type = None
         Avogadro.value = scipy.constants.Avogadro
-        Avogadro.units = 'molecule mol^-1'
+        Avogadro.units = 'molecule mol^-1'          
 
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
@@ -355,56 +367,24 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             for kb_rate_law in kb_rxn.rate_laws:
                 model_rate_law = model.rate_laws.create(
+                    expression= wc_lang.RateLawExpression(expression=kb_rate_law.expression.expression),
                     reaction=model_rxn,
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
                 model_rate_law.id = model_rate_law.gen_id()
 
-                objects = {
-                    wc_lang.Species: {},
-                    wc_lang.Function: {},
-                    wc_lang.Parameter: {
-                        Avogadro.id: Avogadro,
-                    },
-                }
+                for param in kb_rate_law.expression.parameters:
+                    model_rate_law.expression.parameters.append(
+                        model.parameters.get_one(id=param.id))
+                    if 'K_m' in param.id:
+                        volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
+                        unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
+                        model_rate_law.expression.expression.replace(param.id, unit_adjusted_term)
+                        
+                for species in kb_rate_law.expression.species:
+                    model_rate_law.expression.species.append(
+                        model.species.get_one(species_type=species.species_type, compartment=species.compartment))
 
-                reactant_terms = []
-                for part in model_rxn.participants:
-                    if part.coefficient < 0:
-                        objects[wc_lang.Species][part.species.id] = part.species
-
-                        K_m = model.parameters.create(
-                            id='K_m_{}_{}_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name,
-                                                        part.species.species_type.id, part.species.compartment.id),
-                            type=wcm_ontology['WCM:K_m'],
-                            value=kb_rate_law.k_m,
-                            units='M')
-                        objects[wc_lang.Parameter][K_m.id] = K_m
-
-                        volume = part.species.compartment.init_density.function_expressions[0].function
-                        objects[wc_lang.Function][volume.id] = volume
-
-                        reactant_terms.append(' * {} / ({} * {} * {} + {})'.format(
-                            part.species.id, K_m.id, Avogadro.id, volume.id, part.species.id,))
-
-                enz_terms = []
-                for kb_modifier in kb_rate_law.equation.modifiers:
-                    enz_species_type = model.species_types.get_one(id=kb_modifier.species_type.id)
-                    enz_compartment = model.compartments.get_one(id=kb_modifier.compartment.id)
-                    enz_species = model.species.get_or_create(
-                        species_type=enz_species_type, compartment=enz_compartment)
-                    enz_species.id = enz_species.gen_id()
-                    objects[wc_lang.Species][enz_species.id] = enz_species
-                    enz_terms.append(' * ' + enz_species.id)
-
-                k_cat = model.parameters.create(
-                    id='k_cat_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name),
-                    type=wcm_ontology['WCM:k_cat'],
-                    value=kb_rate_law.k_cat,
-                    units='molecule^-{} s^-1'.format(len(enz_terms)))
-                objects[wc_lang.Parameter][k_cat.id] = k_cat
-
-                model_rate_law.expression, error = wc_lang.RateLawExpression.deserialize(
-                    '{}{}{}'.format(k_cat.id, ''.join(enz_terms), ''.join(reactant_terms)),
-                    objects)
-                assert error is None, str(error)
+                for observable in kb_rate_law.expression.observables:
+                    model_rate_law.expression.observables.append(
+                        model.observables.get_one(id=observable.id))                            
