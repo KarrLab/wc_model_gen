@@ -391,12 +391,12 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_rxn = model.reactions.create(
                     submodel=submodel,
                     id=compl.id + '_' + model_compl_species.compartment.id,
-                    name='Complexation of + 'compl.id + 'in' + model_compl_species.compartment.name,
+                    name='Complexation of ' + compl.id + ' in ' + model_compl_species.compartment.name,
                     reversible=True)
                 
                 for subunit in compl.subunits:
                     model_subunit_species = model.species_types.get_one(
-                        id=subunit.id).species.get_one(compartment=model_compl_species.compartment) 
+                        id=subunit.species_type.id).species.get_one(compartment=model_compl_species.compartment) 
                     model_rxn.participants.add(
                         model_subunit_species.species_coefficients.get_or_create(coefficient=-subunit.coefficient))
 

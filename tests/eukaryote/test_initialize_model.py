@@ -378,23 +378,23 @@ class TestCase(unittest.TestCase):
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
             options={'component': {'InitializeModel': self.set_options([
-                'gen_protein', 'gen_metabolites', 'gen_complexes'])}}).run()
+                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()
 
         self.assertEqual(len(model.reactions), 2)
         self.assertEqual(len(model.submodels), 2)
 
-        self.assertEqual(model.reactions.get_one(id='r1').name, 'reaction1')
-        self.assertEqual(model.reactions.get_one(id='r1').submodel.id, 'Metabolism')
-        self.assertEqual(model.reactions.get_one(id='r1').reversible, False)
-        self.assertEqual(model.reactions.get_one(id='r1').comments, '')
-        self.assertEqual([(i.id(), i.coefficient) for i in model.reactions.get_one(id='r1').participants],
+        self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
+        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.id, 'Metabolism')
+        self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, False)
+        self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
+        self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='r1_kb').participants],
             [('met1[n]', 1), ('met1[e]', -1)])
 
         self.assertEqual(model.reactions.get_one(id='comp1_n').name, 'Complexation of comp1 in nucleus')
         self.assertEqual(model.reactions.get_one(id='comp1_n').submodel.id, 'Complexation')
         self.assertEqual(model.reactions.get_one(id='comp1_n').reversible, True)
         self.assertEqual(model.reactions.get_one(id='comp1_n').comments, '')
-        self.assertEqual([(i.id(), i.coefficient) for i in model.reactions.get_one(id='comp1_n').participants],
+        self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='comp1_n').participants],
             [('prot1[n]', -2), ('met1[n]', -3), ('comp1[n]', 1)])
 
     def test_gen_kb_rate_laws(self):
