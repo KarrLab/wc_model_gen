@@ -115,7 +115,7 @@ class TestCase(unittest.TestCase):
         met1_conc2 = wc_kb.core.Concentration(cell=cell, species=met1_spec2, value=0.5)
 
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
-        species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot3, coefficient=3)
+        species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp1', name='complex1',
             subunits=[species_type_coeff1, species_type_coeff2])
 
@@ -126,6 +126,11 @@ class TestCase(unittest.TestCase):
         expr2 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] / obs1',
             species = [prot1_spec], observables=[observable1])
         observable2 = wc_kb.core.Observable(cell=cell, id='obs2', name='observable2', expression=expr2)
+
+        participant1 = wc_kb.core.SpeciesCoefficient(species=met1_spec1, coefficient=1)
+        participant2 = wc_kb.core.SpeciesCoefficient(species=met1_spec2, coefficient=-1)
+        reaction1 = wc_kb.core.Reaction(cell=cell, id='r1', name='reaction1',
+            submodel='Metabolism', participants=[participant1, participant2], reversible=False)
 
     def tearDown(self):    
         shutil.rmtree(self.tmp_dirname)  
@@ -315,11 +320,11 @@ class TestCase(unittest.TestCase):
         
         self.assertEqual(comp1_model.name, 'complex1')
         self.assertEqual(comp1_model.type, wcm_ontology['WCM:pseudo_species'])
-        self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=comp1_model)]), set(['n', 'm']))
+        self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=comp1_model)]), set(['n']))
         self.assertEqual(comp1_model.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1') * 2
-                            + chem.EmpiricalFormula('C53H91N11O11S1') * 3)
-        self.assertAlmostEqual(comp1_model.molecular_weight, 5674.27, delta=0.3)
-        self.assertEqual(comp1_model.charge, 8)
+                            + chem.EmpiricalFormula('C10H12N5O7P') * 3)
+        self.assertAlmostEqual(comp1_model.molecular_weight, 3438.5959, delta=0.3)
+        self.assertEqual(comp1_model.charge, -4)
         self.assertEqual(comp1_model.comments, '')
 
     def test_gen_distribution_init_concentrations(self):
@@ -368,7 +373,28 @@ class TestCase(unittest.TestCase):
             model.observables.get_one(id='obs1'))     
 
     def test_gen_kb_reactions(self):
-        pass 
+        
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel], 
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_protein', 'gen_metabolites', 'gen_complexes'])}}).run()
+
+        self.assertEqual(len(model.reactions), 2)
+        self.assertEqual(len(model.submodels), 2)
+
+        self.assertEqual(model.reactions.get_one(id='r1').name, 'reaction1')
+        self.assertEqual(model.reactions.get_one(id='r1').submodel.id, 'Metabolism')
+        self.assertEqual(model.reactions.get_one(id='r1').reversible, False)
+        self.assertEqual(model.reactions.get_one(id='r1').comments, '')
+        self.assertEqual([(i.id(), i.coefficient) for i in model.reactions.get_one(id='r1').participants],
+            [('met1[n]', 1), ('met1[e]', -1)])
+
+        self.assertEqual(model.reactions.get_one(id='comp1_n').name, 'Complexation of comp1 in nucleus')
+        self.assertEqual(model.reactions.get_one(id='comp1_n').submodel.id, 'Complexation')
+        self.assertEqual(model.reactions.get_one(id='comp1_n').reversible, True)
+        self.assertEqual(model.reactions.get_one(id='comp1_n').comments, '')
+        self.assertEqual([(i.id(), i.coefficient) for i in model.reactions.get_one(id='comp1_n').participants],
+            [('prot1[n]', -2), ('met1[n]', -3), ('comp1[n]', 1)])
 
     def test_gen_kb_rate_laws(self):
         pass         

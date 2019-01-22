@@ -275,8 +275,16 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.comments = kb_species_type.comments
         
         if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            compartment_ids = set([s.compartment.id for sub in kb_species_type.subunits 
-                              for s in sub.species_type.species] +
+            subunit_compartments = [[s.compartment.id for s in sub.species_type.species] 
+                for sub in kb_species_type.subunits]
+            
+            shared_compartments = set([])
+            for i in range(len(subunit_compartments)):
+                shared_compartments = (set(subunit_compartments[i]) 
+                    if i==0 else shared_compartments).intersection(
+                    set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)
+            
+            compartment_ids = set(list(shared_compartments) +
                               (extra_compartment_ids or []))
         else:    
             compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
@@ -368,8 +376,33 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
                 if model_species is None:
                     model_species = self.gen_species_type(kb_species.species_type, model_compartment)
+                
                 model_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
+
+        # Generate complexation reactions
+        for compl in kb.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
+            
+            model_compl_species_type = model.species_types.get_one(id=compl.id)
+            
+            for model_compl_species in model_compl_species_type.species:
+                submodel_id = 'Complexation'
+                submodel = model.submodels.get_or_create(id=submodel_id)
+
+                model_rxn = model.reactions.create(
+                    submodel=submodel,
+                    id=compl.id + '_' + model_compl_species.compartment.id,
+                    name='Complexation of + 'compl.id + 'in' + model_compl_species.compartment.name,
+                    reversible=True)
+                
+                for subunit in compl.subunits:
+                    model_subunit_species = model.species_types.get_one(
+                        id=subunit.id).species.get_one(compartment=model_compl_species.compartment) 
+                    model_rxn.participants.add(
+                        model_subunit_species.species_coefficients.get_or_create(coefficient=-subunit.coefficient))
+
+                model_rxn.participants.add(
+                        model_compl_species.species_coefficients.get_or_create(coefficient=1))                            
 
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
