@@ -8,6 +8,7 @@
 
 from wc_model_gen.eukaryote import core
 from wc_model_gen.eukaryote import initialize_model
+from wc_utils.util.units import unit_registry
 import unittest
 import wc_kb
 
@@ -20,7 +21,7 @@ class TestCase(unittest.TestCase):
         cell = kb.cell = wc_kb.Cell()
 
         cell.properties.create(id='cell_volume', value=1E-15)
-        cell.properties.create(id='mean_doubling_time', value=20., units='hours')
+        cell.properties.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
 
         compartments = {'c': 0.7, 'n': 0.3, 'e': None}
         for k, v in compartments.items():

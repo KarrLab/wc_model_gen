@@ -23,6 +23,7 @@ from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 
 
 class ModelGenerator(object):
@@ -282,17 +283,17 @@ class SubmodelGenerator(ModelComponentGenerator):
             id='half_life_{}'.format(species_type_model.id),
             type=None,
             value=half_life,
-            units='s')
+            units=unit_registry.parse_units('s'))
         mean_doubling_time_model = model.parameters.get_or_create(
             id='mean_doubling_time',
             type=None,
             value=mean_doubling_time,
-            units='s')
+            units=unit_registry.parse_units('s'))
         molecule_units = model.parameters.get_or_create(
             id='molecule_units',
             type=None,
             value=1.,
-            units='molecule')
+            units=unit_registry.parse_units('molecule'))
 
         expression = '(log(2) / {} + log(2) / {}) / {} * {}'.format(half_life_model.id,
                                                                     mean_doubling_time_model.id,
@@ -336,13 +337,13 @@ class SubmodelGenerator(ModelComponentGenerator):
         Avogadro = model.parameters.get_or_create(id='Avogadro',
                                                   type=None,
                                                      value=scipy.constants.Avogadro,
-                                                     units='molecule mol^-1')
+                                                     units=unit_registry.parse_units('molecule mol^-1'))
         objects[wc_lang.Parameter][Avogadro.id] = Avogadro
 
         model_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
                                               type=wcm_ontology['WCM:k_cat'],
                                               value=1.,
-                                              units='s^-1')
+                                              units=unit_registry.parse_units('s^-1'))
         objects[wc_lang.Parameter][model_k_cat.id] = model_k_cat
 
         expression_terms = []
@@ -353,11 +354,11 @@ class SubmodelGenerator(ModelComponentGenerator):
             init_comp_mass = 0
             for species in comp.species:
                 if species.distribution_init_concentration:
-                    if species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.molecule:
+                    if species.distribution_init_concentration.units == unit_registry.parse_units('molecule'):
                         init_comp_mass += species.distribution_init_concentration.mean \
                             / scipy.constants.Avogadro \
                             * species.species_type.molecular_weight
-                    elif species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.M:
+                    elif species.distribution_init_concentration.units == unit_registry.parse_units('M'):
                         init_comp_mass += species.distribution_init_concentration.mean \
                             * comp.mean_init_volume \
                             * species.species_type.molecular_weight
@@ -372,7 +373,7 @@ class SubmodelGenerator(ModelComponentGenerator):
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
                                                 type=wcm_ontology['WCM:K_m'],
                                                 value=beta * species.distribution_init_concentration.mean,
-                                                units='M')
+                                                units=unit_registry.parse_units('M'))
             objects[wc_lang.Parameter][model_k_m.id] = model_k_m
 
             volume = species.compartment.init_density.function_expressions[0].function
@@ -384,9 +385,9 @@ class SubmodelGenerator(ModelComponentGenerator):
                                                                         volume.id))
 
             # Calculate Avg copy number / concentration
-            if species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.molecule:
+            if species.distribution_init_concentration.units == unit_registry.parse_units('molecule'):
                 init_species_counts[species.id] = species.distribution_init_concentration.mean
-            elif species.distribution_init_concentration.units == wc_lang.ConcentrationUnit.M:
+            elif species.distribution_init_concentration.units == unit_registry.parse_units('M'):
                 init_species_counts[species.id] = species.distribution_init_concentration.mean \
                     * species.compartment.mean_init_volume \
                     * scipy.constants.Avogadro
