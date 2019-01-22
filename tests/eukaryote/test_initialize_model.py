@@ -10,6 +10,7 @@ from wc_model_gen.eukaryote import core
 from wc_model_gen.eukaryote import initialize_model
 from wc_utils.util import chem
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import Bio.SeqUtils
 import mendeleev
 import os
@@ -55,7 +56,7 @@ class TestCase(unittest.TestCase):
         cell = self.kb.cell = wc_kb.Cell()
 
         cell.properties.create(id='cell_volume', value=10400.)
-        cell.properties.create(id='mean_doubling_time', value=20., units='hours')
+        cell.properties.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
         nucleus = cell.compartments.create(id='n', name='nucleus', volumetric_fraction=0.5)
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
@@ -140,29 +141,29 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.compartments.get_one(id='e').mean_init_volume, 10400E5)
         self.assertEqual(model.parameters.get_one(id='density_n').value, 1040.)
         self.assertEqual(model.parameters.get_one(id='density_e').value, 1000.)
-        self.assertEqual(model.parameters.get_one(id='density_n').units, 'g l^-1')
-        self.assertEqual(model.functions.get_one(id='volume_n').units, 'l')
+        self.assertEqual(model.parameters.get_one(id='density_n').units, unit_registry.parse_units('g l^-1'))
+        self.assertEqual(model.functions.get_one(id='volume_n').units, unit_registry.parse_units('l'))
         self.assertEqual(wc_lang.Function.expression.serialize(
             model.functions.get_one(id='volume_n').expression), 'n / density_n')
         self.assertEqual(wc_lang.Function.expression.serialize(
             model.functions.get_one(id='volume_e').expression), 'e / density_e')
 
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').type, None)
-        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, 's')
+        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*3600)
 
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = 'minutes'
+        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
-        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, 's')
+        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*60)
 
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = 'sec'
+        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('second')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
-        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, 's')
+        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20)
 
     def test_gen_dna(self):        
@@ -338,7 +339,7 @@ class TestCase(unittest.TestCase):
         
         self.assertEqual(met1_nucleus.species, model.species.get_one(id='met1[n]'))
         self.assertEqual(met1_extra.mean, 0.5)
-        self.assertEqual(met1_nucleus.units, wc_lang.ConcentrationUnit.M)
+        self.assertEqual(met1_nucleus.units, unit_registry.parse_units('M'))
         self.assertEqual(met1_nucleus.comments, '')
         self.assertEqual(met1_extra.comments, 'Testing')
         self.assertEqual(met1_nucleus.references, [])

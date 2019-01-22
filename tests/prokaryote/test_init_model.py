@@ -1,5 +1,6 @@
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
+from wc_utils.util.units import unit_registry
 import unittest
 import wc_kb
 import wc_lang
@@ -71,4 +72,4 @@ class InitalizeModelTestCase(unittest.TestCase):
 
             self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
             self.assertIsInstance(model_specie, wc_lang.Species)
-            self.assertTrue(conc.units, wc_lang.ConcentrationUnit.M)        
+            self.assertTrue(conc.units, unit_registry.parse_units('M'))

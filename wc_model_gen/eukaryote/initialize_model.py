@@ -8,6 +8,7 @@
 
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry, are_units_equivalent
 import math
 import numpy
 import scipy.constants
@@ -124,8 +125,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             c.init_density = model.parameters.create(
                 id='density_' + c.id, 
                 value=1000 if comp.id=='e' else cell_density, 
-                units='g l^-1')
-            volume = model.functions.create(id='volume_' + c.id, units='l')
+                units=unit_registry.parse_units('g l^-1'))
+            volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
             volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
                 wc_lang.Compartment: {c.id: c},
                 wc_lang.Parameter: {c.init_density.id: c.init_density},
@@ -141,20 +142,18 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             doubling_time_kb = kb.cell.properties.get_one(id='mean_doubling_time')
         else:
             raise ValueError('The cell object does not have the property mean_doubling_time')
-        
-        if doubling_time_kb.units[0] == 'h':
-            conversion_factor = 3600
-        elif doubling_time_kb.units[0] == 'm':
-            conversion_factor = 60
-        elif doubling_time_kb.units[0] == 's':
-            conversion_factor = 1
-        else:
-            raise ValueError('The units of doubling time are unclear')
+
+        if not isinstance(doubling_time_kb.units, unit_registry.Unit):
+            ValueError('Unsupported units "{}"'.format(doubling_time_kb.units))
+
+        expr = unit_registry.parse_expression(str(doubling_time_kb.units))
+        scale = expr.to(unit_registry.parse_units('second'))
+        conversion_factor = scale.magnitude
 
         model.parameters.get_or_create(id='mean_doubling_time',
                                        type=None,
-                                       value=doubling_time_kb.value*conversion_factor,
-                                       units='s')
+                                       value=doubling_time_kb.value * conversion_factor,
+                                       units=unit_registry.parse_units('s'))
 
     def gen_dna(self):
         kb = self.knowledge_base
@@ -303,7 +302,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             conc_model = model.distribution_init_concentrations.create(
                 species=species,
-                mean=conc.value, units=wc_lang.ConcentrationUnit.M,
+                mean=conc.value, units=unit_registry.parse_units('M'),
                 comments=conc.comments)
             conc_model.id = conc_model.gen_id()
 
@@ -379,7 +378,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         Avogadro = model.parameters.get_or_create(id='Avogadro')
         Avogadro.type = None
         Avogadro.value = scipy.constants.Avogadro
-        Avogadro.units = 'molecule mol^-1'
+        Avogadro.units = unit_registry.parse_units('molecule mol^-1')
 
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
@@ -411,7 +410,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                                                         part.species.species_type.id, part.species.compartment.id),
                             type=wcm_ontology['WCM:K_m'],
                             value=kb_rate_law.k_m,
-                            units='M')
+                            units=unit_registry.parse_units('M'))
                         objects[wc_lang.Parameter][K_m.id] = K_m
 
                         volume = part.species.compartment.init_density.function_expressions[0].function
@@ -435,7 +434,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     id='k_cat_{}_{}'.format(model_rxn.id, kb_rate_law.direction.name),
                     type=wcm_ontology['WCM:k_cat'],
                     value=kb_rate_law.k_cat,
-                    units='molecule^-{} s^-1'.format(len(enz_terms)))
+                    units=unit_registry.parse_units('molecule^-{} s^-1'.format(len(enz_terms))))
                 objects[wc_lang.Parameter][k_cat.id] = k_cat
 
                 model_rate_law.expression, error = wc_lang.RateLawExpression.deserialize(

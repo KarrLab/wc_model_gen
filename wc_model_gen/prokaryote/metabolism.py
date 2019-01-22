@@ -13,6 +13,7 @@ TODO: improve terminology to better distinguish this and the metabolism species 
 
 from scipy.constants import Avogadro
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import numpy
 import wc_lang
 import wc_kb
@@ -163,7 +164,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             param = model.parameters.create(id='k_cat_{}'.format(rxn.id),
                                             type=wcm_ontology['WCM:k_cat'],
-                                            units='s^-1')
+                                            units=unit_registry.parse_units('s^-1'))
 
             # Rates for transfer reactions from extracellular space
             if rxn.id[0:9] == 'transfer_':

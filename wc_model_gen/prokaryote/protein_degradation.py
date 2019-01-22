@@ -8,6 +8,7 @@
 :License: MIT
 """
 
+from wc_utils.util.units import unit_registry
 import wc_model_gen
 import wc_lang
 import wc_kb
@@ -103,11 +104,11 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life_model = model.parameters.get_or_create(id='half_life_{}'.format(protein_kb.id),
                                                              type=None,
                                                              value=protein_kb.half_life,
-                                                             units='s')
+                                                             units=unit_registry.parse_units('s'))
             molecule_units = model.parameters.get_or_create(id='molecule_units',
                                                             type=None,
                                                             value=1.,
-                                                            units='molecule')
+                                                            units=unit_registry.parse_units('molecule'))
 
             expression = '(log(2) / {}) / {} * {}'.format(half_life_model.id, molecule_units.id, species_model.id)
 

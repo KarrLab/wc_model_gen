@@ -11,6 +11,7 @@ TODO:
 
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
 import math
 import numpy
 import scipy.constants
@@ -94,8 +95,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         # TODO: get volume from KB, talk to YH
         c = model.compartments.get_or_create(id='c', name='Cytosol', mean_init_volume=1E-15)
-        c.init_density = model.parameters.create(id='density_c', value=1100., units='g l^-1')
-        volume_c = model.functions.create(id='volume_c', units='l')
+        c.init_density = model.parameters.create(id='density_c', value=1100., units=unit_registry.parse_units('g l^-1'))
+        volume_c = model.functions.create(id='volume_c', units=unit_registry.parse_units('l'))
         volume_c.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
             wc_lang.Compartment: {c.id: c},
             wc_lang.Parameter: {c.init_density.id: c.init_density},
@@ -104,8 +105,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         """
         m = model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
-        m.init_density = model.parameters.create(id='density_m', value=1100., units='g l^-1')
-        volume_m = model.functions.create(id='volume_m', units='l')
+        m.init_density = model.parameters.create(id='density_m', value=1100., units=unit_registry.parse_units('g l^-1'))
+        volume_m = model.functions.create(id='volume_m', units=unit_registry.parse_units('l'))
         volume_m.expression, error = wc_lang.FunctionExpression.deserialize(f'{m.id} / {m.init_density.id}', {
             wc_lang.Compartment: {m.id: m},
             wc_lang.Parameter: {m.init_density.id: m.init_density},
@@ -114,8 +115,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         """
 
         e = model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
-        e.init_density = model.parameters.create(id='density_e', value=1000., units='g l^-1')
-        volume_e = model.functions.create(id='volume_e', units='l')
+        e.init_density = model.parameters.create(id='density_e', value=1000., units=unit_registry.parse_units('g l^-1'))
+        volume_e = model.functions.create(id='volume_e', units=unit_registry.parse_units('l'))
         volume_e.expression, error = wc_lang.FunctionExpression.deserialize(f'{e.id} / {e.init_density.id}', {
             wc_lang.Compartment: {e.id: e},
             wc_lang.Parameter: {e.init_density.id: e.init_density},
@@ -130,7 +131,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model.parameters.get_or_create(id='mean_doubling_time',
                                        type=None,
                                        value=kb.cell.properties.get_one(id='mean_doubling_time').value,
-                                       units='s')
+                                       units=unit_registry.parse_units('s'))
 
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
@@ -293,7 +294,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             conc = model.distribution_init_concentrations.create(
                 species=species,
-                mean=conc.value, units=wc_lang.ConcentrationUnit.M,
+                mean=conc.value, units=unit_registry.parse_units('M'),
                 comments=conc.comments, references=conc.references)
             conc.id = conc.gen_id()
 
@@ -358,7 +359,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         Avogadro = model.parameters.get_or_create(id='Avogadro')
         Avogadro.type = None
         Avogadro.value = scipy.constants.Avogadro
-        Avogadro.units = 'molecule mol^-1'          
+        Avogadro.units = unit_registry.parse_units('molecule mol^-1')
 
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
@@ -387,4 +388,4 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
                 for observable in kb_rate_law.expression.observables:
                     model_rate_law.expression.observables.append(
-                        model.observables.get_one(id=observable.id))                            
+                        model.observables.get_one(id=observable.id))
