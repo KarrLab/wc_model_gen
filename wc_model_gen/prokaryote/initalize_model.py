@@ -380,11 +380,13 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     if 'K_m' in param.id:
                         volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
                         unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
-                        model_rate_law.expression.expression.replace(param.id, unit_adjusted_term)
+                        model_rate_law.expression.expression = model_rate_law.expression.expression.replace(param.id, unit_adjusted_term)
                         
                 for species in kb_rate_law.expression.species:
+                    model_species_type = model.species_types.get_one(id=species.species_type.id)
+                    model_compartment = model.compartments.get_one(id=species.compartment.id)                    
                     model_rate_law.expression.species.append(
-                        model.species.get_one(species_type=species.species_type, compartment=species.compartment))
+                        model_species_type.species.get_one(compartment=model_compartment))
 
                 for observable in kb_rate_law.expression.observables:
                     model_rate_law.expression.observables.append(
