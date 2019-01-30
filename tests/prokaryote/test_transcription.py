@@ -48,6 +48,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
     def tearDownClass(cls):
         pass
 
+    # Junk tests
     def test_submodels(self):
         model = self.model
         kb = self.kb
