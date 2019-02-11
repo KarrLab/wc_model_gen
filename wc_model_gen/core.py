@@ -299,6 +299,7 @@ class SubmodelGenerator(ModelComponentGenerator):
                                                                     mean_doubling_time_model.id,
                                                                     molecule_units.id,
                                                                     species_model.id)
+
         rate_law_model.expression, error = wc_lang.RateLawExpression.deserialize(expression, {
             wc_lang.Parameter: {
                 half_life_model.id: half_life_model,
