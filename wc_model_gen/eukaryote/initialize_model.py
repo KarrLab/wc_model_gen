@@ -1,4 +1,4 @@
-""" Initalize the construction of wc_lang-encoded models from wc_kb-encoded knowledge base.
+""" Initialize the construction of wc_lang-encoded models from wc_kb-encoded knowledge base.
 
 :Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2019-01-09
