@@ -14,6 +14,7 @@ from wc_utils.util.units import unit_registry
 import Bio.SeqUtils
 import mendeleev
 import os
+import scipy.constants
 import shutil
 import tempfile
 import unittest
@@ -111,10 +112,9 @@ class TestCase(unittest.TestCase):
             '/s1'
         ))
         met1_spec1 = wc_kb.core.Species(species_type=met1, compartment=nucleus)
-        met1_conc1 = wc_kb.core.Concentration(cell=cell, species=met1_spec1, value=0.1)
+        met1_conc1 = wc_kb.core.Concentration(cell=cell, species=met1_spec1, value=0.5)
         met1_spec2 = wc_kb.core.Species(species_type=met1, compartment=extra)
-        met1_conc2 = wc_kb.core.Concentration(cell=cell, species=met1_spec2, value=0.5)
-
+        
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
         species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp1', name='complex1',
@@ -176,7 +176,11 @@ class TestCase(unittest.TestCase):
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
-        
+
+        self.assertEqual(model.parameters.get_one(id='Avogadro').value, scipy.constants.Avogadro)
+        self.assertEqual(model.parameters.get_one(id='Avogadro').type, None)
+        self.assertEqual(model.parameters.get_one(id='Avogadro').units, unit_registry.parse_units('molecule mol^-1'))
+
         self.assertEqual(model.compartments.get_one(id='n').name, 'nucleus')
         self.assertEqual(model.compartments.get_one(id='n').mean_init_volume, 5200.)
         self.assertEqual(model.compartments.get_one(id='e').mean_init_volume, 10400E5)
@@ -387,19 +391,15 @@ class TestCase(unittest.TestCase):
             options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
         
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
-        met1_extra = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[e]')
-        
+                
         self.assertEqual(met1_nucleus.species, model.species.get_one(id='met1[n]'))
-        self.assertEqual(met1_extra.mean, 0.5)
-        self.assertEqual(met1_nucleus.units, unit_registry.parse_units('M'))
-        self.assertEqual(met1_nucleus.comments, '')
-        self.assertEqual(met1_extra.comments, 'Testing')
-        self.assertEqual(met1_nucleus.references, [])
-        self.assertEqual(met1_extra.references[0].id, 'ref1')
-        self.assertEqual(met1_extra.references[0].name, 'doi:1234')
-        self.assertEqual(met1_extra.references[0].type, wcm_ontology['WCM:article'])
-        self.assertEqual(met1_nucleus.db_refs, [])
-        self.assertEqual(met1_extra.db_refs[0].serialize(), 'ECMDB: 12345')
+        self.assertEqual(met1_nucleus.mean, 0.5*scipy.constants.Avogadro*0.5*10400.)
+        self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
+        self.assertEqual(met1_nucleus.comments, 'Testing')
+        self.assertEqual(met1_nucleus.references[0].id, 'ref1')
+        self.assertEqual(met1_nucleus.references[0].name, 'doi:1234')
+        self.assertEqual(met1_nucleus.references[0].type, wcm_ontology['WCM:article'])
+        self.assertEqual(met1_nucleus.db_refs[0].serialize(), 'ECMDB: 12345')
 
     def test_gen_observables(self):
 

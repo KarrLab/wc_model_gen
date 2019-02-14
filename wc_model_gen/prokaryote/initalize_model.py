@@ -133,6 +133,11 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                                        value=kb.cell.properties.get_one(id='mean_doubling_time').value,
                                        units=unit_registry.parse_units('s'))
 
+        Avogadro = model.parameters.create(id='Avogadro',
+                                        type = None,
+                                        value = scipy.constants.Avogadro,
+                                        units = unit_registry.parse_units('molecule mol^-1'))
+
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
                             id=param.id,                            
@@ -285,6 +290,8 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
         cytosol = model.compartments.get_one(id='c')
 
+        Avogadro = model.parameters.get_one(id='Avogadro')
+
         for conc in kb.cell.concentrations:
             species_comp_model = model.compartments.get_one(id=conc.species.compartment.id)
 
@@ -294,8 +301,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             conc = model.distribution_init_concentrations.create(
                 species=species,
-                mean=conc.value, units=unit_registry.parse_units('M'),
-                comments=conc.comments, references=conc.references)
+                mean=conc.value * Avogadro.value * species_comp_model.mean_init_volume, 
+                units=unit_registry.parse_units('molecule'),
+                comments=conc.comments)
             conc.id = conc.gen_id()
 
     def gen_observables(self):
@@ -357,10 +365,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model  
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
-        Avogadro.type = None
-        Avogadro.value = scipy.constants.Avogadro
-        Avogadro.units = unit_registry.parse_units('molecule mol^-1')
-
+        
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
             submodel = model.submodels.get_or_create(id=submodel_id)

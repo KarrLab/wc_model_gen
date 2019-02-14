@@ -137,6 +137,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
+        Avogadro = model.parameters.create(id='Avogadro',
+                                        type = None,
+                                        value = scipy.constants.Avogadro,
+                                        units = unit_registry.parse_units('molecule mol^-1'))
+
         # Create parameters out of properties
         if kb.cell.properties.get_one(id='mean_doubling_time'):
             doubling_time_kb = kb.cell.properties.get_one(id='mean_doubling_time')
@@ -150,7 +155,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         scale = expr.to(unit_registry.parse_units('second'))
         conversion_factor = scale.magnitude
 
-        model.parameters.get_or_create(id='mean_doubling_time',
+        model.parameters.create(id='mean_doubling_time',
                                        type=None,
                                        value=doubling_time_kb.value * conversion_factor,
                                        units=unit_registry.parse_units('s'))
@@ -314,16 +319,19 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
+        Avogadro = model.parameters.get_one(id='Avogadro')
+
         for conc in kb.cell.concentrations:
             species_comp_model = model.compartments.get_one(id=conc.species.compartment.id)
-
+            
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id()
 
             conc_model = model.distribution_init_concentrations.create(
                 species=species,
-                mean=conc.value, units=unit_registry.parse_units('M'),
+                mean=conc.value * Avogadro.value * species_comp_model.mean_init_volume, 
+                units=unit_registry.parse_units('molecule'),
                 comments=conc.comments)
             conc_model.id = conc_model.gen_id()
 
@@ -425,10 +433,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
-        Avogadro.type = None
-        Avogadro.value = scipy.constants.Avogadro
-        Avogadro.units = unit_registry.parse_units('molecule mol^-1')
-
+        
         for kb_rxn in kb.cell.reactions:
 
             model_rxn = model.reactions.get_one(id=kb_rxn.id + '_kb')
