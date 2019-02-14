@@ -45,3 +45,6 @@ docs/_build
 .Trashes
 .~lock.*
 Thumbs.db
+
+# flat file index
+*.fai
