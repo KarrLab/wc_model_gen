@@ -1,17 +1,22 @@
-""" Generator for transcription submodels based on KBs for random in silico organisms
+""" Generator for transcription submodels based on KBs
 
 :Author: Jonathan Karr <karr@mssm.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
 
+from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
+import wc_model_gen.utils as utils
+import math
+import numpy
+import scipy.constants
 import wc_model_gen
 import wc_lang
 import wc_kb
-import numpy
-import math
 
 
 class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -54,37 +59,54 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
             reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()-1))
             #reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1 + rna_kb.get_len()))
-
-            # Add RNA polymerease
-            for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').expression.species:
-                rnap_species_type_model = model.species_types.get_one(id=rnap_kb.species_type.id)
-                rnap_model = rnap_species_type_model.species.get_one(compartment=cytosol)
-
-                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1))
-                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=1))
                 
-    def gen_phenom_rates(self):
-        """ Generate rate laws with exponential dynamics """
-        submodel = self.model.submodels.get_one(id='transcription')
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+    def gen_rate_laws(self):
+        """ Generate rate laws for the reactions in the submodel """                
+        beta = self.options.get('beta')
+        Avogadro = self.model.parameters.get_or_create(id='Avogadro',
+                                                type=None,
+                                                value=scipy.constants.Avogadro,
+                                                units=unit_registry.parse_units('molecule mol^-1'))
+        modifier = self.model.observables.get_one(id='rna_polymerase_obs')
+
+        for reaction in self.submodel.reactions:        
+            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, modifier, beta)
+            self.model.parameters += parameters
+
+            rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
+                                        type=wcm_ontology['WCM:rate_law'],
+                                        expression=rate_law_exp,
+                                        units=unit_registry.parse_units('molecule s^-1'))
+            reaction.rate_laws.append(rate_law)      
+            
+    def calibrate_submodel(self):
+        """ Calibrate the submodel using data in the KB """
+        
+        cytosol = self.model.compartments.get_one(id='c')
         mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        
+        init_species_counts = {}
+        
+        modifier = self.model.observables.get_one(id='rna_polymerase_obs')        
+        for species in modifier.expression.species:
+            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
+        
+        for reaction in self.submodel.reactions:
+            
+            rna_product = [i for i in reaction.get_products() if i.species_type.type==wcm_ontology['WCM:RNA']][0]            
+            half_life = self.knowledge_base.cell.species_types.get_one(id=rna_product.species_type.id).half_life
+            mean_concentration = rna_product.distribution_init_concentration.mean         
 
-        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            self.gen_phenom_rate_law_eq(specie_type_kb=rna_kb,
-                                        reaction=reaction,
-                                        half_life=rna_kb.half_life,
-                                        mean_doubling_time=mean_doubling_time)
+            average_rate = utils.calculate_average_synthesis_rate(
+                mean_concentration, half_life, mean_doubling_time)
+            
+            for species in reaction.get_reactants():
+                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 
-    def gen_mechanistic_rates(self):
-        """ Generate rate laws with calibrated dynamics """
-        submodel = self.model.submodels.get_one(id='transcription')
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-
-        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            self.gen_mechanistic_rate_law_eq(specie_type_kb=rna_kb,
-                                             submodel=submodel,
-                                             reaction=reaction,
-                                             beta=1.,
-                                             half_life=rna_kb.half_life,
-                                             mean_doubling_time=mean_doubling_time)
+            model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+            model_kcat.value = 1.
+            model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                wc_lang.Species: init_species_counts,
+                wc_lang.Compartment: {cytosol.id: cytosol.mean_init_volume * cytosol.init_density.value},
+                })
+        

@@ -1,7 +1,8 @@
 """ Tests of transcription submodel generation
 
 :Author: Jonathan Karr <karr@mssm.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -33,16 +34,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             component_generators=[prokaryote.InitalizeModel,
                                   prokaryote.TranscriptionSubmodelGenerator],
             options={'component': {
-                'TranscriptionSubmodelGenerator': {
-                    'rate_dynamics': 'phenomenological'}}}).run()
-
-        cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
-            knowledge_base=cls.kb,
-            component_generators=[prokaryote.InitalizeModel,
-                                  prokaryote.TranscriptionSubmodelGenerator],
-            options={'component': {
-                'TranscriptionSubmodelGenerator': {
-                    'rate_dynamics': 'mechanistic'}}}).run()
+                'TranscriptionSubmodelGenerator': {'beta': 1.}}}).run()
 
     @classmethod
     def tearDownClass(cls):
@@ -90,7 +82,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Check that each reaction has the right number of participants
         for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.participants), 10)
+            self.assertEqual(len(rxn.participants), 6)
 
         # Check coeffs of reaction participants
         rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
@@ -104,23 +96,43 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
                 -rna.get_len())
             self.assertEqual(
                 + rxn.participants.get_one(species=ppi).coefficient,
-                rna.get_len())
-            self.assertEqual(
-                + rxn.participants.get_one(species=h2o).coefficient,
-                -1)
-            self.assertEqual(
-                + rxn.participants.get_one(species=h).coefficient,
-                rna.get_len() + 1)
+                rna.get_len() -1)
 
-    def test_phenom_rate_laws(self):
+    def test_rate_laws(self):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='transcription')
-
+        
         for rxn in submodel.reactions:
             rl = rxn.rate_laws[0]
             self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
-            self.assertEqual(len(rl.expression.species), 1)
-            self.assertEqual(rl.expression.species[0].species_type.type, wcm_ontology['WCM:RNA']) # RNA
-            self.assertIn(rl.expression.species[0], rxn.get_products())
+            self.assertEqual(len(rl.expression.species), 4)            
+            self.assertEqual(set(rl.expression.species), set(rxn.get_reactants()))
+
+        test_reaction = submodel.reactions.get_one(id='transcription_rna_tu_1_1')
+        self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
+            'k_cat_transcription_rna_tu_1_1 * rna_polymerase_obs * '
+            '(atp[c] / (atp[c] + K_m_transcription_rna_tu_1_1_atp * Avogadro * volume_c)) * '
+            '(ctp[c] / (ctp[c] + K_m_transcription_rna_tu_1_1_ctp * Avogadro * volume_c)) * '
+            '(gtp[c] / (gtp[c] + K_m_transcription_rna_tu_1_1_gtp * Avogadro * volume_c)) * '
+            '(utp[c] / (utp[c] + K_m_transcription_rna_tu_1_1_utp * Avogadro * volume_c))')    
+
+    def test_calibrate_submodel(self):
+        model = self.model
+        kb = self.kb
+        submodel = model.submodels.get_one(id='transcription')
+        
+        cytosol = kb.cell.compartments.get_one(id='c')
+        test_species_type = kb.cell.species_types.get_one(id='rna_tu_1_1')
+        test_species = test_species_type.species.get_one(compartment=cytosol)
+        half_life = test_species_type.half_life
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+        rna_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value
+        prot_mean_concentration = kb.cell.concentrations.get_one(
+            species=kb.cell.species_types.get_one(id='prot_gene_1_31').species.get_one(compartment=cytosol)).value
+        
+        check_kcat = math.log(2) * (1. / half_life + 1. / mean_doubling_time) * rna_mean_concentration \
+                    / prot_mean_concentration / (0.5**4)
+
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_rna_tu_1_1').value, check_kcat, places=16) 

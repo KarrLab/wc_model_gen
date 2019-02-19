@@ -4,16 +4,14 @@
 
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
 :Author: Jonathan Karr <jonrkarr@gmail.com>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-01-21
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
 
 import abc
-import math
-import numpy
 import os
-import scipy.constants
 import six
 import time
 import wc_kb
@@ -23,7 +21,6 @@ from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_utils.util.ontology import wcm_ontology
-from wc_utils.util.units import unit_registry
 
 
 class ModelGenerator(object):
@@ -239,173 +236,20 @@ class SubmodelGenerator(ModelComponentGenerator):
         self.clean_and_validate_options()
         self.gen_reactions()
         self.gen_rate_laws()
+        self.calibrate_submodel()
 
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
-
-        options = self.options
-
-        rate_law_dynamics = options.get('rate_dynamics', 'phenomenological')
-        assert(rate_law_dynamics in ['phenomenological', 'mechanistic'])
-        options['rate_dynamics'] = rate_law_dynamics
-
+        pass  # pragma: no cover
+        
     def gen_reactions(self):
-        """ Generate reactions associated with submodel """
+        """ Generate reactions associated with the submodel """
         pass  # pragma: no cover
 
     def gen_rate_laws(self):
-        """ Choose which rate_law to generate """
+        """ Generate rate laws for the reactions in the submodel """
+        pass  # pragma: no cover        
 
-        rate_law_dynamics = self.options.get('rate_dynamics')
-
-        if rate_law_dynamics == 'phenomenological':
-            self.gen_phenom_rates()
-        elif rate_law_dynamics == 'mechanistic':
-            self.gen_mechanistic_rates()
-        else:
-            raise Exception('Invalid rate law option.')
-
-    def gen_phenom_rate_law_eq(self, specie_type_kb, reaction, half_life, mean_doubling_time):
-        if reaction.id.endswith('_kb'):
-            return
-
-        model = self.model
-        cytosol = model.compartments.get_one(id='c')
-        species_type_model = model.species_types.get_one(id=specie_type_kb.id)
-        species_model = species_type_model.species.get_one(compartment=cytosol)
-
-        rate_law_model = model.rate_laws.create(
-            reaction=reaction,
-            direction=wc_lang.RateLawDirection.forward)
-        rate_law_model.id = rate_law_model.gen_id()
-
-        half_life_model = model.parameters.get_or_create(
-            id='half_life_{}'.format(species_type_model.id),
-            type=None,
-            value=half_life,
-            units=unit_registry.parse_units('s'))
-        mean_doubling_time_model = model.parameters.get_or_create(
-            id='mean_doubling_time',
-            type=None,
-            value=mean_doubling_time,
-            units=unit_registry.parse_units('s'))
-        molecule_units = model.parameters.get_or_create(
-            id='molecule_units',
-            type=None,
-            value=1.,
-            units=unit_registry.parse_units('molecule'))
-
-        expression = '(log(2) / {} + log(2) / {}) / {} * {}'.format(half_life_model.id,
-                                                                    mean_doubling_time_model.id,
-                                                                    molecule_units.id,
-                                                                    species_model.id)
-
-        rate_law_model.expression, error = wc_lang.RateLawExpression.deserialize(expression, {
-            wc_lang.Parameter: {
-                half_life_model.id: half_life_model,
-                mean_doubling_time_model.id: mean_doubling_time_model,
-                molecule_units.id: molecule_units,
-            },
-            wc_lang.Species: {
-                species_model.id: species_model,
-            },
-        })
-        assert error is None, str(error)
-
-    def gen_mechanistic_rate_law_eq(self, submodel, specie_type_kb, reaction, beta, half_life, mean_doubling_time):
-        if reaction.id.endswith('_kb'):
-            return
-
-        kb = self.knowledge_base
-        model = self.model
-        cytosol_kb = kb.cell.compartments.get_one(id='c')
-        cytosol_model = model.compartments.get_one(id='c')
-        specie_type_model = model.species_types.get_one(id=specie_type_kb.id)
-        specie_model = specie_type_model.species.get_one(compartment=cytosol_model)
-
-        # Create rate law
-        rate_law = model.rate_laws.create(
-            reaction=reaction,
-            direction=wc_lang.RateLawDirection.forward)
-        rate_law.id = rate_law.gen_id()
-
-        objects = {
-            wc_lang.Species: {},
-            wc_lang.Function: {},
-            wc_lang.Parameter: {},
-        }
-
-        Avogadro = model.parameters.get_or_create(id='Avogadro',
-                                                  type=None,
-                                                     value=scipy.constants.Avogadro,
-                                                     units=unit_registry.parse_units('molecule mol^-1'))
-        objects[wc_lang.Parameter][Avogadro.id] = Avogadro
-
-        model_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
-                                              type=wcm_ontology['WCM:k_cat'],
-                                              value=1.,
-                                              units=unit_registry.parse_units('s^-1'))
-        objects[wc_lang.Parameter][model_k_cat.id] = model_k_cat
-
-        expression_terms = []
-        init_species_counts = {}
-
-        init_compartment_masses = {}
-        for comp in model.compartments:
-            init_comp_mass = 0
-            for species in comp.species:
-                if species.distribution_init_concentration:
-                    if species.distribution_init_concentration.units == unit_registry.parse_units('molecule'):
-                        init_comp_mass += species.distribution_init_concentration.mean \
-                            / scipy.constants.Avogadro \
-                            * species.species_type.molecular_weight
-                    elif species.distribution_init_concentration.units == unit_registry.parse_units('M'):
-                        init_comp_mass += species.distribution_init_concentration.mean \
-                            * comp.mean_init_volume \
-                            * species.species_type.molecular_weight
-                    else:
-                        raise Exception('Unsupported concentration unit {}'.format(
-                            species.distribution_init_concentration.units))
-            init_compartment_masses[comp.id] = init_comp_mass
-
-        for species in reaction.get_reactants():
-            objects[wc_lang.Species][species.id] = species
-
-            model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-                                                type=wcm_ontology['WCM:K_m'],
-                                                value=beta * species.distribution_init_concentration.mean,
-                                                units=unit_registry.parse_units('M'))
-            objects[wc_lang.Parameter][model_k_m.id] = model_k_m
-
-            volume = species.compartment.init_density.function_expressions[0].function
-            objects[wc_lang.Function][volume.id] = volume
-
-            expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.id,
-                                                                        species.id,
-                                                                        model_k_m.id, Avogadro.id,
-                                                                        volume.id))
-
-            # Calculate Avg copy number / concentration
-            if species.distribution_init_concentration.units == unit_registry.parse_units('molecule'):
-                init_species_counts[species.id] = species.distribution_init_concentration.mean
-            elif species.distribution_init_concentration.units == unit_registry.parse_units('M'):
-                init_species_counts[species.id] = species.distribution_init_concentration.mean \
-                    * species.compartment.mean_init_volume \
-                    * scipy.constants.Avogadro
-            else:
-                raise Exception('Unsupported units: {}'.format(species.distribution_init_concentration.units.name))
-
-        expression = '{} * {}'.format(model_k_cat.id, ' * '.join(expression_terms))
-        rate_law.expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
-        assert error is None, str(error)
-
-        # Calculate k_cat value
-        init_species_conc = specie_type_kb.species.get_one(compartment=cytosol_kb).concentration.value
-        int_species_cn = init_species_conc * cytosol_model.mean_init_volume * scipy.constants.Avogadro
-
-        avg_deg_rate = math.log(2) * (1. / kb.cell.properties.get_one(id='mean_doubling_time').value + 1. / half_life) * int_species_cn
-        rate_avg = rate_law.expression._parsed_expression.eval({
-            wc_lang.Species: init_species_counts,
-            wc_lang.Compartment: init_compartment_masses,
-        })
-        model_k_cat.value = avg_deg_rate / rate_avg
+    def calibrate_submodel(self):
+        """ Calibrate the submodel using data in the KB """
+        pass # pragma: no cover
