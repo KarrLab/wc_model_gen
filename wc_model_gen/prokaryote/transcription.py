@@ -99,10 +99,11 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for species in modifier.expression.species:
             init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
         
-        for reaction in self.submodel.reactions:
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             
-            rna_product = [i for i in reaction.get_products() if i.species_type.type==wcm_ontology['WCM:RNA']][0]            
-            half_life = self.knowledge_base.cell.species_types.get_one(id=rna_product.species_type.id).half_life
+            rna_product = self.model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
+            half_life = rna_kb.half_life
             mean_concentration = rna_product.distribution_init_concentration.mean         
 
             average_rate = utils.calculate_average_synthesis_rate(
