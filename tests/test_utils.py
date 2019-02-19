@@ -57,7 +57,9 @@ class TestCase(unittest.TestCase):
         participant1 = wc_lang.SpeciesCoefficient(species=species['s1_c'], coefficient=-1)
         participant2 = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
         participant3 = wc_lang.SpeciesCoefficient(species=species['s3_c'], coefficient=1)
-        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3])
+        participant4 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=-1)
+        participant5 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=1)
+        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3, participant4, participant5])
 
         rate_law, parameters = utils.MM_like_rate_law(Avogadro, reaction, [modifier1, modifier2], 1.)
 

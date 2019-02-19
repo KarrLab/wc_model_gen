@@ -65,24 +65,28 @@ def MM_like_rate_law(Avogadro, reaction, modifiers, beta):
                                     units=unit_registry.parse_units('s^-1'))
     parameters[model_k_cat.id] = model_k_cat
 
+    modifier_species = [i for modifier in modifiers for i in modifier.expression.species]
+
     expression_terms = []
     all_species = {}
     for species in reaction.get_reactants():
+
+        if species not in modifier_species:
         
-        all_species[species.gen_id()] = species
-        
-        model_k_m = wc_lang.Parameter(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-            type=wcm_ontology['WCM:K_m'],
-            value=beta * species.distribution_init_concentration.mean / Avogadro.value / species.compartment.mean_init_volume,
-            units=unit_registry.parse_units('M'))
-        parameters[model_k_m.id] = model_k_m
-        
-        volume = species.compartment.init_density.function_expressions[0].function
-        
-        expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
-                                                                    species.gen_id(),
-                                                                    model_k_m.id, Avogadro.id,
-                                                                    volume.id))   
+            all_species[species.gen_id()] = species
+            
+            model_k_m = wc_lang.Parameter(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
+                type=wcm_ontology['WCM:K_m'],
+                value=beta * species.distribution_init_concentration.mean / Avogadro.value / species.compartment.mean_init_volume,
+                units=unit_registry.parse_units('M'))
+            parameters[model_k_m.id] = model_k_m
+            
+            volume = species.compartment.init_density.function_expressions[0].function
+            
+            expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
+                                                                        species.gen_id(),
+                                                                        model_k_m.id, Avogadro.id,
+                                                                        volume.id))   
 
     expression = '{} * {} * {}'.format(
         model_k_cat.id, 

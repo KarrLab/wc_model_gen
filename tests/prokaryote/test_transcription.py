@@ -82,7 +82,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Check that each reaction has the right number of participants
         for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.participants), 6)
+            self.assertEqual(len(rxn.participants), 8)
 
         # Check coeffs of reaction participants
         rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
@@ -103,12 +103,14 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         kb = self.kb
         submodel = model.submodels.get_one(id='transcription')
         
+        modifier_species = model.observables.get_one(id='rna_polymerase_obs').expression.species
+        
         for rxn in submodel.reactions:
             rl = rxn.rate_laws[0]
             self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
             self.assertEqual(len(rl.expression.species), 4)            
-            self.assertEqual(set(rl.expression.species), set(rxn.get_reactants()))
+            self.assertEqual(set(rl.expression.species), set([i for i in rxn.get_reactants() if i not in modifier_species]))
 
         test_reaction = submodel.reactions.get_one(id='transcription_rna_tu_1_1')
         self.assertEqual(test_reaction.rate_laws[0].expression.expression, 

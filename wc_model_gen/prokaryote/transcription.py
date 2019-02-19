@@ -59,6 +59,14 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
             reaction.participants.add(ppi.species_coefficients.get_or_create(coefficient=rna_kb.get_len()-1))
             #reaction.participants.add(h.species_coefficients.get_or_create(coefficient=1 + rna_kb.get_len()))
+
+            # Add RNA polymerease
+            for rnap_kb in cell.observables.get_one(id='rna_polymerase_obs').expression.species:
+                rnap_species_type_model = model.species_types.get_one(id=rnap_kb.species_type.id)
+                rnap_model = rnap_species_type_model.species.get_one(compartment=cytosol)
+
+                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1))
+                reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=1))
                 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """                
