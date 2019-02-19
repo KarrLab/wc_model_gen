@@ -27,26 +27,29 @@ def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doublin
 
 	return ave_synthesis_rate
 
-def MM_like_rate_law(Avogadro, reaction, modifier, beta):
+def MM_like_rate_law(Avogadro, reaction, modifiers, beta):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
-        with a coefficient of 1 for each substrate.
+        with a coefficient of 1 for each substrate. For multi-steps reaction where
+        each step is catalyzed by a different enzyme, the enzyme term is formulated
+        as the multiplication of all the enzyme concentrations. 
 
         Example:
 
-        	Rate = k_cat * [E] * [S1]/(Km_S1 + [S1]) * [S2]/(Km_S2 + [S2])
+        	Rate = k_cat * [E1] * [E2] * [S1]/(Km_S1 + [S1]) * [S2]/(Km_S2 + [S2])
 
         	where
         	    k_cat: catalytic constant
-            	[E]: concentration of enzyme (modifier)
+            	[En]: concentration of nth enzyme (modifier)
             	[Sn]: concentration of nth substrate
             	Km_Sn: Michaelis-Menten constant for nth substrate   
 
         Args:
             Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
         	reaction (:obj:`wc_lang.Reaction`): reaction
-        	modifier (:obj:`wc_lang.Observable`): an observable that evaluates to the 
-        		total concentration of all enzymes that catalyze the reaction
+        	modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
+                each of which evaluates to the total concentration of all enzymes that 
+                catalyze the same intermediate step in the reaction
         	beta (:obj:`float`): ratio of Michaelis-Menten constant to substrate 
         		concentration (Km/[S])		
 
@@ -79,14 +82,17 @@ def MM_like_rate_law(Avogadro, reaction, modifier, beta):
         expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
                                                                     species.gen_id(),
                                                                     model_k_m.id, Avogadro.id,
-                                                                    volume.id))
+                                                                    volume.id))   
 
-    expression = '{} * {} * {}'.format(model_k_cat.id, modifier.id, ' * '.join(expression_terms))
+    expression = '{} * {} * {}'.format(
+        model_k_cat.id, 
+        ' * '.join([i.id for i in modifiers]), 
+        ' * '.join(expression_terms))
     
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
         wc_lang.Species: all_species,
-        wc_lang.Observable: {modifier.id: modifier},
+        wc_lang.Observable: {i.id: i for i in modifiers},
         wc_lang.Function: {volume.id: volume},
         })
     assert error is None, str(error)
