@@ -146,17 +146,15 @@ class TestCase(unittest.TestCase):
             units=unit_registry.parse_units('s^-1'))
         kcat_r1_backward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_backward', value=0.02, 
             units=unit_registry.parse_units('s^-1'))
-        Km_r1_forward = wc_kb.core.Parameter(cell=cell, id='K_m_r1_forward_met1_e', value=0.1, 
-            units=unit_registry.parse_units('M'))
         Km_r1_backward = wc_kb.core.Parameter(cell=cell, id='K_m_r1_backward_met1_n', value=0.3, 
             units=unit_registry.parse_units('M'))
         forward_exp = wc_kb.core.RateLawExpression(
-            expression='k_cat_r1_forward * comp2[e] * met1[e] / (K_m_r1_forward_met1_e + met1[e])',
-            parameters=[kcat_r1_forward, Km_r1_forward],
+            expression='k_cat_r1_forward * comp2[e] * met1[e]',
+            parameters=[kcat_r1_forward],
             species=[complex2_spec2, met1_spec2])
         backward_exp = wc_kb.core.RateLawExpression(
-            expression='k_cat_r1_backward * comp2[n] * met1[n] * obs2 / (K_m_r1_backward_met1_n + K_m_r1_forward_met1_e + met1[n]',
-            parameters=[kcat_r1_backward, Km_r1_forward, Km_r1_backward],
+            expression='k_cat_r1_backward * comp2[n] * met1[n] * obs2 / (K_m_r1_backward_met1_n + met1[n])',
+            parameters=[kcat_r1_backward, Km_r1_backward],
             species=[complex2_spec1, met1_spec1],
             observables=[observable2])
         forward_rate_law = wc_kb.core.RateLaw(
@@ -401,6 +399,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.references[0].type, wcm_ontology['WCM:article'])
         self.assertEqual(met1_nucleus.db_refs[0].serialize(), 'ECMDB: 12345')
 
+        test_conc.units = unit_registry.parse_units('molecule')
+
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
+        
+        met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
+        self.assertEqual(met1_nucleus.mean, 0.5)
+        self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
+
     def test_gen_observables(self):
 
         model = core.EukaryoteModelGenerator(self.kb, 
@@ -460,24 +468,26 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(model.rate_laws), 2)
 
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-forward').expression.expression, 
-            'k_cat_r1_forward * comp2[e] * met1[e] / (K_m_r1_forward_met1_e * Avogadro * volume_e + met1[e])')
+            'k_cat_r1_forward * comp2[e] * met1[e]')
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-forward').reaction, model.reactions.get_one(id='r1_kb'))
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-forward').direction, wc_lang.RateLawDirection.forward)
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-forward').comments, '')
-        self.assertEqual(set([i.id for i in model.rate_laws.get_one(id='r1_kb-forward').expression.parameters]),
-            set(['k_cat_r1_forward', 'K_m_r1_forward_met1_e']))
+        self.assertEqual([i.id for i in model.rate_laws.get_one(id='r1_kb-forward').expression.parameters],
+            ['k_cat_r1_forward'])
         self.assertEqual(set([i.id for i in model.rate_laws.get_one(id='r1_kb-forward').expression.species]),
             set(['comp2[e]', 'met1[e]']))
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-forward').expression.observables, [])
 
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').expression.expression, 
             'k_cat_r1_backward * comp2[n] * met1[n] * obs2 / '
-            '(K_m_r1_backward_met1_n * Avogadro * volume_n + K_m_r1_forward_met1_e * Avogadro * volume_e + met1[n]')
+            '(K_m_r1_backward_met1_n * Avogadro * volume_n + met1[n])')
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').reaction, model.reactions.get_one(id='r1_kb'))
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').direction, wc_lang.RateLawDirection.backward)
         self.assertEqual(set([i.id for i in model.rate_laws.get_one(id='r1_kb-backward').expression.parameters]),
-            set(['k_cat_r1_backward', 'K_m_r1_backward_met1_n', 'K_m_r1_forward_met1_e']))
+            set(['k_cat_r1_backward', 'K_m_r1_backward_met1_n', 'Avogadro']))
         self.assertEqual(set([i.id for i in model.rate_laws.get_one(id='r1_kb-backward').expression.species]),
             set(['comp2[n]', 'met1[n]']))
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').expression.observables, 
             [model.observables.get_one(id='obs2')])
+        self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').expression.functions, 
+            [model.functions.get_one(id='volume_n')])

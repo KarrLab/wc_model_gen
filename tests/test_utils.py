@@ -10,6 +10,7 @@ from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import math
+import scipy.constants
 import unittest
 import wc_lang
 
@@ -23,15 +24,16 @@ class TestCase(unittest.TestCase):
 
     def test_MM_like_rate_law(self):
 
-        Avogadro = wc_lang.Parameter(id='Avogadro')
+        Avogadro = wc_lang.Parameter(id='Avogadro', value=scipy.constants.Avogadro)
 		
-        c = wc_lang.Compartment(id='c')
-        c.init_density = wc_lang.Parameter(id='density_' + c.id)                
+        c = wc_lang.Compartment(id='c', mean_init_volume=0.5)
+        c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)                
         volume = wc_lang.Function(id='volume_' + c.id)
         volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
                 wc_lang.Compartment: {c.id: c},
                 wc_lang.Parameter: {c.init_density.id: c.init_density},
                 })
+        assert error is None, str(error)
 		
         species_types = {}
         species = {}
@@ -41,8 +43,11 @@ class TestCase(unittest.TestCase):
             species[Id + '_c'] = wc_lang.Species(species_type=species_types[Id], compartment=c)
             wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
 
-        ob = wc_lang.ObservableExpression(expression='s4[c] + s5[c]', species=[species['s4_c'], species['s5_c']])
-        modifier = wc_lang.Observable(id='e1', expression=ob)
+        ob_exp, error = wc_lang.ObservableExpression.deserialize('s4[c] + s5[c]', {
+            wc_lang.Species:{species['s4_c'].gen_id(): species['s4_c'], 
+                            species['s5_c'].gen_id(): species['s5_c']}})
+        assert error is None, str(error)
+        modifier = wc_lang.Observable(id='e1', expression=ob_exp)
 	        
         participant1 = wc_lang.SpeciesCoefficient(species=species['s1_c'], coefficient=-1)
         participant2 = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
@@ -58,5 +63,5 @@ class TestCase(unittest.TestCase):
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wcm_ontology['WCM:k_cat'])
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1'))
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
-        self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').value, 0.5)
+        self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').value, 0.5/0.5/Avogadro.value)
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))

@@ -54,23 +54,28 @@ def MM_like_rate_law(Avogadro, reaction, modifier, beta):
         	:obj:`wc_lang.RateLawExpression`: rate law
         	:obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law  	
     """
-    parameters = []
+    parameters = {}
+    parameters[Avogadro.id] = Avogadro
 
     model_k_cat = wc_lang.Parameter(id='k_cat_{}'.format(reaction.id),
                                     type=wcm_ontology['WCM:k_cat'],
                                     units=unit_registry.parse_units('s^-1'))
-    parameters.append(model_k_cat)
+    parameters[model_k_cat.id] = model_k_cat
 
     expression_terms = []
-    all_species = []
+    all_species = {}
     for species in reaction.get_reactants():
-        all_species.append(species)
+        
+        all_species[species.gen_id()] = species
+        
         model_k_m = wc_lang.Parameter(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-                                    type=wcm_ontology['WCM:K_m'],
-                                    value=beta * species.distribution_init_concentration.mean,
-                                    units=unit_registry.parse_units('M'))
-        parameters.append(model_k_m)
+            type=wcm_ontology['WCM:K_m'],
+            value=beta * species.distribution_init_concentration.mean / Avogadro.value / species.compartment.mean_init_volume,
+            units=unit_registry.parse_units('M'))
+        parameters[model_k_m.id] = model_k_m
+        
         volume = species.compartment.init_density.function_expressions[0].function
+        
         expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
                                                                     species.gen_id(),
                                                                     model_k_m.id, Avogadro.id,
@@ -78,9 +83,12 @@ def MM_like_rate_law(Avogadro, reaction, modifier, beta):
 
     expression = '{} * {} * {}'.format(model_k_cat.id, modifier.id, ' * '.join(expression_terms))
     
-    rate_law = wc_lang.RateLawExpression(expression=expression, 
-    									parameters=parameters, 
-    									species=all_species, 
-    									observables=[modifier])
+    rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
+        wc_lang.Parameter: parameters,
+        wc_lang.Species: all_species,
+        wc_lang.Observable: {modifier.id: modifier},
+        wc_lang.Function: {volume.id: volume},
+        })
+    assert error is None, str(error)
 
-    return rate_law, parameters 	
+    return rate_law_expression, list(parameters.values()) 	

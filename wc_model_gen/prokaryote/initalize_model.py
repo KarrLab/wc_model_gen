@@ -298,10 +298,17 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id()
+            
+            if conc.units == unit_registry.parse_units('molecule'):
+                mean_concentration = conc.value
+            elif conc.units == unit_registry.parse_units('M'):
+                mean_concentration = conc.value * Avogadro.value * species_comp_model.mean_init_volume
+            else:
+                raise Exception('Unsupported units: {}'.format(conc.units.name))
 
             conc = model.distribution_init_concentrations.create(
                 species=species,
-                mean=conc.value * Avogadro.value * species_comp_model.mean_init_volume, 
+                mean=mean_concentration, 
                 units=unit_registry.parse_units('molecule'),
                 comments=conc.comments)
             conc.id = conc.gen_id()
@@ -312,11 +319,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         for kb_observable in kb.cell.observables:
-            model_observable = model.observables.get_or_create(id=kb_observable.id)            
-            model_observable.name = kb_observable.name
-            model_observable.expression = wc_lang.ObservableExpression(
-                expression=kb_observable.expression.expression)
-            
+            all_species = {}
+            all_observables = {}
+
             for kb_species in kb_observable.expression.species:
                 kb_species_type = kb_species.species_type
                 kb_compartment = kb_species.compartment
@@ -324,12 +329,24 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     id=kb_species_type.id)
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
-                model_observable.expression.species.append(model_species)
+                all_species[model_species.gen_id()] = model_species
                 
             for kb_observable_observable in kb_observable.expression.observables:
                 model_observable_observable = model.observables.get_or_create(
                     id=kb_observable_observable.id)
-                model_observable.expression.observables.append(model_observable_observable)                
+                all_observables[model_observable_observable.id] = model_observable_observable
+            
+            model_observable_expression, error = wc_lang.ObservableExpression.deserialize(
+                kb_observable.expression.expression, {
+                wc_lang.Species: all_species,
+                wc_lang.Observable: all_observables,
+                })
+            assert error is None, str(error)
+            
+            model_observable = model.observables.get_or_create(
+                id=kb_observable.id,
+                name=kb_observable.name,
+                expression=model_observable_expression)
 
     def gen_kb_reactions(self):
         """ Generate reactions encoded within KB """
@@ -372,27 +389,45 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             model_rxn = submodel.reactions.get_one(id=kb_rxn.id + '_kb')
 
             for kb_rate_law in kb_rxn.rate_laws:
+                all_parameters = {}
+                all_parameters[Avogadro.id] = Avogadro
+                all_species = {}
+                all_observables = {}
+                all_volumes = {}
+                
+                kb_expression = kb_rate_law.expression.expression
+
+                for observable in kb_rate_law.expression.observables:
+                    all_observables[observable.id] = model.observables.get_one(id=observable.id)
+
+                for species in kb_rate_law.expression.species:
+                    model_species_type = model.species_types.get_one(id=species.species_type.id)
+                    model_compartment = model.compartments.get_one(id=species.compartment.id)
+                    volume = model_compartment.init_density.function_expressions[0].function                    
+                    model_species = model_species_type.species.get_one(compartment=model_compartment)
+                    all_species[model_species.gen_id()] = model_species
+                    all_volumes[volume.id] = volume    
+
+                for param in kb_rate_law.expression.parameters:
+                    all_parameters[param.id] = model.parameters.get_one(id=param.id)
+                    if 'K_m' in param.id:
+                        volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
+                        unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
+                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)            
+
+                rate_law_expression, error = wc_lang.RateLawExpression.deserialize(
+                    kb_expression, {
+                    wc_lang.Parameter: all_parameters,
+                    wc_lang.Species: all_species,
+                    wc_lang.Observable: all_observables,
+                    wc_lang.Function: all_volumes,
+                    })
+                assert error is None, str(error)
+
                 model_rate_law = model.rate_laws.create(
-                    expression= wc_lang.RateLawExpression(expression=kb_rate_law.expression.expression),
+                    expression= rate_law_expression,
                     reaction=model_rxn,
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
                 model_rate_law.id = model_rate_law.gen_id()
-
-                for param in kb_rate_law.expression.parameters:
-                    model_rate_law.expression.parameters.append(
-                        model.parameters.get_one(id=param.id))
-                    if 'K_m' in param.id:
-                        volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
-                        unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
-                        model_rate_law.expression.expression = model_rate_law.expression.expression.replace(param.id, unit_adjusted_term)
-                        
-                for species in kb_rate_law.expression.species:
-                    model_species_type = model.species_types.get_one(id=species.species_type.id)
-                    model_compartment = model.compartments.get_one(id=species.compartment.id)                    
-                    model_rate_law.expression.species.append(
-                        model_species_type.species.get_one(compartment=model_compartment))
-
-                for observable in kb_rate_law.expression.observables:
-                    model_rate_law.expression.observables.append(
-                        model.observables.get_one(id=observable.id))
+                
