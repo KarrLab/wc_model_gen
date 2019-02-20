@@ -1,6 +1,7 @@
 """ Testing Translation Submodel Generator
 
 :Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-07-23
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -10,6 +11,7 @@ from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_utils.util.ontology import wcm_ontology
 import math
+import scipy.constants
 import unittest
 import wc_kb
 import wc_lang
@@ -31,16 +33,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             component_generators=[prokaryote.InitalizeModel,
                                   prokaryote.TranslationSubmodelGenerator],
             options={'component': {
-                'TranslationSubmodelGenerator': {
-                    'rate_dynamics': 'phenomenological'}}}).run()
-
-        cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
-            knowledge_base=cls.kb,
-            component_generators=[prokaryote.InitalizeModel,
-                                  prokaryote.TranslationSubmodelGenerator],
-            options={'component': {
-                'TranslationSubmodelGenerator': {
-                    'rate_dynamics': 'mechanistic'}}}).run()
+                'TranslationSubmodelGenerator': {'beta': 1.}}}).run()
 
     @classmethod
     def tearDownClass(cls):
@@ -49,15 +42,10 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
     def test_submodels(self):
         kb = self.kb
         model = self.model
-        model_mechanistic = self.model_mechanistic
-
+        
         submodel = model.submodels.get_one(id='translation')
         self.assertIsInstance(submodel, wc_lang.Submodel)
         self.assertEqual(len(model.submodels), 2)
-
-        submodel = model_mechanistic.submodels.get_one(id='translation')
-        self.assertIsInstance(submodel, wc_lang.Submodel)
-        self.assertEqual(len(model_mechanistic.submodels), 2)
 
     def test_species(self):
         model = self.model
@@ -129,7 +117,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(rxn.participants.get_one(species=release_factors).coefficient, (length+2))
             """
 
-    def test_phenom_rate_laws(self):
+    def test_rate_laws(self):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='translation')
@@ -138,26 +126,42 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
             self.assertIsInstance(rl, wc_lang.RateLaw)
-            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
-            self.assertEqual(len(rl.expression.species), 1)
-            self.assertEqual(rl.expression.species[0].species_type.type, wcm_ontology['WCM:protein']) # protein
-            self.assertIn(rl.expression.species[0], rxn.get_products())
-
-    def test_mechanistic_rate_laws(self):
-        model = self.model_mechanistic
-        kb = self.kb
-        submodel = model.submodels.get_one(id='translation')
-
-        for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.rate_laws), 1)
-            rl = rxn.rate_laws[0]
-            self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, 1)
-            self.assertEqual(rxn.get_modifiers(), [])
 
-            k_cat_value = rl.expression.parameters.get_one(type=wcm_ontology['WCM:k_cat']).value
-            self.assertIsInstance(k_cat_value, float)
-            self.assertFalse(math.isnan(k_cat_value))
+        #TODO: Update test once translation module is complete
+        test_reaction = submodel.reactions.get_one(id='translation_prot_gene_1_1')
+        self.assertEqual(len(test_reaction.rate_laws[0].expression.parameters), 7) # kcat + Avogadro + 5 Kms (4 aa + 1 gtp)
+        self.assertEqual(len(test_reaction.rate_laws[0].expression.observables), 8) # 3 factors + 4 tRNAs + ribosome
+        self.assertEqual(len(test_reaction.rate_laws[0].expression.species), 5) # 4 aa + 1 gtp
+        self.assertEqual(len(test_reaction.rate_laws[0].expression.functions), 1) # volume
+                        
+    def test_calibrate_submodel(self):
+        model = self.model
+        kb = self.kb
+        submodel = model.submodels.get_one(id='transcription')
+        
+        #TODO: Update test once translation module is complete        
+        cytosol = kb.cell.compartments.get_one(id='c')
+        test_species_type = kb.cell.species_types.get_one(id='prot_gene_1_1')
+        test_species = test_species_type.species.get_one(compartment=cytosol)
+        half_life = test_species_type.half_life
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
 
-            # Check that reactants participate in rate law
-            self.assertEqual(set(rxn.get_reactants()).difference(set(rl.expression.species)), set())
+        Avogadro = scipy.constants.Avogadro
+        volume = model.compartments.get_one(id='c').mean_init_volume
+        
+        protein_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value * volume * Avogadro
+        
+        modifier_species_type = ['prot_gene_1_10', 'prot_gene_1_13', 'prot_gene_1_29', 
+                                'rna_tu_1_33', 'rna_tu_1_28', 'rna_tu_1_24', 'rna_tu_1_7',
+                                'ribosome'] # 3 factors + 4 tRNAs + ribosome
+        observables_products = 1.
+        for i in modifier_species_type:
+            observables_products *= kb.cell.concentrations.get_one(
+                species=kb.cell.species_types.get_one(id=i).species.get_one(compartment=cytosol)).value * volume * Avogadro
+        
+        check_kcat = math.log(2) * (1. / half_life + 1. / mean_doubling_time) * protein_mean_concentration \
+                    / observables_products / (0.5**5) # **5 because 4 aa + 1 gtp
+
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_translation_prot_gene_1_1').value, check_kcat, places=30)
+              

@@ -1,23 +1,28 @@
 """ Generating wc_lang formatted models from knowledge base.
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-01-21
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
 
+from wc_utils.util.ontology import wcm_ontology
+from wc_utils.util.units import unit_registry
+import wc_model_gen.utils as utils
+import math
+import numpy
+import scipy.constants
 import wc_model_gen
 import wc_lang
 import wc_kb
-import numpy
-import math
 
 
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generate translation submodel. """
 
     def gen_reactions(self):
-        """ Generate a lumped reaction that cvers initiation, elongation and termination for each protein translated """
+        """ Generate a lumped reaction that covers initiation, elongation and termination for each protein translated """
         model = self.model
         submodel = self.submodel
         cell = self.knowledge_base.cell
@@ -28,15 +33,18 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         gdp = model.species_types.get_one(id='gdp').species.get_one(compartment=cytosol)
         pi = model.species_types.get_one(id='pi').species.get_one(compartment=cytosol)
 
-        initiation_factors = model.observables.get_one(id='translation_init_factors_obs').expression.species[0]
-        elongation_factors = model.observables.get_one(id='translation_elongation_factors_obs').expression.species[0]
-        release_factors = model.observables.get_one(id='translation_release_factors_obs').expression.species[0]
+        # Get initiation factors, elongation factors, and release factors (modifiers)
+        self._modifiers = [model.observables.get_one(id='translation_init_factors_obs'),
+                            model.observables.get_one(id='translation_elongation_factors_obs'),
+                            model.observables.get_one(id='translation_release_factors_obs')]
+        initiation_factors = self._modifiers[0].expression.species[0]
+        elongation_factors = self._modifiers[1].expression.species[0]
+        release_factors = self._modifiers[2].expression.species[0]
 
         # Check if initiation, elongation & termination factors consist of one specie
-        assert(len(model.observables.get_one(id='translation_init_factors_obs').expression.species)==1)
-        assert(len(model.observables.get_one(id='translation_elongation_factors_obs').expression.species)==1)
-        assert(len(model.observables.get_one(id='translation_release_factors_obs').expression.species)==1)
-
+        for modifier in self._modifiers:
+            assert(len(modifier.expression.species)==1)
+        
         bases = "TCAG"
         codons = [a + b + c for a in bases for b in bases for c in bases]
 
@@ -64,7 +72,10 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         n += str(protein_kb.gene.get_seq()[base:base+3]).count(codon)
 
                     if n > 0:
-                        trna = model.observables.get_one(id='tRNA_'+codon+'_obs').expression.species.get_one(compartment=cytosol)
+                        trna_obs = model.observables.get_one(id='tRNA_'+codon+'_obs')
+                        if trna_obs not in self._modifiers:
+                            self._modifiers.append(trna_obs)
+                        trna = trna_obs.expression.species.get_one(compartment=cytosol)
 
                         # tRNAs are modifiers
                         reaction.participants.add(trna.species_coefficients.get_or_create(coefficient=-n))
@@ -111,36 +122,63 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(pi.species_coefficients.get_or_create(coefficient=2*n_steps))
 
             # Add ribosome
+            if model.observables.get_one(id='ribosome_obs') not in self._modifiers:
+                self._modifiers.append(model.observables.get_one(id='ribosome_obs'))
+
             for ribosome_kb in cell.observables.get_one(id='ribosome_obs').expression.species:
                 ribosome_species_type_model = model.species_types.get_one(id=ribosome_kb.species_type.id)
                 ribosome_model = ribosome_species_type_model.species.get_one(compartment=cytosol)
 
                 reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=-1))
-                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))
+                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))  
 
+    def gen_rate_laws(self):
+        """ Generate rate laws for the reactions in the submodel """
+        beta = self.options.get('beta')
+        Avogadro = self.model.parameters.get_or_create(id='Avogadro',
+                                                type=None,
+                                                value=scipy.constants.Avogadro,
+                                                units=unit_registry.parse_units('molecule mol^-1'))
 
-    def gen_phenom_rates(self):
-        """ Generate rate laws with exponential dynamics """
-        submodel = self.model.submodels.get_one(id='translation')
-        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        for reaction in self.submodel.reactions:        
+            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, self._modifiers, beta)
+            self.model.parameters += parameters
+
+            rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
+                                        type=wcm_ontology['WCM:rate_law'],
+                                        expression=rate_law_exp,
+                                        units=unit_registry.parse_units('molecule s^-1'))
+            reaction.rate_laws.append(rate_law)
+    
+    def calibrate_submodel(self):
+        """ Calibrate the submodel using data in the KB """
+
+        cytosol = self.model.compartments.get_one(id='c')
         mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
-        for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            self.gen_phenom_rate_law_eq(specie_type_kb=protein_kb,
-                                        reaction=reaction,
-                                        half_life=protein_kb.half_life,
-                                        mean_doubling_time=mean_doubling_time)
+        init_species_counts = {}
 
-    def gen_mechanistic_rates(self):
-        """ Generate rate laws associated with submodel """
-        submodel = self.model.submodels.get_one(id='translation')
-        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        for modifier in self._modifiers:
+            for species in modifier.expression.species:
+                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 
-        for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
-                                             submodel=submodel,
-                                             reaction=reaction,
-                                             beta=1,
-                                             half_life=protein_kb.half_life,
-                                             mean_doubling_time=mean_doubling_time)
+        protein_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        for protein_kb, reaction in zip(protein_kb, self.submodel.reactions):
+            
+            protein_product = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
+            half_life = protein_kb.half_life
+            mean_concentration = protein_product.distribution_init_concentration.mean         
+
+            average_rate = utils.calculate_average_synthesis_rate(
+                mean_concentration, half_life, mean_doubling_time)
+            
+            for species in reaction.get_reactants():
+                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+            
+            model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+            model_kcat.value = 1.
+            model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                wc_lang.Species: init_species_counts,
+                wc_lang.Compartment: {cytosol.id: cytosol.mean_init_volume * cytosol.init_density.value},
+                })
+            
