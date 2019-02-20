@@ -78,7 +78,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         modifier = self.model.observables.get_one(id='rna_polymerase_obs')
 
         for reaction in self.submodel.reactions:        
-            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, [modifier], beta)
+            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=[modifier])
             self.model.parameters += parameters
 
             rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,

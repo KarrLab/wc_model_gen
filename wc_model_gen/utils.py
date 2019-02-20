@@ -27,7 +27,7 @@ def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doublin
 
 	return ave_synthesis_rate
 
-def MM_like_rate_law(Avogadro, reaction, modifiers, beta):
+def MM_like_rate_law(Avogadro, reaction, beta, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where
@@ -47,31 +47,41 @@ def MM_like_rate_law(Avogadro, reaction, modifiers, beta):
         Args:
             Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
         	reaction (:obj:`wc_lang.Reaction`): reaction
+            beta (:obj:`float`): ratio of Michaelis-Menten constant to substrate 
+                concentration (Km/[S])      
         	modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
                 each of which evaluates to the total concentration of all enzymes that 
                 catalyze the same intermediate step in the reaction
-        	beta (:obj:`float`): ratio of Michaelis-Menten constant to substrate 
-        		concentration (Km/[S])		
-
+            modifier_reactants (:obj:`list` of :obj:`wc_lang.Species`): list of species 
+                in modifiers that should be included as reactants in the rate law    
+        	
         Returns:
         	:obj:`wc_lang.RateLawExpression`: rate law
         	:obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law  	
     """
+    if modifiers is None:
+        modifier_species = []
+    else:
+        modifier_species = [i for modifier in modifiers for i in modifier.expression.species]
+
+    if modifier_reactants is None:
+        additional_reactants = []
+    else:
+        additional_reactants = modifier_reactants
+
     parameters = {}
     parameters[Avogadro.id] = Avogadro
 
     model_k_cat = wc_lang.Parameter(id='k_cat_{}'.format(reaction.id),
                                     type=wcm_ontology['WCM:k_cat'],
                                     units=unit_registry.parse_units('s^-1'))
-    parameters[model_k_cat.id] = model_k_cat
-
-    modifier_species = [i for modifier in modifiers for i in modifier.expression.species]
+    parameters[model_k_cat.id] = model_k_cat    
 
     expression_terms = []
     all_species = {}
     for species in reaction.get_reactants():
-
-        if species not in modifier_species:
+                
+        if species not in modifier_species or species in additional_reactants:
         
             all_species[species.gen_id()] = species
             

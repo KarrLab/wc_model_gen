@@ -59,12 +59,20 @@ class TestCase(unittest.TestCase):
         participant3 = wc_lang.SpeciesCoefficient(species=species['s3_c'], coefficient=1)
         participant4 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=-1)
         participant5 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=1)
-        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3, participant4, participant5])
+        participant6 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
+        participant7 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
+        participant8 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=1)
+        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3, 
+            participant4, participant5, participant6, participant7, participant8])
 
-        rate_law, parameters = utils.MM_like_rate_law(Avogadro, reaction, [modifier1, modifier2], 1.)
+        rate_law, parameters = utils.MM_like_rate_law(
+            Avogadro, reaction, 1., modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
 
-        self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * e2 * (s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * (s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c))')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
+        self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * e2 * '
+            '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
+            '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
+            '(s6[c] / (s6[c] + K_m_r1_s6 * Avogadro * volume_c))')
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]', 's6[c]']))
         self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
         self.assertEqual(set(rate_law.parameters), set(parameters))        
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wcm_ontology['WCM:k_cat'])
