@@ -98,7 +98,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         test_reaction = submodel.reactions.get_one(id='degradation_rna_tu_1_1')
         self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
-            'k_cat_degradation_rna_tu_1_1 * degrade_rnase_obs * '
+            'k_cat_degradation_rna_tu_1_1 / molecule_units * degrade_rnase_obs * '
             '(rna_tu_1_1[c] / (rna_tu_1_1[c] + K_m_degradation_rna_tu_1_1_rna_tu_1_1 * Avogadro * volume_c)) * '
             '(h2o[c] / (h2o[c] + K_m_degradation_rna_tu_1_1_h2o * Avogadro * volume_c))')    
 

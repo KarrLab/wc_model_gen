@@ -20,7 +20,19 @@ import math
 
 
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for RNA degradation submodel """
+    """ Generator for RNA degradation submodel 
+
+        Options:
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+            concentration (Km/[S]) for use when estimating Km values, the default value is 1
+    """
+
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+        options = self.options
+
+        beta = options.get('beta', 1.)
+        options['beta'] = beta
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -71,44 +83,53 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
         beta = self.options.get('beta')
-        Avogadro = self.model.parameters.get_or_create(id='Avogadro',
-                                                type=None,
-                                                value=scipy.constants.Avogadro,
-                                                units=unit_registry.parse_units('molecule mol^-1'))
+        Avogadro = self.model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))
+        molecule_units = self.model.parameters.get_or_create(
+            id='molecule_units',
+            type=None,
+            value=1.,
+            units=unit_registry.parse_units('molecule'))
 
         modifier = self.model.observables.get_one(id='degrade_rnase_obs')
 
         for reaction in self.submodel.reactions:
             
-            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta=beta, modifiers=[modifier])
+            rate_law_exp, parameters = utils.MM_like_rate_law(
+                Avogadro, molecule_units, reaction, beta=beta, modifiers=[modifier])
             self.model.parameters += parameters
 
             rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
-                                        type=wcm_ontology['WCM:rate_law'],
+                                        type=None,
                                         expression=rate_law_exp,
-                                        units=unit_registry.parse_units('molecule s^-1'))
-            reaction.rate_laws.append(rate_law)
+                                        reaction=reaction,
+                                        )
+            rate_law.id = rate_law.gen_id()
+            
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
         
         cytosol = self.model.compartments.get_one(id='c')
-                
+        
         init_species_counts = {}
         
         modifier = self.model.observables.get_one(id='degrade_rnase_obs')        
         for species in modifier.expression.species:
-            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
+            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
         
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
             
-            rna_reactant = self.model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
+            rna_reactant = self.model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)            
             half_life = rna_kb.half_life
             mean_concentration = rna_reactant.distribution_init_concentration.mean         
 
             average_rate = math.log(2) / half_life * mean_concentration
-            
+                        
             for species in reaction.get_reactants():
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 

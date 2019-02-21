@@ -27,7 +27,7 @@ def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doublin
 
 	return ave_synthesis_rate
 
-def MM_like_rate_law(Avogadro, reaction, beta=1, modifiers=None, modifier_reactants=None):
+def MM_like_rate_law(Avogadro, molecule_units, reaction, beta=1, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where
@@ -46,6 +46,7 @@ def MM_like_rate_law(Avogadro, reaction, beta=1, modifiers=None, modifier_reacta
 
         Args:
             Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
+            molecule_units (:obj:`wc_lang.Parameter`): model parameter for molecule units
         	reaction (:obj:`wc_lang.Reaction`): reaction
             beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
                 concentration (Km/[S]), the default value is 1      
@@ -71,6 +72,7 @@ def MM_like_rate_law(Avogadro, reaction, beta=1, modifiers=None, modifier_reacta
 
     parameters = {}
     parameters[Avogadro.id] = Avogadro
+    parameters[molecule_units.id] = molecule_units            
 
     model_k_cat = wc_lang.Parameter(id='k_cat_{}'.format(reaction.id),
                                     type=wcm_ontology['WCM:k_cat'],
@@ -98,8 +100,9 @@ def MM_like_rate_law(Avogadro, reaction, beta=1, modifiers=None, modifier_reacta
                                                                         model_k_m.id, Avogadro.id,
                                                                         volume.id))   
 
-    expression = '{} * {} * {}'.format(
-        model_k_cat.id, 
+    expression = '{} / {} * {} * {}'.format(
+        model_k_cat.id,
+        molecule_units.id, 
         ' * '.join([i.id for i in modifiers]), 
         ' * '.join(expression_terms))
     

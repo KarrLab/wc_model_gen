@@ -20,7 +20,19 @@ import wc_kb
 
 
 class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for transcription submodel """
+    """ Generator for transcription submodel 
+
+        Options:
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+            concentration (Km/[S]) for use when estimating Km values, the default value is 1
+    """
+
+    def clean_and_validate_options(self):
+        """ Apply default options and validate options """
+        options = self.options
+
+        beta = options.get('beta', 1.)
+        options['beta'] = beta
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -71,22 +83,31 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """                
         beta = self.options.get('beta')
-        Avogadro = self.model.parameters.get_or_create(id='Avogadro',
-                                                type=None,
-                                                value=scipy.constants.Avogadro,
-                                                units=unit_registry.parse_units('molecule mol^-1'))
+        Avogadro = self.model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))
+        molecule_units = self.model.parameters.get_or_create(
+            id='molecule_units',
+            type=None,
+            value=1.,
+            units=unit_registry.parse_units('molecule'))
+        
         modifier = self.model.observables.get_one(id='rna_polymerase_obs')
 
         for reaction in self.submodel.reactions:        
-            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta=beta, modifiers=[modifier])
+            rate_law_exp, parameters = utils.MM_like_rate_law(
+                Avogadro, molecule_units, reaction, beta=beta, modifiers=[modifier])
             self.model.parameters += parameters
 
             rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
-                                        type=wcm_ontology['WCM:rate_law'],
+                                        type=None,
                                         expression=rate_law_exp,
-                                        units=unit_registry.parse_units('molecule s^-1'))
-            reaction.rate_laws.append(rate_law)      
-            
+                                        reaction=reaction,
+                                        )
+            rate_law.id = rate_law.gen_id()
+                        
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
         

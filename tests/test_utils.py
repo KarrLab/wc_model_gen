@@ -25,6 +25,8 @@ class TestCase(unittest.TestCase):
     def test_MM_like_rate_law(self):
 
         Avogadro = wc_lang.Parameter(id='Avogadro', value=scipy.constants.Avogadro)
+        molecule_units = wc_lang.Parameter(id='molecule_units', value=1.,
+            units=unit_registry.parse_units('molecule'))
 		
         c = wc_lang.Compartment(id='c', mean_init_volume=0.5)
         c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)                
@@ -66,9 +68,9 @@ class TestCase(unittest.TestCase):
             participant4, participant5, participant6, participant7, participant8])
 
         rate_law, parameters = utils.MM_like_rate_law(
-            Avogadro, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
+            Avogadro, molecule_units, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
 
-        self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * e2 * '
+        self.assertEqual(rate_law.expression, 'k_cat_r1 / molecule_units * e1 * e2 * '
             '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
             '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
             '(s6[c] / (s6[c] + K_m_r1_s6 * Avogadro * volume_c))')

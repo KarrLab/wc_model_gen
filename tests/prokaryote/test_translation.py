@@ -130,7 +130,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         #TODO: Update test once translation module is complete
         test_reaction = submodel.reactions.get_one(id='translation_prot_gene_1_1')
-        self.assertEqual(len(test_reaction.rate_laws[0].expression.parameters), 7) # kcat + Avogadro + 5 Kms (4 aa + 1 gtp)
+        self.assertEqual(len(test_reaction.rate_laws[0].expression.parameters), 8) # kcat + molecule_units + Avogadro + 5 Kms (4 aa + 1 gtp)
         self.assertEqual(len(test_reaction.rate_laws[0].expression.observables), 8) # 3 factors + 4 tRNAs + ribosome
         self.assertEqual(len(test_reaction.rate_laws[0].expression.species), 5) # 4 aa + 1 gtp
         self.assertEqual(len(test_reaction.rate_laws[0].expression.functions), 1) # volume
