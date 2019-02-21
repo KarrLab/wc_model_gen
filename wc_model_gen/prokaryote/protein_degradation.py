@@ -1,14 +1,18 @@
 """ Generator for protein  degradation submodels based on KBs for random in silico organisms
 
 :Author: Bilal Shaikh <bilal.shaikh@columbia.edu>
-         Ashwin Srinivasan <ashwins@mit.edu>
-         Jonathan Karr <karr@mssm.edu>
+:Author: Ashwin Srinivasan <ashwins@mit.edu>
+:Author: Jonathan Karr <karr@mssm.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-07-05
 :Copyright: 2018, Karr Lab
 :License: MIT
 """
 
+from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
+import wc_model_gen.utils as utils
+import scipy.constants
 import wc_model_gen
 import wc_lang
 import wc_kb
@@ -83,52 +87,58 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(degradosome_species_model.species_coefficients.get_or_create(
                     coefficient=1))
 
-    def gen_phenom_rates(self):
-        """ Generate rate laws with exponential dynamics """
-        model = self.model
-        kb = self.knowledge_base
-        submodel = model.submodels.get_one(id='protein_degradation')
-        cytosol = model.compartments.get_one(id='c')
-        proteins_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+    def gen_rate_laws(self):
+        """ Generate rate laws for the reactions in the submodel """
+        beta = self.options.get('beta')
+        Avogadro = self.model.parameters.get_or_create(id='Avogadro',
+                                                type=None,
+                                                value=scipy.constants.Avogadro,
+                                                units=unit_registry.parse_units('molecule mol^-1'))
 
-        for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            species_type_model = model.species_types.get_one(id=protein_kb.id)
-            species_model = species_type_model.species.get_one(compartment=cytosol)
+        modifier = self.model.observables.get_one(id='degrade_protease_obs')
 
-            rate_law = model.rate_laws.create(
-                reaction=reaction,
-                direction=wc_lang.RateLawDirection.forward)
-            rate_law.id = rate_law.gen_id()
+        for reaction in self.submodel.reactions:
+            modifier_reactant = [i for i in modifier.expression.species if i.species_type.id in reaction.id]
+            if modifier_reactant:
+                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=[modifier],
+                    modifier_reactants=modifier_reactant)
+            else:
+                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=[modifier])
 
-            half_life_model = model.parameters.get_or_create(id='half_life_{}'.format(protein_kb.id),
-                                                             type=None,
-                                                             value=protein_kb.half_life,
-                                                             units=unit_registry.parse_units('s'))
-            molecule_units = model.parameters.get_or_create(id='molecule_units',
-                                                            type=None,
-                                                            value=1.,
-                                                            units=unit_registry.parse_units('molecule'))
+            self.model.parameters += parameters
 
-            expression = '(log(2) / {}) / {} * {}'.format(half_life_model.id, molecule_units.id, species_model.id)
+            rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
+                                        type=wcm_ontology['WCM:rate_law'],
+                                        expression=rate_law_exp,
+                                        units=unit_registry.parse_units('molecule s^-1'))
+            reaction.rate_laws.append(rate_law)
 
-            objects = {
-                wc_lang.Parameter: {half_life_model.id: half_life_model, molecule_units.id: molecule_units},
-                wc_lang.Species: {species_model.id: species_model},
-            }
-            rate_law.expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
-            assert error is None, str(error)
-
-    def gen_mechanistic_rates(self):
-        """ Generate rate laws associated with submodel """
-        submodel = self.model.submodels.get_one(id='protein_degradation')
+    def calibrate_submodel(self):
+        """ Calibrate the submodel using data in the KB """
+        
+        cytosol = self.model.compartments.get_one(id='c')
+                
+        init_species_counts = {}
+        
+        modifier = self.model.observables.get_one(id='degrade_protease_obs')        
+        for species in modifier.expression.species:
+            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
+        
         proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
-            self.gen_mechanistic_rate_law_eq(specie_type_kb=protein_kb,
-                                             submodel=submodel,
-                                             reaction=reaction,
-                                             beta=1,
-                                             half_life=protein_kb.half_life,
-                                             mean_doubling_time=mean_doubling_time)
+            
+            protein_reactant = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
+            half_life = protein_kb.half_life
+            mean_concentration = protein_reactant.distribution_init_concentration.mean         
+
+            average_rate = math.log(2) / half_life * mean_concentration
+            
+            for species in reaction.get_reactants():
+                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+
+            model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+            model_kcat.value = 1.
+            model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                wc_lang.Species: init_species_counts,
+                wc_lang.Compartment: {cytosol.id: cytosol.mean_init_volume * cytosol.init_density.value},
+                })   

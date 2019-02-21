@@ -1,6 +1,7 @@
 """ Tests of RNA degradation submodel generation
 
 :Author: Jonathan Karr <karr@mssm.edu>
+:Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
 :Date: 2018-06-11
 :Copyright: 2018, Karr Lab
 :License: MIT
@@ -32,16 +33,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                         component_generators=[prokaryote.InitalizeModel,
                                               prokaryote.RnaDegradationSubmodelGenerator],
                         options = {'component': {
-                             'RnaDegradationSubmodelGenerator': {
-                               'rate_dynamics': 'phenomenological'}}}).run()
-
-        cls.model_mechanistic = prokaryote.ProkaryoteModelGenerator(
-                        knowledge_base = cls.kb,
-                        component_generators=[prokaryote.InitalizeModel,
-                                              prokaryote.RnaDegradationSubmodelGenerator],
-                        options = {'component': {
-                             'RnaDegradationSubmodelGenerator': {
-                               'rate_dynamics': 'mechanistic'}}}).run()
+                             'RnaDegradationSubmodelGenerator': {'beta': 1.}}}).run()
 
     @classmethod
     def tearDownClass(cls):
@@ -89,37 +81,42 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 + rxn.participants.get_one(species=h).coefficient,
                 rna.get_len() - 1)
 
-    def test_phenom_rate_laws(self):
+    def test_rate_laws(self):
+        model = self.model
+        kb = self.kb
+        submodel = model.submodels.get_one(id='rna_degradation')
+        
+        modifier_species = model.observables.get_one(id='degrade_rnase_obs').expression.species
+        
+        for rxn in submodel.reactions:
+            self.assertEqual(len(rxn.rate_laws), 1)
+            rl = rxn.rate_laws[0]
+            self.assertIsInstance(rl, wc_lang.RateLaw)
+            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
+            self.assertEqual(len(rl.expression.species), 2)
+            self.assertEqual(set(rl.expression.species), set([i for i in rxn.get_reactants() if i not in modifier_species]))
+
+        test_reaction = submodel.reactions.get_one(id='degradation_rna_tu_1_1')
+        self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
+            'k_cat_degradation_rna_tu_1_1 * degrade_rnase_obs * '
+            '(rna_tu_1_1[c] / (rna_tu_1_1[c] + K_m_degradation_rna_tu_1_1_rna_tu_1_1 * Avogadro * volume_c)) * '
+            '(h2o[c] / (h2o[c] + K_m_degradation_rna_tu_1_1_h2o * Avogadro * volume_c))')    
+
+    def test_calibrate_submodel(self):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='rna_degradation')
 
-        for rxn in submodel.reactions:
+        cytosol = kb.cell.compartments.get_one(id='c')
+        test_species_type = kb.cell.species_types.get_one(id='rna_tu_1_1')
+        test_species = test_species_type.species.get_one(compartment=cytosol)
+        half_life = test_species_type.half_life
+        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+        rna_reactant_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value
+        degrase_mean_concentration = kb.cell.concentrations.get_one(
+            species=kb.cell.species_types.get_one(id='prot_gene_1_11').species.get_one(compartment=cytosol)).value
+        
+        check_kcat = math.log(2) / half_life * rna_reactant_mean_concentration \
+                    / degrase_mean_concentration / (0.5**2)
 
-            self.assertEqual(len(rxn.rate_laws), 1)
-            rl = rxn.rate_laws[0]
-            self.assertIsInstance(rl, wc_lang.RateLaw)
-            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
-            self.assertEqual(len(rl.expression.species), 1)
-            self.assertEqual(rl.expression.species[0].species_type.type, wcm_ontology['WCM:RNA']) # RNA
-            self.assertIn(rl.expression.species[0], rxn.get_reactants())
-
-    def test_mechanistic_rate_laws(self):
-        model = self.model_mechanistic
-        kb = self.kb
-        submodel = model.submodels.get_one(id='rna_degradation')
-
-        for rxn in submodel.reactions:
-            self.assertEqual(len(rxn.rate_laws), 1)
-            rl = rxn.rate_laws[0]
-            self.assertIsInstance(rl, wc_lang.RateLaw)
-            self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
-            
-            self.assertEqual(rxn.get_modifiers(), [])
-
-            k_cat_value = rl.expression.parameters.get_one(type=wcm_ontology['WCM:k_cat']).value
-            self.assertIsInstance(k_cat_value, float)
-            self.assertFalse(math.isnan(k_cat_value))
-
-            # Check that reactants participate in rate law
-            self.assertEqual(set(rxn.get_reactants()).difference(set(rl.expression.species)), set())
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_degradation_rna_tu_1_1').value, check_kcat, places=16)
