@@ -100,10 +100,10 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for reaction in self.submodel.reactions:
             modifier_reactant = [i for i in modifier.expression.species if i.species_type.id in reaction.id]
             if modifier_reactant:
-                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=[modifier],
+                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta=beta, modifiers=[modifier],
                     modifier_reactants=modifier_reactant)
             else:
-                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=[modifier])
+                rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta=beta, modifiers=[modifier])
 
             self.model.parameters += parameters
 

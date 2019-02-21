@@ -141,7 +141,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                                 units=unit_registry.parse_units('molecule mol^-1'))
 
         for reaction in self.submodel.reactions:        
-            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta, modifiers=self._modifiers)
+            rate_law_exp, parameters = utils.MM_like_rate_law(Avogadro, reaction, beta=beta, modifiers=self._modifiers)
             self.model.parameters += parameters
 
             rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
