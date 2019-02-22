@@ -101,7 +101,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-        beta = self.options.get('beta')
+        
         Avogadro = self.model.parameters.get_or_create(
             id='Avogadro',
             type=None,
@@ -119,11 +119,11 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             modifier_reactant = [i for i in modifier.expression.species if i.species_type.id in reaction.id]
             if modifier_reactant:
                 rate_law_exp, parameters = utils.MM_like_rate_law(
-                    Avogadro, molecule_units, reaction, beta=beta, modifiers=[modifier],
+                    Avogadro, molecule_units, reaction, modifiers=[modifier],
                     modifier_reactants=modifier_reactant)
             else:
                 rate_law_exp, parameters = utils.MM_like_rate_law(
-                    Avogadro, molecule_units, reaction, beta=beta, modifiers=[modifier])
+                    Avogadro, molecule_units, reaction, modifiers=[modifier])
 
             self.model.parameters += parameters
 
@@ -136,7 +136,14 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
-        
+        beta = self.options.get('beta')
+
+        Avogadro = self.model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))
+
         cytosol = self.model.compartments.get_one(id='c')
                 
         init_species_counts = {}
@@ -152,10 +159,17 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = protein_kb.half_life
             mean_concentration = protein_reactant.distribution_init_concentration.mean         
 
-            average_rate = math.log(2) / half_life * mean_concentration
+            average_rate = utils.calculate_average_degradation_rate(mean_concentration, half_life)
             
             for species in reaction.get_reactants():
+                
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+
+                if self.model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
+                    model_Km = self.model.parameters.get_one(
+                        id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
+                    model_Km.value = beta * species.distribution_init_concentration.mean \
+                        / Avogadro.value / species.compartment.mean_init_volume
 
             model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.

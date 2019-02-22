@@ -27,7 +27,21 @@ def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doublin
 
 	return ave_synthesis_rate
 
-def MM_like_rate_law(Avogadro, molecule_units, reaction, beta=1, modifiers=None, modifier_reactants=None):
+def calculate_average_degradation_rate(mean_concentration, half_life):
+    """ Calculate the average degradation rate of a species over a cell cycle
+
+        Args:
+            mean_concentration (:obj:`float`): species mean concentration
+            half_life (:obj:`float`): species half life
+            
+        Returns:
+            :obj:`float`: the average degradation rate of the species
+    """
+    ave_degradation_rate = math.log(2) / half_life * mean_concentration
+
+    return ave_degradation_rate    
+
+def MM_like_rate_law(Avogadro, molecule_units, reaction, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where
@@ -47,9 +61,7 @@ def MM_like_rate_law(Avogadro, molecule_units, reaction, beta=1, modifiers=None,
         Args:
             Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
             molecule_units (:obj:`wc_lang.Parameter`): model parameter for molecule units
-        	reaction (:obj:`wc_lang.Reaction`): reaction
-            beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
-                concentration (Km/[S]), the default value is 1      
+        	reaction (:obj:`wc_lang.Reaction`): reaction    
         	modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
                 each of which evaluates to the total concentration of all enzymes that 
                 catalyze the same intermediate step in the reaction
@@ -88,8 +100,7 @@ def MM_like_rate_law(Avogadro, molecule_units, reaction, beta=1, modifiers=None,
             all_species[species.gen_id()] = species
             
             model_k_m = wc_lang.Parameter(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-                type=wcm_ontology['WCM:K_m'],
-                value=beta * species.distribution_init_concentration.mean / Avogadro.value / species.compartment.mean_init_volume,
+                type=wcm_ontology['WCM:K_m'],                
                 units=unit_registry.parse_units('M'))
             parameters[model_k_m.id] = model_k_m
             

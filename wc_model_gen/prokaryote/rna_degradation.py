@@ -82,7 +82,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-        beta = self.options.get('beta')
+        
         Avogadro = self.model.parameters.get_or_create(
             id='Avogadro',
             type=None,
@@ -99,7 +99,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for reaction in self.submodel.reactions:
             
             rate_law_exp, parameters = utils.MM_like_rate_law(
-                Avogadro, molecule_units, reaction, beta=beta, modifiers=[modifier])
+                Avogadro, molecule_units, reaction, modifiers=[modifier])
             self.model.parameters += parameters
 
             rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
@@ -112,7 +112,14 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
-        
+        beta = self.options.get('beta')
+
+        Avogadro = self.model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))
+
         cytosol = self.model.compartments.get_one(id='c')
         
         init_species_counts = {}
@@ -128,10 +135,17 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = rna_kb.half_life
             mean_concentration = rna_reactant.distribution_init_concentration.mean         
 
-            average_rate = math.log(2) / half_life * mean_concentration
+            average_rate = average_rate = utils.calculate_average_degradation_rate(mean_concentration, half_life)
                         
             for species in reaction.get_reactants():
+                
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+
+                if self.model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
+                    model_Km = self.model.parameters.get_one(
+                        id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
+                    model_Km.value = beta * species.distribution_init_concentration.mean \
+                        / Avogadro.value / species.compartment.mean_init_volume
 
             model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.

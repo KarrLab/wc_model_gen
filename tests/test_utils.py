@@ -22,6 +22,11 @@ class TestCase(unittest.TestCase):
         test_rate = utils.calculate_average_synthesis_rate(0.5, 300., 36000.)
         self.assertAlmostEqual(test_rate, 0.001164872, places=9)
 
+    def test_calculate_average_degradation_rate(self):
+
+        test_rate = utils.calculate_average_degradation_rate(0.5, 300.)
+        self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)    
+
     def test_MM_like_rate_law(self):
 
         Avogadro = wc_lang.Parameter(id='Avogadro', value=scipy.constants.Avogadro)
@@ -80,5 +85,4 @@ class TestCase(unittest.TestCase):
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wcm_ontology['WCM:k_cat'])
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1'))
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
-        self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').value, 0.5/0.5/Avogadro.value)
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
