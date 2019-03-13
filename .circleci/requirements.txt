@@ -9,4 +9,5 @@ git+https://github.com/KarrLab/wc_kb.git#egg=wc_kb
 
 # Karr Lab -- for tests
 git+https://github.com/KarrLab/rand_wc_model_gen.git#egg=rand_wc_model_gen
+git+https://github.com/KarrLab/wc_sim.git#egg=wc_sim
 git+https://github.com/KarrLab/wc_test.git#egg=wc_test
