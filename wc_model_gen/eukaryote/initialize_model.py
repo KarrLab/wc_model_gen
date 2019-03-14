@@ -467,7 +467,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 assert error is None, str(error)
 
                 model_rate_law = model.rate_laws.create(
-                    expression= rate_law_expression,
+                    expression=rate_law_expression,
                     reaction=model_rxn,
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
