@@ -72,8 +72,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for dpp, tripp in zip(dpps.values(), tpps.values()):
 
             # get/create species
-            dpp_e   = model.species.get_or_create(species_type=dpp,   compartment=e)
-            dpp_c   = model.species.get_or_create(species_type=dpp,   compartment=c)
+            dpp_e = model.species.get_or_create(species_type=dpp,   compartment=e)
+            dpp_c = model.species.get_or_create(species_type=dpp,   compartment=c)
             tripp_c = model.species.get_or_create(species_type=tripp, compartment=c)
             dpp_e.id = dpp_e.gen_id()
             dpp_c.id = dpp_c.gen_id()
@@ -90,10 +90,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rxn.participants = []
             rxn.participants.add(dpp_c.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
             rxn.participants.add(pi.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
-            #rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
+            # rxn.participants.add(h.species_coefficients.get_or_create(coefficient=-self.reaction_scale))
 
             rxn.participants.add(tripp_c.species_coefficients.get_or_create(coefficient=self.reaction_scale))
-            #rxn.participants.add(h.species_coefficients.get_or_create(coefficient=self.reaction_scale))
+            # rxn.participants.add(h.species_coefficients.get_or_create(coefficient=self.reaction_scale))
             rxn.participants.add(h2o.species_coefficients.get_or_create(coefficient=self.reaction_scale))
 
         # Generate reactions associated with tRna/AA maintenece
@@ -195,7 +195,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             assert error is None, str(error)
 
         # Apply correction terms if translation submodel is present
-        #if model.submodels.get_one(id='translation'):
+        # if model.submodels.get_one(id='translation'):
         #    gtp_corr_rate = self.calc_gtp_corr_rate()
         #    model.parameters.get_one(id='k_cat_transfer_gmp').value += gtp_corr_rate
         #    model.parameters.get_one(id='k_cat_conversion_gmp_gtp').value += gtp_corr_rate
@@ -216,12 +216,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         n_transcription_rxns = n_rnas + n_degrad_rxns
 
         # Calculate the # of H molecules needed to be transfered over the CC
-        n_h_transfer = (n_transcription_rxns-n_degrad_rxns)*avg_H_per_transcription
+        n_h_transfer = (n_transcription_rxns - n_degrad_rxns) * avg_H_per_transcription
 
         # Each transfer reactions transports 10 TPs, thus the final /10
         cc_length = kb.cell.properties.get_one(id='mean_doubling_time').value
         h_transfer_rate = n_h_transfer / cc_length / self.reaction_scale
-        #print('h_transfer_rate: ', h_transfer_rate)
         return h_transfer_rate
 
     def calc_mpp_transfer_rate(self):
@@ -348,7 +347,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        rnas_lang = self.model.species_types.get(type=wcm_ontology['WCM:RNA']) # RNA
+        rnas_lang = self.model.species_types.get(type=wcm_ontology['WCM:RNA'])  # RNA
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
 
@@ -372,7 +371,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        prots_lang = self.model.species_types.get(type=wcm_ontology['WCM:protein']) # protein
+        prots_lang = self.model.species_types.get(type=wcm_ontology['WCM:protein'])  # protein
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
 
