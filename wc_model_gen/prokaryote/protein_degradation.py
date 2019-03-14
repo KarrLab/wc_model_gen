@@ -162,7 +162,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = protein_kb.half_life
             mean_concentration = protein_reactant.distribution_init_concentration.mean
 
-            average_rate = utils.calculate_average_degradation_rate(mean_concentration, half_life)
+            average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
 
             for species in reaction.get_reactants():
 

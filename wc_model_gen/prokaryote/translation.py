@@ -199,7 +199,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = protein_kb.half_life
             mean_concentration = protein_product.distribution_init_concentration.mean
 
-            average_rate = utils.calculate_average_synthesis_rate(
+            average_rate = utils.calc_avg_syn_rate(
                 mean_concentration, half_life, mean_doubling_time)
 
             for species in reaction.get_reactants():

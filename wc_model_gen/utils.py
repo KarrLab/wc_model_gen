@@ -12,7 +12,7 @@ import math
 import wc_lang
 
 
-def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doubling_time):
+def calc_avg_syn_rate(mean_concentration, half_life, mean_doubling_time):
 	""" Calculate the average synthesis rate of a species over a cell cycle
 
 	    Args:
@@ -27,7 +27,7 @@ def calculate_average_synthesis_rate(mean_concentration, half_life, mean_doublin
 
 	return ave_synthesis_rate
 
-def calculate_average_degradation_rate(mean_concentration, half_life):
+def calc_avg_deg_rate(mean_concentration, half_life):
     """ Calculate the average degradation rate of a species over a cell cycle
 
         Args:
@@ -41,7 +41,7 @@ def calculate_average_degradation_rate(mean_concentration, half_life):
 
     return ave_degradation_rate    
 
-def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modifiers=None, modifier_reactants=None):
+def gen_michaelis_menten_like_rate_law(avogadro, molecule_units, reaction, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where
@@ -59,7 +59,7 @@ def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modif
             	Km_Sn: Michaelis-Menten constant for nth substrate   
 
         Args:
-            Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
+            avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
             molecule_units (:obj:`wc_lang.Parameter`): model parameter for molecule units
         	reaction (:obj:`wc_lang.Reaction`): reaction    
         	modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
@@ -83,7 +83,7 @@ def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modif
         additional_reactants = modifier_reactants
 
     parameters = {}
-    parameters[Avogadro.id] = Avogadro
+    parameters[avogadro.id] = avogadro
     parameters[molecule_units.id] = molecule_units            
 
     model_k_cat = wc_lang.Parameter(id='k_cat_{}'.format(reaction.id),
@@ -108,7 +108,7 @@ def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modif
             
             expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
                                                                         species.gen_id(),
-                                                                        model_k_m.id, Avogadro.id,
+                                                                        model_k_m.id, avogadro.id,
                                                                         volume.id))   
 
     expression = '{} / {} * {} * {}'.format(
@@ -127,7 +127,7 @@ def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modif
 
     return rate_law_expression, list(parameters.values()) 	
 
-def mass_action_rate_law(Avogadro, molecule_units, reaction, kinetic_parameter_value, modifiers=None, modifier_reactants=None):
+def gen_mass_action_rate_law(avogadro, molecule_units, reaction, kinetic_parameter_value, modifiers=None, modifier_reactants=None):
     """ Generate a mass action rate law.
 
         Example:
@@ -140,7 +140,7 @@ def mass_action_rate_law(Avogadro, molecule_units, reaction, kinetic_parameter_v
                 [Sn]: concentration of nth substrate  
 
         Args:
-            Avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
+            avogadro (:obj:`wc_lang.Parameter`): model parameter for Avogadro number
             molecule_units (:obj:`wc_lang.Parameter`): model parameter for molecule units
             reaction (:obj:`wc_lang.Reaction`): reaction    
             modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
@@ -164,7 +164,7 @@ def mass_action_rate_law(Avogadro, molecule_units, reaction, kinetic_parameter_v
         additional_reactants = modifier_reactants
 
     parameters = {}
-    parameters[Avogadro.id] = Avogadro
+    parameters[avogadro.id] = avogadro
     parameters[molecule_units.id] = molecule_units            
 
     model_k = wc_lang.Parameter(id='k_{}'.format(reaction.id),

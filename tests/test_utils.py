@@ -19,12 +19,12 @@ class TestCase(unittest.TestCase):
 
     def test_calculate_average_synthesis_rate(self):
 
-        test_rate = utils.calculate_average_synthesis_rate(0.5, 300., 36000.)
+        test_rate = utils.calc_avg_syn_rate(0.5, 300., 36000.)
         self.assertAlmostEqual(test_rate, 0.001164872, places=9)
 
     def test_calculate_average_degradation_rate(self):
 
-        test_rate = utils.calculate_average_degradation_rate(0.5, 300.)
+        test_rate = utils.calc_avg_deg_rate(0.5, 300.)
         self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)    
 
     def test_gen_michaelis_menten_like_rate_law(self):
