@@ -41,7 +41,7 @@ def calculate_average_degradation_rate(mean_concentration, half_life):
 
     return ave_degradation_rate    
 
-def MM_like_rate_law(Avogadro, molecule_units, reaction, modifiers=None, modifier_reactants=None):
+def gen_michaelis_menten_like_rate_law(Avogadro, molecule_units, reaction, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where

@@ -27,7 +27,7 @@ class TestCase(unittest.TestCase):
         test_rate = utils.calculate_average_degradation_rate(0.5, 300.)
         self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)    
 
-    def test_MM_like_rate_law(self):
+    def test_gen_michaelis_menten_like_rate_law(self):
 
         Avogadro = wc_lang.Parameter(id='Avogadro', value=scipy.constants.Avogadro)
         molecule_units = wc_lang.Parameter(id='molecule_units', value=1.,
@@ -72,7 +72,7 @@ class TestCase(unittest.TestCase):
         reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3, 
             participant4, participant5, participant6, participant7, participant8])
 
-        rate_law, parameters = utils.MM_like_rate_law(
+        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
             Avogadro, molecule_units, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
 
         self.assertEqual(rate_law.expression, 'k_cat_r1 / molecule_units * e1 * e2 * '
