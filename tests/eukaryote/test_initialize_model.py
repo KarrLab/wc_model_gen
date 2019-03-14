@@ -28,7 +28,6 @@ class TestCase(unittest.TestCase):
     def set_options(options):
 		
         option_dict = { 'gen_dna': False,
-                        'gen_pre_rnas': False,
                         'gen_transcripts': False,
                         'gen_protein': False,
                         'gen_metabolites': False,
@@ -65,13 +64,12 @@ class TestCase(unittest.TestCase):
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', name='chromosome 1', 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
         gene1 = wc_kb.eukaryote_schema.GeneLocus(polymer=chr1, start=1, end=36)
-        rna1 = wc_kb.eukaryote_schema.PreRnaSpeciesType(cell=cell, id='rna1', name='rna1', gene=gene1)
-        exon1 = wc_kb.eukaryote_schema.ExonLocus(polymer=chr1, start=4, end=36)
+        exon1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)
         transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans1', 
-            name='transcript1', rna=rna1, exons=[exon1])
+            name='transcript1', gene=gene1, exons=[exon1])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=0.02)
-        cds1 = wc_kb.eukaryote_schema.CdsLocus(id='cds1', exon=exon1, start=4, end=36)        
+        cds1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)        
         prot1 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', 
             transcript=transcript1, coding_regions=[cds1])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
@@ -80,23 +78,21 @@ class TestCase(unittest.TestCase):
         chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', name='chromosome X', 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
         gene2 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrX, start=1, end=4)
-        rna2 = wc_kb.eukaryote_schema.PreRnaSpeciesType(cell=cell, id='rna2', name='rna2', gene=gene2)
-        exon2 = wc_kb.eukaryote_schema.ExonLocus(polymer=chrX, start=1, end=4)
+        exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=4)
         transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans2',
-            name='transcript2', rna=rna2, exons=[exon2])
+            name='transcript2', gene=gene2, exons=[exon2])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)         
 
         chrMT = wc_kb.core.DnaSpeciesType(cell=cell, id='chrMT', name='mitochondrial chromosome', 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
         gene3 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrMT, start=1, end=33)
-        rna3 = wc_kb.eukaryote_schema.PreRnaSpeciesType(cell=cell, id='rna3', name='rna3', gene=gene3)
-        exon3 = wc_kb.eukaryote_schema.ExonLocus(polymer=chrMT, start=1, end=30)
+        exon3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)
         transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3', 
-            name='transcript3',rna=rna3, exons=[exon3])
+            name='transcript3', gene=gene3, exons=[exon3])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=mito)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=0.05)
-        cds3 = wc_kb.eukaryote_schema.CdsLocus(id='cds3', exon=exon3, start=1, end=30)        
+        cds3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)        
         prot3 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', 
             transcript=transcript3, coding_regions=[cds3])
         prot3_spec = wc_kb.core.Species(species_type=prot3, compartment=mito)
@@ -252,37 +248,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(chrX_model.charge, -L - 1)
         self.assertEqual(chrX_model.comments, '')
 
-    def test_gen_pre_rnas(self):        
- 
-        model = core.EukaryoteModelGenerator(self.kb, 
-            component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_pre_rnas'])}}).run()
-
-        rna1_model = model.species_types.get_one(id='rna1')
-        rna2_model = model.species_types.get_one(id='rna2')
-        rna3_model = model.species_types.get_one(id='rna3')
-
-        self.assertEqual(rna1_model.name, 'rna1')
-        self.assertEqual(rna2_model.type, wcm_ontology['WCM:pseudo_species'])
-        self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=rna1_model)), True)
-        self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=rna2_model)), True)
-        self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=rna3_model)), True)
-
-        rna = self.kb.cell.species_types.get_one(id='rna2')
-        L = rna.get_len()
-        self.assertEqual(rna2_model.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P') * 1
-                         + chem.EmpiricalFormula('C9H12N3O8P') * 1
-                         + chem.EmpiricalFormula('C10H12N5O8P') * 1
-                         + chem.EmpiricalFormula('C9H11N2O9P') * 1
-                         - chem.EmpiricalFormula('OH') * (L - 1))
-
-        exp_mol_wt = \
-            + Bio.SeqUtils.molecular_weight(rna.get_seq()) \
-            - (L + 1) * mendeleev.element('H').atomic_weight
-        self.assertAlmostEqual(rna2_model.molecular_weight, exp_mol_wt, places=0)
-        self.assertEqual(rna2_model.charge, -L - 1)
-        self.assertEqual(rna2_model.comments, '')
-        
     def test_gen_transcripts(self):
     
         model = core.EukaryoteModelGenerator(self.kb, 

@@ -30,9 +30,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_dna']:
             self.gen_dna()
 
-        if options['gen_pre_rnas']:
-            self.gen_pre_rnas()
-
         if options['gen_transcripts']:
             self.gen_transcripts()     
 
@@ -67,10 +64,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         gen_dna = options.get('gen_dna', True)
         assert(isinstance(gen_dna, bool))
         options['gen_dna'] = gen_dna
-
-        gen_pre_rnas = options.get('gen_pre_rnas', True)
-        assert(isinstance(gen_pre_rnas, bool))
-        options['gen_pre_rnas'] = gen_pre_rnas
 
         gen_transcripts = options.get('gen_transcripts', True)
         assert(isinstance(gen_transcripts, bool))
@@ -186,21 +179,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             else:    
                 self.gen_species_type(kb_species_type, ['n'])                
 
-    def gen_pre_rnas(self):
-        """ Generate pre-RNAs for the model from knowledge base """
-        kb = self.knowledge_base
-        model = self.model
-
-        kb_species_types = kb.cell.species_types.get(
-            __type=wc_kb.eukaryote_schema.PreRnaSpeciesType)
-
-        for kb_species_type in kb_species_types:
-            chromosome = kb_species_type.gene.polymer
-            if 'MT' in chromosome.id or 'mt' in chromosome.id:
-                self.gen_species_type(kb_species_type, ['m'])
-            else:    
-                self.gen_species_type(kb_species_type, ['n'])
-
     def gen_transcripts(self):
         """ Generate transcripts (mature RNAs) for the model from knowledge base """
         kb = self.knowledge_base
@@ -263,9 +241,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
             model_species_type.type = wcm_ontology['WCM:DNA'] # DNA
-
-        elif isinstance(kb_species_type, wc_kb.eukaryote_schema.PreRnaSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:pseudo_species'] # pseudo species
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
             model_species_type.type = wcm_ontology['WCM:RNA'] # RNA
