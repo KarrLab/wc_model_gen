@@ -45,6 +45,9 @@ docs/_build
 .Trashes
 .~lock.*
 Thumbs.db
+.~*.docx
+.~*.pptx
+.~*.xlsx
 
 # flat file index
 *.fai
