@@ -65,7 +65,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.add(ctp.species_coefficients.get_or_create(coefficient=-seq.count('C')))
             reaction.participants.add(gtp.species_coefficients.get_or_create(coefficient=-seq.count('G')))
             reaction.participants.add(utp.species_coefficients.get_or_create(coefficient=-seq.count('U')))
-            #reaction.participants.add(h2o.species_coefficients.get_or_create(coefficient=-1))
+            # reaction.participants.add(h2o.species_coefficients.get_or_create(coefficient=-1))
 
             # Adding participants to RHS
             reaction.participants.add(rna_model.species_coefficients.get_or_create(coefficient=1))
@@ -79,80 +79,80 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=-1))
                 reaction.participants.add(rnap_model.species_coefficients.get_or_create(coefficient=1))
-                
+
     def gen_rate_laws(self):
-        """ Generate rate laws for the reactions in the submodel """                
-        
-        Avogadro = self.model.parameters.get_or_create(
+        """ Generate rate laws for the reactions in the submodel """
+        model = self.model
+
+        Avogadro = model.parameters.get_or_create(
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
-        molecule_units = self.model.parameters.get_or_create(
+        molecule_units = model.parameters.get_or_create(
             id='molecule_units',
             type=None,
             value=1.,
             units=unit_registry.parse_units('molecule'))
-        
-        modifier = self.model.observables.get_one(id='rna_polymerase_obs')
 
-        for reaction in self.submodel.reactions:        
+        modifier = model.observables.get_one(id='rna_polymerase_obs')
+
+        for reaction in self.submodel.reactions:
             rate_law_exp, parameters = utils.MM_like_rate_law(
                 Avogadro, molecule_units, reaction, modifiers=[modifier])
-            self.model.parameters += parameters
+            model.parameters += parameters
 
-            rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
-                                        type=None,
-                                        expression=rate_law_exp,
-                                        reaction=reaction,
-                                        )
+            rate_law = model.rate_laws.create(direction=wc_lang.RateLawDirection.forward,
+                                              type=None,
+                                              expression=rate_law_exp,
+                                              reaction=reaction,
+                                              )
             rate_law.id = rate_law.gen_id()
-                        
+
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
-        
+        model = self.model
         beta = self.options.get('beta')
-        
-        Avogadro = self.model.parameters.get_or_create(
+
+        Avogadro = model.parameters.get_or_create(
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
 
-        cytosol = self.model.compartments.get_one(id='c')
-        
+        cytosol = model.compartments.get_one(id='c')
+
         mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-        
+
         init_species_counts = {}
-        
-        modifier = self.model.observables.get_one(id='rna_polymerase_obs')        
+
+        modifier = model.observables.get_one(id='rna_polymerase_obs')
         for species in modifier.expression.species:
-            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
-        
+            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
-            
-            rna_product = self.model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
+
+            rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
             half_life = rna_kb.half_life
-            mean_concentration = rna_product.distribution_init_concentration.mean         
+            mean_concentration = rna_product.distribution_init_concentration.mean
 
             average_rate = utils.calculate_average_synthesis_rate(
                 mean_concentration, half_life, mean_doubling_time)
-            
+
             for species in reaction.get_reactants():
-                
+
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-                
-                if self.model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
-                    model_Km = self.model.parameters.get_one(
+
+                if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
+                    model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.mean_init_volume
 
-            model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+            model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.
             model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
                 wc_lang.Species: init_species_counts,
                 wc_lang.Compartment: {cytosol.id: cytosol.mean_init_volume * cytosol.init_density.value},
-                })
-        
+            })

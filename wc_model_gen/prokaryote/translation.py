@@ -47,16 +47,16 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Get initiation factors, elongation factors, and release factors (modifiers)
         self._modifiers = [model.observables.get_one(id='translation_init_factors_obs'),
-                            model.observables.get_one(id='translation_elongation_factors_obs'),
-                            model.observables.get_one(id='translation_release_factors_obs')]
+                           model.observables.get_one(id='translation_elongation_factors_obs'),
+                           model.observables.get_one(id='translation_release_factors_obs')]
         initiation_factors = self._modifiers[0].expression.species[0]
         elongation_factors = self._modifiers[1].expression.species[0]
         release_factors = self._modifiers[2].expression.species[0]
 
         # Check if initiation, elongation & termination factors consist of one specie
         for modifier in self._modifiers:
-            assert(len(modifier.expression.species)==1)
-        
+            assert(len(modifier.expression.species) == 1)
+
         bases = "TCAG"
         codons = [a + b + c for a in bases for b in bases for c in bases]
 
@@ -95,13 +95,13 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                         # Add appropiate amino acids
                         # TODO: add in all AAs
-                        if codon=='ATG':
+                        if codon == 'ATG':
                             aa = model.species_types.get_one(id='met').species.get_one(compartment=cytosol)
-                        elif codon=='ACT' or codon=='ACC' or codon=='ACA' or codon=='ACG':
+                        elif codon == 'ACT' or codon == 'ACC' or codon == 'ACA' or codon == 'ACG':
                             aa = model.species_types.get_one(id='thr').species.get_one(compartment=cytosol)
-                        elif codon=='ATT' or codon=='ATC' or codon=='ATA':
+                        elif codon == 'ATT' or codon == 'ATC' or codon == 'ATA':
                             aa = model.species_types.get_one(id='ile').species.get_one(compartment=cytosol)
-                        elif codon=='TTA' or codon=='TTG' or codon=='CTT' or codon=='CTC' or codon=='CTA' or codon=='CTG':
+                        elif codon == 'TTA' or codon == 'TTG' or codon == 'CTT' or codon == 'CTC' or codon == 'CTA' or codon == 'CTG':
                             aa = model.species_types.get_one(id='leu').species.get_one(compartment=cytosol)
                         else:
                             raise ValueError('Unknown codon: {}'.format(codon))
@@ -142,46 +142,48 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 ribosome_model = ribosome_species_type_model.species.get_one(compartment=cytosol)
 
                 reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=-1))
-                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))  
+                reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))
 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-        
-        Avogadro = self.model.parameters.get_or_create(
+        model = self.model
+
+        Avogadro = model.parameters.get_or_create(
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
-        molecule_units = self.model.parameters.get_or_create(
+        molecule_units = model.parameters.get_or_create(
             id='molecule_units',
             type=None,
             value=1.,
             units=unit_registry.parse_units('molecule'))
 
-        for reaction in self.submodel.reactions:        
+        for reaction in self.submodel.reactions:
             rate_law_exp, parameters = utils.MM_like_rate_law(
                 Avogadro, molecule_units, reaction, modifiers=self._modifiers)
-            self.model.parameters += parameters
+            model.parameters += parameters
 
-            rate_law = wc_lang.RateLaw(direction=wc_lang.RateLawDirection.forward,
-                                        type=None,
-                                        expression=rate_law_exp,
-                                        reaction=reaction,
-                                        )
+            rate_law = model.rate_laws.create(direction=wc_lang.RateLawDirection.forward,
+                                              type=None,
+                                              expression=rate_law_exp,
+                                              reaction=reaction,
+                                              )
             rate_law.id = rate_law.gen_id()
-                
+
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
+        model = self.model
         beta = self.options.get('beta')
 
-        Avogadro = self.model.parameters.get_or_create(
+        Avogadro = model.parameters.get_or_create(
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
 
-        cytosol = self.model.compartments.get_one(id='c')
-        
+        cytosol = model.compartments.get_one(id='c')
+
         mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
 
         init_species_counts = {}
@@ -192,28 +194,27 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         protein_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for protein_kb, reaction in zip(protein_kb, self.submodel.reactions):
-            
-            protein_product = self.model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
+
+            protein_product = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             half_life = protein_kb.half_life
-            mean_concentration = protein_product.distribution_init_concentration.mean         
+            mean_concentration = protein_product.distribution_init_concentration.mean
 
             average_rate = utils.calculate_average_synthesis_rate(
                 mean_concentration, half_life, mean_doubling_time)
-            
+
             for species in reaction.get_reactants():
-                
+
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-                
-                if self.model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
-                    model_Km = self.model.parameters.get_one(
+
+                if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
+                    model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.mean_init_volume
-            
-            model_kcat = self.model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+
+            model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.
             model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
                 wc_lang.Species: init_species_counts,
                 wc_lang.Compartment: {cytosol.id: cytosol.mean_init_volume * cytosol.init_density.value},
-                })
-            
+            })
