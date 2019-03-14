@@ -82,3 +82,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 molecule^-2'))
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
+
+        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant4, participant8])
+        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
+            model, reaction)
+        self.assertEqual(rate_law.expression, 'k_cat_r1 * '
+            '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
+            '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
+            '(s4[c] / (s4[c] + K_m_r1_s4 * Avogadro * volume_c))')
+
+        reaction = wc_lang.Reaction(id='r1', participants=[participant3])
+        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
+            model, reaction)
+        self.assertEqual(rate_law.expression, 'k_cat_r1')

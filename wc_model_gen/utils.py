@@ -63,8 +63,8 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
 
         Args:
             model (:obj:`wc_lang.Model`): model
-                reaction (:obj:`wc_lang.Reaction`): reaction    
-                modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
+            reaction (:obj:`wc_lang.Reaction`): reaction    
+            modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
                 each of which evaluates to the total concentration of all enzymes that 
                 catalyze the same intermediate step in the reaction
             modifier_reactants (:obj:`list` of :obj:`wc_lang.Species`): list of species 
@@ -95,11 +95,13 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
 
     model_k_cat = model.parameters.get_or_create(id='k_cat_{}'.format(reaction.id),
                                                  type=wcm_ontology['WCM:k_cat'],
-                                                 units=unit_registry.parse_units('s^-1 * molecule^{{-{}}}'.format(len(modifiers))))
+                                                 units=unit_registry.parse_units('s^-1{}'.format(
+                                                    (' * molecule^{{-{}}}'.format(len(modifiers))) if modifiers else '')))
     parameters[model_k_cat.id] = model_k_cat
 
     expression_terms = []
     all_species = {}
+    all_volumes = {}
     for species in reaction.get_reactants():
 
         if species not in modifier_species or species in additional_reactants:
@@ -112,22 +114,23 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
             parameters[model_k_m.id] = model_k_m
 
             volume = species.compartment.init_density.function_expressions[0].function
+            all_volumes[volume.id] = volume
 
             expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
                                                                         species.gen_id(),
                                                                         model_k_m.id, avogadro.id,
                                                                         volume.id))
 
-    expression = '{} * {} * {}'.format(
+    expression = '{}{}{}'.format(
         model_k_cat.id,
-        ' * '.join([i.id for i in modifiers]),
-        ' * '.join(expression_terms))
+        (' * '+' * '.join([i.id for i in modifiers])) if modifiers else '',
+        (' * ' + ' * '.join(expression_terms)) if expression_terms else '')
 
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
         wc_lang.Species: all_species,
-        wc_lang.Observable: {i.id: i for i in modifiers},
-        wc_lang.Function: {volume.id: volume},
+        wc_lang.Observable: {i.id: i for i in modifiers} if modifiers else {},
+        wc_lang.Function: all_volumes,
     })
     assert error is None, str(error)
 
