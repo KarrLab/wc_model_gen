@@ -236,7 +236,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)
 
-        #print('mpp_transfer_rate: ', mpp_transfer_rate)
         return mpp_transfer_rate
 
     def calc_aa_transfer_rate(self):
@@ -252,7 +251,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         aa_transfer_rate = (aa_in_cell/cc_length/self.reaction_scale)
 
-        #print('aa_transfer_rate: ', aa_transfer_rate)
         return aa_transfer_rate
 
     def calc_mpp_conversion_rate(self):
@@ -269,7 +267,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         mpp_conversion_rate = n_mpp_to_convert/cc_length/self.reaction_scale
 
-        #print('mpp_conversion_rate: ', mpp_conversion_rate)
         return mpp_conversion_rate  # This is only the rate from degradation, needs to add new mpp conversion!
 
     def calc_tpp_per_rna(self):
@@ -288,7 +285,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_tpp_per_rna = n_tpp/4/len(rnas_kb)
 
-        #print('avg_tpp_per_rna: ', avg_tpp_per_rna)
         return avg_tpp_per_rna
 
     def calc_aa_per_prot(self):
@@ -309,23 +305,23 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_aa_per_prot = n_aa/(n_trnas*len(proteins_kb))
 
-        #print('avg_aa_per_prot: ', avg_aa_per_prot)
         return avg_aa_per_prot
 
     def calc_h_per_transcript(self):
         """ Calculates the average H needed for a transcription reaction """
         submodel = self.model.submodels.get_one(id='transcription')
 
-        h_per_transcription = []
+        h_per_transcript = []
         for rxn in submodel.reactions:
+            n_h = 0
             for part in rxn.participants:
                 if part.species.species_type.id == 'h':
-                    h_per_transcription.append(abs(part.coefficient))
+                    n_h += part.coefficient
+            h_per_transcript.append(n_h)
 
-        avg_H_per_transcription = numpy.mean(h_per_transcription)
+        avg_H_per_transcript = numpy.mean(h_per_transcript)
 
-        #print('avg_H_per_transcription: ', avg_H_per_transcription)
-        return avg_H_per_transcription
+        return avg_H_per_transcript
 
     def calc_gtp_per_translate(self):
         """ Calculates the average GTP needed for a translation reaction """
@@ -339,7 +335,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_gtp_per_translate = numpy.mean(gtp_per_translation)
 
-        #print('avg_gtp_per_translate: ', avg_gtp_per_translate)
         return avg_gtp_per_translate
 
     def calc_rna_degrad_rxns(self):
@@ -363,7 +358,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_copy_num = round(conc * volume * Avogadro)
             n_rna_deg_rxns += ((cc_length / half_life) * rna_copy_num)
 
-        #print('n_rna_deg_rxns: ', n_rna_deg_rxns)
         return n_rna_deg_rxns
 
     def calc_prot_degrad_rxns(self):
@@ -390,7 +384,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             n_prot_deg_rxns += ((cc_length / half_life) * prot_copy_num)
 
         #n_prot_deg_rxns = round(n_prot_deg_rxns)
-        #print('n_prot_deg_rxns: ', n_prot_deg_rxns)
         return n_prot_deg_rxns
 
     def calc_rna_copy_num(self):
@@ -407,7 +400,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_rna_copy_num = numpy.mean(rna_copy_num)
 
-        #print('avg_rna_copy_num: ', avg_rna_copy_num)
         return avg_rna_copy_num
 
     def calc_prot_copy_num(self):
@@ -425,7 +417,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         avg_prot_copy_num = numpy.mean(prot_copy_num)
 
-        #print('avg_prot_copy_num: ', avg_prot_copy_num)
         return avg_prot_copy_num
 
     def calc_gtp_corr_rate(self):
@@ -440,5 +431,4 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         gtp_corr_rate = (total_translation_gtp/cc_length/self.reaction_scale)
 
-        #print('gtp_corr_rate: ', gtp_corr_rate)
         return gtp_corr_rate
