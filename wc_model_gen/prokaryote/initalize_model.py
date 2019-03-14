@@ -381,7 +381,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model  
 
-        Avogadro = model.parameters.get_or_create(id='Avogadro')
+        avogadro = model.parameters.get_or_create(id='Avogadro')
         
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
@@ -390,7 +390,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             for kb_rate_law in kb_rxn.rate_laws:
                 all_parameters = {}
-                all_parameters[Avogadro.id] = Avogadro
+                all_parameters[avogadro.id] = avogadro
                 all_species = {}
                 all_observables = {}
                 all_volumes = {}
@@ -412,7 +412,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     all_parameters[param.id] = model.parameters.get_one(id=param.id)
                     if 'K_m' in param.id:
                         volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
-                        unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
+                        unit_adjusted_term = '{} * {} * {}'.format(param.id, avogadro.id, volume.id)
                         kb_expression = kb_expression.replace(param.id, unit_adjusted_term)            
 
                 rate_law_expression, error = wc_lang.RateLawExpression.deserialize(

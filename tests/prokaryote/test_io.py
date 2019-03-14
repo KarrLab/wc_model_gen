@@ -34,4 +34,5 @@ class ModelIOTestCase(unittest.TestCase):
 
         """ Read back KBs from disk """
         model_read = wc_lang.io.Reader().run(os.path.join(self.dir, 'model.xlsx'))[wc_lang.Model][0]
-        self.assertTrue(model.is_equal(model_read))
+
+        self.assertTrue(model.is_equal(model_read, tol=1e-4))

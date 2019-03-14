@@ -114,7 +114,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         test_reaction = submodel.reactions.get_one(id='transcription_rna_tu_1_1')
         self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
-            'k_cat_transcription_rna_tu_1_1 / molecule_units * rna_polymerase_obs * '
+            'k_cat_transcription_rna_tu_1_1 * rna_polymerase_obs * '
             '(atp[c] / (atp[c] + K_m_transcription_rna_tu_1_1_atp * Avogadro * volume_c)) * '
             '(ctp[c] / (ctp[c] + K_m_transcription_rna_tu_1_1_ctp * Avogadro * volume_c)) * '
             '(gtp[c] / (gtp[c] + K_m_transcription_rna_tu_1_1_gtp * Avogadro * volume_c)) * '

@@ -40,7 +40,7 @@ class InitalizeModelTestCase(unittest.TestCase):
             model_specie       = model_species_type.species.get_one(compartment=cytosol)
 
             self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
-            self.assertIsInstance(model_specie, wc_lang.Species)
+            self.assertIsInstance(model_specie, wc_lang.Species, "Model does not contain species {}[c]".format(species.id))
 
     def test_rna_species(self):
         cytosol = self.model.compartments.get_one(id='c')

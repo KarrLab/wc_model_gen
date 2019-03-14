@@ -104,28 +104,17 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         model = self.model
 
-        Avogadro = model.parameters.get_or_create(
-            id='Avogadro',
-            type=None,
-            value=scipy.constants.Avogadro,
-            units=unit_registry.parse_units('molecule mol^-1'))
-        molecule_units = model.parameters.get_or_create(
-            id='molecule_units',
-            type=None,
-            value=1.,
-            units=unit_registry.parse_units('molecule'))
-
         modifier = model.observables.get_one(id='degrade_protease_obs')
 
         for reaction in self.submodel.reactions:
             modifier_reactant = [i for i in modifier.expression.species if i.species_type.id in reaction.id]
             if modifier_reactant:
                 rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                    Avogadro, molecule_units, reaction, modifiers=[modifier],
+                    model, reaction, modifiers=[modifier],
                     modifier_reactants=modifier_reactant)
             else:
                 rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                    Avogadro, molecule_units, reaction, modifiers=[modifier])
+                    model, reaction, modifiers=[modifier])
 
             model.parameters += parameters
 

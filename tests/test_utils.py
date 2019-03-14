@@ -17,22 +17,18 @@ import wc_lang
 
 class TestCase(unittest.TestCase):
 
-    def test_calculate_average_synthesis_rate(self):
+    def test_calc_avg_syn_rate(self):
 
         test_rate = utils.calc_avg_syn_rate(0.5, 300., 36000.)
         self.assertAlmostEqual(test_rate, 0.001164872, places=9)
 
-    def test_calculate_average_degradation_rate(self):
+    def test_calc_avg_deg_rate(self):
 
         test_rate = utils.calc_avg_deg_rate(0.5, 300.)
         self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)    
 
     def test_gen_michaelis_menten_like_rate_law(self):
-
-        Avogadro = wc_lang.Parameter(id='Avogadro', value=scipy.constants.Avogadro)
-        molecule_units = wc_lang.Parameter(id='molecule_units', value=1.,
-            units=unit_registry.parse_units('molecule'))
-		
+        model = wc_lang.Model()
         c = wc_lang.Compartment(id='c', mean_init_volume=0.5)
         c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)                
         volume = wc_lang.Function(id='volume_' + c.id)
@@ -73,9 +69,9 @@ class TestCase(unittest.TestCase):
             participant4, participant5, participant6, participant7, participant8])
 
         rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            Avogadro, molecule_units, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
+            model, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
 
-        self.assertEqual(rate_law.expression, 'k_cat_r1 / molecule_units * e1 * e2 * '
+        self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * e2 * '
             '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
             '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
             '(s6[c] / (s6[c] + K_m_r1_s6 * Avogadro * volume_c))')
@@ -83,6 +79,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
         self.assertEqual(set(rate_law.parameters), set(parameters))        
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wcm_ontology['WCM:k_cat'])
-        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1'))
+        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 molecule^-2'))
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))

@@ -148,20 +148,9 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws for the reactions in the submodel """
         model = self.model
 
-        Avogadro = model.parameters.get_or_create(
-            id='Avogadro',
-            type=None,
-            value=scipy.constants.Avogadro,
-            units=unit_registry.parse_units('molecule mol^-1'))
-        molecule_units = model.parameters.get_or_create(
-            id='molecule_units',
-            type=None,
-            value=1.,
-            units=unit_registry.parse_units('molecule'))
-
         for reaction in self.submodel.reactions:
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                Avogadro, molecule_units, reaction, modifiers=self._modifiers)
+                model, reaction, modifiers=self._modifiers)
             model.parameters += parameters
 
             rate_law = model.rate_laws.create(direction=wc_lang.RateLawDirection.forward,
