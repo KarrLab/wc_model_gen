@@ -123,8 +123,8 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
 
     expression = '{}{}{}'.format(
         model_k_cat.id,
-        (' * '+' * '.join([i.id for i in modifiers])) if modifiers else '',
-        (' * ' + ' * '.join(expression_terms)) if expression_terms else '')
+        (' * {}'.format(' * '.join([i.id for i in modifiers]))) if modifiers else '',
+        (' * {}'.format(' * '.join(expression_terms))) if expression_terms else '')
 
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
