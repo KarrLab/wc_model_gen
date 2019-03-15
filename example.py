@@ -1,35 +1,31 @@
+""" This file demonstrates how to use wc_model_gen to construct a wc_lang model from
+an existing KB
+
+:Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
+:Date: 2019-03-15
+:Copyright: 2018, Karr Lab
+:License: MIT
+"""
+
 from wc_model_gen import prokaryote
 import wc_model_gen
 import wc_lang
 import wc_kb_gen
 import wc_kb
 
-rand_kb = wc_kb_gen.random.RandomKbGenerator(options={
-    'component': {
-        'GenomeGenerator': {
-            'num_genes': 40,
-            'mean_gene_len': 50,
-            'num_ncRNA': 3,
-            'translation_table': 4,
-            'mean_copy_number': 2000,
-            'mean_half_life': 100
-        },
-        'PropertiesGenerator': {
-            'mean_volume': 300,
-        },
-    },
-}).run()
+# Read existing KB
+kb = wc_kb.io.Reader().run('wc_model_gen/tests/fixtures/min_model_kb.xlsx',
+                           'wc_model_gen/tests/fixtures/min_model_kb_seq.fna')
+kb = kb[wc_kb.core.KnowledgeBase][0]
 
+
+# Generate model, select which KB to use
 model = prokaryote.ProkaryoteModelGenerator(
-    knowledge_base=rand_kb,
-    component_generators=[prokaryote.CompartmentsGenerator,
-                          prokaryote.ParametersGenerator,
-                          prokaryote.MetabolismSubmodelGenerator,
-                          prokaryote.TranscriptionSubmodelGenerator,
-                          prokaryote.RnaDegradationSubmodelGenerator]).run()
+            knowledge_base=kb,
+            component_generators=[prokaryote.InitalizeModel,
+                                  prokaryote.TranscriptionSubmodelGenerator,
+                                  prokaryote.RnaDegradationSubmodelGenerator,
+                                  prokaryote.MetabolismSubmodelGenerator]).run()
 
-model.id = 'rand_kb'
-model.version = '0.0.1'
-
-wc_lang.io.Writer().run('/media/sf_VM_share/models/rand_model_test.xlsx', model,
-                        set_repo_metadata_from_path=False)
+# Optionally save the resulting model as an excel file for inspection
+#wc_lang.io.Writer().run('gen_model.xlsx', model, set_repo_metadata_from_path=False)

@@ -1,5 +1,3 @@
-
-
 """ Base classes for generating :obj:`wc_lang`-formatted models from a knowledge base.
 
 :Author: Balazs Szigeti <balazs.szigeti@mssm.edu>
@@ -130,8 +128,8 @@ class ModelGenerator(object):
             wc_kb.core.Concentration(cell=cell, value='0.000008333')
 
         if name:
-            core_path = '/media/sf_VM_share/kbs/' + str(name) + '.xlsx'
-            seq_path = '/media/sf_VM_share/kbs/' + str(name) + '_seq.fna'
+            core_path = 'wc_model_gen/' + str(name) + '.xlsx'
+            seq_path = 'wc_model_gen/' + str(name) + '_seq.fna'
 
             wc_kb.io.Writer().run(core_path, kb,
                                   seq_path=seq_path,
@@ -241,14 +239,14 @@ class SubmodelGenerator(ModelComponentGenerator):
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
         pass  # pragma: no cover
-        
+
     def gen_reactions(self):
         """ Generate reactions associated with the submodel """
         pass  # pragma: no cover
 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-        pass  # pragma: no cover        
+        pass  # pragma: no cover
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """

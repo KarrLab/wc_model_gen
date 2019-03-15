@@ -12,8 +12,6 @@ from wc_model_gen import prokaryote
 import unittest
 import wc_lang
 import wc_kb
-import wc_test
-
 
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
@@ -29,7 +27,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         cls.model = prokaryote.ProkaryoteModelGenerator(
                         knowledge_base = cls.kb,
                         component_generators=[prokaryote.InitalizeModel,
-                                              prokaryote.TranscriptionSubmodelGenerator,                        
+                                              prokaryote.TranscriptionSubmodelGenerator,
                                               prokaryote.MetabolismSubmodelGenerator]).run()
 
     @classmethod
