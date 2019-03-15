@@ -13,6 +13,8 @@ import unittest
 import wc_kb
 import wc_lang
 import tempfile
+import shutil
+
 import wc_utils.util.string
 
 
