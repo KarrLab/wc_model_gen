@@ -188,20 +188,17 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
     model_k = model.parameters.get_or_create(id='k_{}'.format(reaction.id),
                                              type=None,
                                              units=unit_registry.parse_units('s^-1'),
-                                             )# value=model.parameters.get_or_create(id = kinetic_param_name)),
-    print(type(model_k))
+                                             value=model.parameters.get_or_create(id = kinetic_param_name))
     parameters[model_k.id] = model_k
 
     expression_terms = []
     all_species = {}
+    all_volumes = {}    
     for species in set(reaction.get_reactants()).union(set(reaction.get_products())):
-        print('---------')
-        print(modifier_species)
         if species not in modifier_species or species in additional_reactants:
-
-            print('blahh')
             all_species[species.gen_id()] = species
             volume = species.compartment.init_density.function_expressions[0].function
+            all_volumes[volume.id] = volume
         if species in reaction.get_reactants():
             expression_terms.append(str(species.gen_id()))
 
@@ -213,9 +210,9 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
         wc_lang.Species: all_species,
-        wc_lang.Observable: modifier_ids,
-        wc_lang.Function: {volume.id: volume},
+        wc_lang.Observable: {i.id: i for i in modifiers} if modifiers else {},
+        wc_lang.Function: all_volumes,
     })
     assert error is None, str(error)
 
-    return rate_law_expression, list(parameters.values())
+    return rate_law_expression
