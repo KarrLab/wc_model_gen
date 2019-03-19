@@ -137,7 +137,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     return rate_law_expression, list(parameters.values())
 
 
-def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None, modifier_reactants=None):
+def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_reactants=None):
     """ Generate a mass action rate law.
 
         Example:
@@ -198,8 +198,7 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
     for i in range(len(model.parameters)):
         print(model.parameters[i].id)
     print('i want to get the parameter:')
-    print(kinetic_param_name)
-    model_k = model.parameters.get_one(id=kinetic_param_name)
+
                                              # type=None,
                                              # units=unit_registry.parse_units(model_k_unit),
                                              # value=model.parameters.get_or_create(id = kinetic_param_name))
@@ -207,7 +206,7 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
     print(model_k.id)
     print(model_k.value)
     # model_k.type = None
-    # model_k.units = units=unit_registry.parse_units(model_k_unit)
+    model_k.units = unit_registry.parse_units(model_k_unit)
 
     parameters[model_k.id] = model_k
 

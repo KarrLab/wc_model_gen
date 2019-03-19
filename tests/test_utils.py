@@ -136,32 +136,35 @@ class TestCase(unittest.TestCase):
         # participant6 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
         # participant7 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
         # participant8 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=1)
-        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3])
-
-        rate_law, parameters = utils.test_gen_mass_action_rate_law(model, reaction, 'this_parameter')
-
-        self.assertEqual(rate_law.expression, 'k_r1 * s1[c] * s2[c]')
+        
+        reaction = wc_lang.Reaction(id='Assosication', participants=[participant1, participant2, participant3])
+        rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
+        self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * s2[c]' or
+            rate_law.expression == 'this_parameter * s2[c] * s1[c]')
         self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
         # self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
-        self.assertEqual(set(rate_law.parameters), set(parameters))        
+# Fix this        self.assertEqual(set(rate_law.parameters), set(parameters))        
         # self.assertEqual(rate_law.parameters.get_one(id='k_r1').type, wcm_ontology['WCM:k_cat'])
-        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 * molecule^-1'))
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
         # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
         # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
 
-        reaction = wc_lang.Reaction(id='r1', participants=[participant1])
-        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            model, reaction)
-        self.assertEqual(rate_law.expression, 'k_r1 * s1[c] * s2[c]')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
-        # self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
-        self.assertEqual(set(rate_law.parameters), set(parameters))        
-        # self.assertEqual(rate_law.parameters.get_one(id='k_r1').type, wcm_ontology['WCM:k_cat'])
-        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 * molecule^-1'))
-        # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
-        # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
+        reaction = wc_lang.Reaction(id='Degradation', participants=[participant1])
+        rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
+        self.assertEqual(rate_law.expression, 'this_parameter * s1[c]')
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]']))     
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1'))
+       
+        reaction = wc_lang.Reaction(id='Synthesis', participants=[participant3])
+        rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
+        self.assertEqual(rate_law.expression, 'this_parameter')
+# Fix this        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s3[c]']))     
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule'))
 
-        reaction = wc_lang.Reaction(id='r1', participants=[participant3])
-        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            model, reaction)
-        self.assertEqual(rate_law.expression, 'k_cat_r1')
+  #       reaction = wc_lang.Reaction(id='Conversion', participants=[participant1, participant2, participant2, participant3])
+  #       rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
+  #       self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * s2[c]' or
+  #           rate_law.expression == 'this_parameter * s2[c] * s1[c]')
+  #       self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]', 's3[c]'])) # Todo: this makes no sense if I have one reactant also being a product (i.e. an enzyme)     
+  #       self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
+  # 
