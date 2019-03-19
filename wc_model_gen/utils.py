@@ -160,8 +160,8 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
 
         Returns:
             :obj:`wc_lang.RateLawExpression`: rate law
-            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law     
-    """
+            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law 
+   """
     if modifiers is None:
         modifier_species = []
         modifier_product = ''
@@ -185,10 +185,30 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
         units=unit_registry.parse_units('molecule mol^-1'))
     parameters[avogadro.id] = avogadro
 
-    model_k = model.parameters.get_or_create(id='k_{}'.format(reaction.id),
-                                             type=None,
-                                             units=unit_registry.parse_units('s^-1'),
-                                             value=model.parameters.get_or_create(id = kinetic_param_name))
+    
+    model_k_unit = len(reaction.get_reactants())-1
+    if model_k_unit == 0:
+        model_k_unit = 's^-1'
+    elif model_k_unit == -1:
+        model_k_unit = 's^-1 * molecule'
+    else:
+        model_k_unit = 's^-1 * molecule^{}'.format(-model_k_unit)
+    print('do i have paramers')
+    print(len(model.parameters))
+    for i in range(len(model.parameters)):
+        print(model.parameters[i].id)
+    print('i want to get the parameter:')
+    print(kinetic_param_name)
+    model_k = model.parameters.get_one(id=kinetic_param_name)
+                                             # type=None,
+                                             # units=unit_registry.parse_units(model_k_unit),
+                                             # value=model.parameters.get_or_create(id = kinetic_param_name))
+    print('i got the parameter:')
+    print(model_k.id)
+    print(model_k.value)
+    # model_k.type = None
+    # model_k.units = units=unit_registry.parse_units(model_k_unit)
+
     parameters[model_k.id] = model_k
 
     expression_terms = []
@@ -199,13 +219,19 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
             all_species[species.gen_id()] = species
             volume = species.compartment.init_density.function_expressions[0].function
             all_volumes[volume.id] = volume
-        if species in reaction.get_reactants():
+        if species in set(reaction.get_reactants()):
             expression_terms.append(str(species.gen_id()))
+    print('the model_k id is:')
+    print(model_k.id)
+    print('all species is: {}'.format(all_species))
+    print('the expression terms are: {}'.format(expression_terms))
 
     reactant_product = ''
     if expression_terms:
         reactant_product = ' * ' + ' * '.join(expression_terms)
     expression = model_k.id + modifier_product + reactant_product
+    print('the expression is')
+    print(expression)
 
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
@@ -215,4 +241,4 @@ def gen_mass_action_rate_law(model, reaction, kinetic_param_name, modifiers=None
     })
     assert error is None, str(error)
 
-    return rate_law_expression
+    return rate_law_expression, parameters
