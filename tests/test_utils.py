@@ -129,7 +129,8 @@ class TestCase(unittest.TestCase):
         # modifier2 = wc_lang.Observable(id='e2', expression=ob_exp2)
             
         participant1 = wc_lang.SpeciesCoefficient(species=species['s1_c'], coefficient=-1)
-        participant2 = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
+        participant2_lhs = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
+        participant2_rhs = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=1)
         participant3 = wc_lang.SpeciesCoefficient(species=species['s3_c'], coefficient=1)
         # participant4 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=-1)
         # participant5 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=1)
@@ -137,7 +138,7 @@ class TestCase(unittest.TestCase):
         # participant7 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
         # participant8 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=1)
         
-        reaction = wc_lang.Reaction(id='Assosication', participants=[participant1, participant2, participant3])
+        reaction = wc_lang.Reaction(id='Assosication', participants=[participant1, participant2_lhs, participant3])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * s2[c]' or
             rate_law.expression == 'this_parameter * s2[c] * s1[c]')
@@ -158,13 +159,12 @@ class TestCase(unittest.TestCase):
         reaction = wc_lang.Reaction(id='Synthesis', participants=[participant3])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertEqual(rate_law.expression, 'this_parameter')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s3[c]']))     
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set([]))     
         self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule'))
 
-  #       reaction = wc_lang.Reaction(id='Conversion', participants=[participant1, participant2, participant2, participant3])
-  #       rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
-  #       self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * s2[c]' or
-  #           rate_law.expression == 'this_parameter * s2[c] * s1[c]')
-  #       self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]', 's3[c]'])) # Todo: this makes no sense if I have one reactant also being a product (i.e. an enzyme)     
-  #       self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
-  # 
+        reaction = wc_lang.Reaction(id='Conversion', participants=[participant1, participant2_lhs, participant2_rhs, participant3]) # Ask Yin Hoon why I can add as many copies of participant2 as I want.
+        rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
+        self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * s2[c]' or
+            rate_law.expression == 'this_parameter * s2[c] * s1[c]')
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))

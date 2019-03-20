@@ -162,6 +162,10 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
             :obj:`wc_lang.RateLawExpression`: rate law
             :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law 
    """
+    print('the test reactants are')
+    print(reaction.get_reactants())
+    print(reaction.get_products())
+
     if modifiers is None:
         modifier_species = []
         modifier_product = ''
@@ -208,6 +212,7 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
     for species in set(reaction.get_reactants()).union(set(reaction.get_products())):
         if species not in modifier_species or species in additional_reactants:
             all_species[species.gen_id()] = species
+            print('added species: {}'.format(species))
             volume = species.compartment.init_density.function_expressions[0].function
             all_volumes[volume.id] = volume
         if species in set(reaction.get_reactants()):
@@ -232,6 +237,4 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
     })
     assert error is None, str(error)
     print('---------------------------------------------------')
-    print(rate_law_expression.parameters)
-    print(list(parameters.values()))
     return rate_law_expression, list(parameters.values())
