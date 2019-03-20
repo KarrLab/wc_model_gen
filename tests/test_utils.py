@@ -116,6 +116,10 @@ class TestCase(unittest.TestCase):
             species_types[Id] = wc_lang.SpeciesType(id=Id)
             species[Id + '_c'] = wc_lang.Species(species_type=species_types[Id], compartment=c)
             wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
+        Id = 'e'
+        species_types[Id] = wc_lang.SpeciesType(id=Id)
+        species[Id + '_c'] = wc_lang.Species(species_type=species_types[Id], compartment=c)
+        wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
 
         # ob_exp1, error = wc_lang.ObservableExpression.deserialize('s4[c] + s5[c]', {
         #     wc_lang.Species:{species['s4_c'].gen_id(): species['s4_c'], 
@@ -147,7 +151,7 @@ class TestCase(unittest.TestCase):
         # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
         # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
 
-        reaction = wc_lang.Reaction(id='Dissociation', participants=[participant1, participant2, participant3])
+        reaction = wc_lang.Reaction(id='Dissociation', participants=[participant1, participant3, participant4])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertEqual(rate_law.expression, 'this_parameter * s1[c]')
         self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]']))     
@@ -161,10 +165,10 @@ class TestCase(unittest.TestCase):
        
         reaction = wc_lang.Reaction(id='Degradation2', participants=[participant1, enzyme_lhs, enzyme_rhs])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
-        self.assertTru(rate_law.expression, 'this_parameter * s1[c] * e[c]' or
+        self.assertTrue(rate_law.expression, 'this_parameter * s1[c] * e[c]' or
             'this_parameter * e[c] * s1[c]')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]']))     
-        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1'))
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 'e[c]']))     
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
 
         reaction = wc_lang.Reaction(id='Synthesis1', participants=[participant3])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
@@ -175,12 +179,12 @@ class TestCase(unittest.TestCase):
         reaction = wc_lang.Reaction(id='Synthesis2', participants=[enzyme_lhs, enzyme_rhs, participant3])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertEqual(rate_law.expression, 'this_parameter * e[c]')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set([]))     
-        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule'))
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['e[c]']))     
+        self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1'))
 
         reaction = wc_lang.Reaction(id='Conversion', participants=[participant1, enzyme_lhs, enzyme_rhs, participant3]) # Ask Yin Hoon why I can add as many copies of participant2 as I want.
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertTrue(rate_law.expression == 'this_parameter * s1[c] * e[c]' or
             rate_law.expression == 'this_parameter * e[c] * s1[c]')
-        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 'e[c]']))
         self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
