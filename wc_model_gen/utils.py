@@ -177,14 +177,6 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
         additional_reactants = modifier_reactants
 
     parameters = {}
-
-    avogadro = model.parameters.get_or_create(
-        id='Avogadro',
-        type=None,
-        value=scipy.constants.Avogadro,
-        units=unit_registry.parse_units('molecule mol^-1'))
-    parameters[avogadro.id] = avogadro
-
     
     model_k_unit = len(reaction.get_reactants())-1
     if model_k_unit == 0:
@@ -239,5 +231,7 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
         wc_lang.Function: all_volumes,
     })
     assert error is None, str(error)
-
-    return rate_law_expression, parameters
+    print('---------------------------------------------------')
+    print(rate_law_expression.parameters)
+    print(list(parameters.values()))
+    return rate_law_expression, list(parameters.values())

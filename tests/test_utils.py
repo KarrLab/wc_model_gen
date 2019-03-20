@@ -143,7 +143,7 @@ class TestCase(unittest.TestCase):
             rate_law.expression == 'this_parameter * s2[c] * s1[c]')
         self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]']))
         # self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
-# Fix this        self.assertEqual(set(rate_law.parameters), set(parameters))        
+        self.assertEqual(set(rate_law.parameters), set(parameters))        
         # self.assertEqual(rate_law.parameters.get_one(id='k_r1').type, wcm_ontology['WCM:k_cat'])
         self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule^-1'))
         # self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
@@ -158,7 +158,7 @@ class TestCase(unittest.TestCase):
         reaction = wc_lang.Reaction(id='Synthesis', participants=[participant3])
         rate_law, parameters = utils.gen_mass_action_rate_law(model, reaction, kinetic_parameter)
         self.assertEqual(rate_law.expression, 'this_parameter')
-# Fix this        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s3[c]']))     
+        self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s3[c]']))     
         self.assertEqual(rate_law.parameters.get_one(id='this_parameter').units, unit_registry.parse_units('s^-1 * molecule'))
 
   #       reaction = wc_lang.Reaction(id='Conversion', participants=[participant1, participant2, participant2, participant3])
