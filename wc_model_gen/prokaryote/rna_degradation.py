@@ -8,7 +8,6 @@
 :License: MIT
 """
 
-from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import scipy.constants

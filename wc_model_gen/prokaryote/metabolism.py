@@ -12,7 +12,7 @@ TODO: improve terminology to better distinguish this and the metabolism species 
 """
 
 from scipy.constants import Avogadro
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import numpy
 import wc_lang
@@ -163,7 +163,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.id = rate_law.gen_id()
 
             param = model.parameters.create(id='k_cat_{}'.format(rxn.id),
-                                            type=wcm_ontology['WCM:k_cat'],
+                                            type=onto['WC:k_cat'],
                                             units=unit_registry.parse_units('s^-1'))
 
             # Rates for transfer reactions from extracellular space
@@ -342,7 +342,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        rnas_lang = self.model.species_types.get(type=wcm_ontology['WCM:RNA'])  # RNA
+        rnas_lang = self.model.species_types.get(type=onto['WC:RNA'])  # RNA
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
 
@@ -365,7 +365,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        prots_lang = self.model.species_types.get(type=wcm_ontology['WCM:protein'])  # protein
+        prots_lang = self.model.species_types.get(type=onto['WC:protein'])  # protein
         cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
         volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
 

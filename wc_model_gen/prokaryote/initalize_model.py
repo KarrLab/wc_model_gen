@@ -10,7 +10,7 @@ TODO:
 """
 
 from wc_utils.util.chem import EmpiricalFormula
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto
 from wc_utils.util.units import unit_registry
 import math
 import numpy
@@ -144,9 +144,9 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                             value=param.value,
                             units=param.units)
             if 'K_m' in param.id:
-                model_param.type = wcm_ontology['WCM:K_m']
+                model_param.type = onto['WC:K_m']
             elif 'k_cat' in param.id:
-                model_param.type = wcm_ontology['WCM:k_cat']
+                model_param.type = onto['WC:k_cat']
             else:
                 model_param.type = None
 
@@ -236,23 +236,23 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.name = kb_species_type.name
 
         if isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:metabolite'] # metabolite
+            model_species_type.type = onto['WC:metabolite'] # metabolite
             model_species_type.structure = kb_species_type.structure
 
         elif isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:DNA'] # DNA
+            model_species_type.type = onto['WC:DNA'] # DNA
             model_species_type.structure = kb_species_type.get_seq()
 
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.RnaSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:RNA'] # RNA
+            model_species_type.type = onto['WC:RNA'] # RNA
             model_species_type.structure = kb_species_type.get_seq()
 
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.ProteinSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:protein'] # protein
+            model_species_type.type = onto['WC:protein'] # protein
             model_species_type.structure = kb_species_type.get_seq()
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:protein'] # protein
+            model_species_type.type = onto['WC:protein'] # protein
             model_species_type.structure = None
 
         else:

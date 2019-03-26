@@ -9,7 +9,6 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
-from wc_utils.util.ontology import wcm_ontology
 import math
 import unittest
 import wc_kb
