@@ -347,7 +347,7 @@ class TestCase(unittest.TestCase):
         test_conc = self.kb.cell.concentrations.get_one(value=0.5)
         test_conc.comments = 'Testing'
         test_conc.references.append(wc_kb.core.Reference(id='ref1', standard_id='doi:1234'))
-        test_conc.database_references.append(wc_kb.core.DatabaseReference(database='ECMDB', id='12345'))
+        test_conc.identifiers.append(wc_kb.core.Identifier(namespace='ECMDB', id='12345'))
 
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
@@ -362,7 +362,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.references[0].id, 'ref1')
         self.assertEqual(met1_nucleus.references[0].name, 'doi:1234')
         self.assertEqual(met1_nucleus.references[0].type, onto['WC:article'])
-        self.assertEqual(met1_nucleus.db_refs[0].serialize(), 'ECMDB: 12345')
+        self.assertEqual(met1_nucleus.identifiers[0].serialize(), 'ECMDB: 12345')
 
         test_conc.units = unit_registry.parse_units('molecule')
 

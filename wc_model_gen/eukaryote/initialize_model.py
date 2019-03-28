@@ -323,11 +323,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         type=onto['WC:article'])
                     conc_model.references.append(ref_model)
 
-            if conc.database_references:
-                for db_ref in conc.database_references:
-                    db_ref_model = wc_lang.DatabaseReference(model=model, 
-                        database=db_ref.database, id=db_ref.id)
-                    conc_model.db_refs.append(db_ref_model)                
+            if conc.identifiers:
+                for identifier in conc.identifiers:
+                    identifier_model = wc_lang.Identifier(model=model, 
+                        namespace=identifier.namespace, id=identifier.id)
+                    conc_model.identifiers.append(identifier_model)                
 
     def gen_observables(self):
         """ Generate observables for the model from knowledge base """
