@@ -329,7 +329,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         namespace=identifier.namespace, id=identifier.id)
                     conc_model.identifiers.append(identifier_model)
 
-        for chromosome in kb.cell.species_types.get(__type=wc_kb.eukaryote_schema.DnaSpeciesType):
+        for chromosome in kb.cell.species_types.get(__type=wc_kb.core.DnaSpeciesType):
             conc_model = model.distribution_init_concentrations.create(
                 species=chromosome.species[0],
                 mean=chromosome.ploidy, 
