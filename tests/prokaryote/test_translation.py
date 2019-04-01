@@ -147,7 +147,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
 
         Avogadro = scipy.constants.Avogadro
-        volume = model.compartments.get_one(id='c').mean_init_volume
+        volume = model.compartments.get_one(id='c').init_volume.mean
         
         protein_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value * volume * Avogadro
         

@@ -94,7 +94,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         # TODO: get volume from KB, talk to YH
-        c = model.compartments.get_or_create(id='c', name='Cytosol', mean_init_volume=1E-15)
+        c = model.compartments.get_or_create(id='c', name='Cytosol', init_volume=wc_lang.InitVolume(mean=1E-15))
         c.init_density = model.parameters.create(id='density_c', value=1100., units=unit_registry.parse_units('g l^-1'))
         volume_c = model.functions.create(id='volume_c', units=unit_registry.parse_units('l'))
         volume_c.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
@@ -104,7 +104,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         assert error is None, str(error)
 
         """
-        m = model.compartments.get_or_create(id='m', name='Cell membrane', mean_init_volume=1E-10)
+        m = model.compartments.get_or_create(id='m', name='Cell membrane', init_volume=wc_lang.Initalize(mean=1E-10))
         m.init_density = model.parameters.create(id='density_m', value=1100., units=unit_registry.parse_units('g l^-1'))
         volume_m = model.functions.create(id='volume_m', units=unit_registry.parse_units('l'))
         volume_m.expression, error = wc_lang.FunctionExpression.deserialize(f'{m.id} / {m.init_density.id}', {
@@ -114,7 +114,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         assert error is None, str(error)
         """
 
-        e = model.compartments.get_or_create(id='e', name='Extracellular space', mean_init_volume=1E-10)
+        e = model.compartments.get_or_create(id='e', name='Extracellular space', init_volume=wc_lang.InitVolume(mean=1E-10))
         e.init_density = model.parameters.create(id='density_e', value=1000., units=unit_registry.parse_units('g l^-1'))
         volume_e = model.functions.create(id='volume_e', units=unit_registry.parse_units('l'))
         volume_e.expression, error = wc_lang.FunctionExpression.deserialize(f'{e.id} / {e.init_density.id}', {
@@ -302,7 +302,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             if conc.units == unit_registry.parse_units('molecule'):
                 mean_concentration = conc.value
             elif conc.units == unit_registry.parse_units('M'):
-                mean_concentration = conc.value * Avogadro.value * species_comp_model.mean_init_volume
+                mean_concentration = conc.value * Avogadro.value * species_comp_model.init_volume.mean
             else:
                 raise Exception('Unsupported units: {}'.format(conc.units.name))
 

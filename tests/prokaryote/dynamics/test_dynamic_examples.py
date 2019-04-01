@@ -34,9 +34,9 @@ class DynamicsTestCase(unittest.TestCase):
         submodel = model.submodels.create(id='transfer')
 
         # Construct compartments
-        comp_A = model.compartments.create(id='A', name='A', mean_init_volume=1E-15)
+        comp_A = model.compartments.create(id='A', name='A', init_volume=wc_lang.InitVolume(mean=1E-15))
         comp_A.init_density = model.parameters.create(id='density_A', value=1100., units=unit_registry.parse_units('g l^-1'))
-        comp_B = model.compartments.create(id='B', name='B', mean_init_volume=1E-15)
+        comp_B = model.compartments.create(id='B', name='B', init_volume=wc_lang.InitVolume(mean=1E-15))
         comp_B.init_density = model.parameters.create(id='density_B', value=1100., units=unit_registry.parse_units('g l^-1'))
 
         # Construct species / species types

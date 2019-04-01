@@ -176,8 +176,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='Avogadro').units, unit_registry.parse_units('molecule mol^-1'))
 
         self.assertEqual(model.compartments.get_one(id='n').name, 'nucleus')
-        self.assertEqual(model.compartments.get_one(id='n').mean_init_volume, 5200.)
-        self.assertEqual(model.compartments.get_one(id='e').mean_init_volume, 10400E5)
+        self.assertEqual(model.compartments.get_one(id='n').init_volume.mean, 5200.)
+        self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 10400E5)
         
         self.assertEqual(model.parameters.get_one(id='density_n').value, 1040.)
         self.assertEqual(model.parameters.get_one(id='density_e').value, 1000.)

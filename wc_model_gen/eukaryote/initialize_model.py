@@ -113,7 +113,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             c = model.compartments.get_or_create(
                     id=comp.id, 
                     name=comp.name, 
-                    mean_init_volume=1E5*mean_cell_volume if comp.id=='e' else comp.volumetric_fraction*mean_cell_volume,
+                    init_volume=wc_lang.InitVolume(mean=1E5*mean_cell_volume if comp.id=='e' else comp.volumetric_fraction*mean_cell_volume),
                     )
             c.init_density = model.parameters.create(
                 id='density_' + c.id, 
@@ -306,7 +306,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             if conc.units == unit_registry.parse_units('molecule'):
                 mean_concentration = conc.value
             elif conc.units == unit_registry.parse_units('M'):
-                mean_concentration = conc.value * Avogadro.value * species_comp_model.mean_init_volume
+                mean_concentration = conc.value * Avogadro.value * species_comp_model.init_volume.mean
             else:
                 raise Exception('Unsupported units: {}'.format(conc.units.name))
 

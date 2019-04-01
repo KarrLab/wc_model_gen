@@ -29,7 +29,7 @@ class TestCase(unittest.TestCase):
 
     def test_gen_michaelis_menten_like_rate_law(self):
         model = wc_lang.Model()
-        c = wc_lang.Compartment(id='c', mean_init_volume=0.5)
+        c = wc_lang.Compartment(id='c', init_volume=wc_lang.InitVolume(mean=0.5))
         c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)                
         volume = wc_lang.Function(id='volume_' + c.id)
         volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
@@ -99,7 +99,7 @@ class TestCase(unittest.TestCase):
 
     def test_gen_mass_action_rate_law(self):
         model = wc_lang.Model()
-        c = wc_lang.Compartment(id='c', mean_init_volume=0.5)
+        c = wc_lang.Compartment(id='c', init_volume=wc_lang.InitVolume(mean=0.5))
         c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.) 
         kinetic_parameter = wc_lang.Parameter(id='this_parameter', value=1.) 
         volume = wc_lang.Function(id='volume_' + c.id)
