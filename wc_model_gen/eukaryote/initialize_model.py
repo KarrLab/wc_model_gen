@@ -174,7 +174,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             __type=wc_kb.core.DnaSpeciesType)
 
         for kb_species_type in kb_species_types:
-            if 'MT' in kb_species_type.id or 'mt' in kb_species_type.id:
+            if 'M' in kb_species_type.id:
                 self.gen_species_type(kb_species_type, ['m'])
             else:    
                 self.gen_species_type(kb_species_type, ['n'])                
@@ -327,7 +327,15 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 for identifier in conc.identifiers:
                     identifier_model = wc_lang.Identifier(model=model, 
                         namespace=identifier.namespace, id=identifier.id)
-                    conc_model.identifiers.append(identifier_model)                
+                    conc_model.identifiers.append(identifier_model)
+
+        for chromosome in kb.cell.species_types.get(__type=wc_kb.eukaryote_schema.DnaSpeciesType):
+            conc_model = model.distribution_init_concentrations.create(
+                species=chromosome.species[0],
+                mean=chromosome.ploidy, 
+                units=unit_registry.parse_units('molecule'),
+                )
+            conc_model.id = conc_model.gen_id()              
 
     def gen_observables(self):
         """ Generate observables for the model from knowledge base """
