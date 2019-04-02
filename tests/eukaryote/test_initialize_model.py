@@ -232,7 +232,7 @@ class TestCase(unittest.TestCase):
         
         dna = self.kb.cell.species_types.get_one(id='chrX')
         L = dna.get_len()
-        self.assertEqual(chrX_model.empirical_formula, chem.EmpiricalFormula('C10H12N5O6P') * 2
+        self.assertEqual(chrX_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O6P') * 2
                          + chem.EmpiricalFormula('C9H12N3O7P') * 2
                          + chem.EmpiricalFormula('C10H12N5O7P') * 2
                          + chem.EmpiricalFormula('C10H13N2O8P') * 2
@@ -244,8 +244,8 @@ class TestCase(unittest.TestCase):
                                             circular=dna.circular,
                                             double_stranded=dna.double_stranded) \
             - 9 * mendeleev.element('H').atomic_weight
-        self.assertAlmostEqual(chrX_model.molecular_weight, exp_mol_wt, places=0)
-        self.assertEqual(chrX_model.charge, -L - 1)
+        self.assertAlmostEqual(chrX_model.structure.molecular_weight, exp_mol_wt, places=0)
+        self.assertEqual(chrX_model.structure.charge, -L - 1)
         self.assertEqual(chrX_model.comments, '')
 
     def test_gen_transcripts(self):
@@ -266,7 +266,7 @@ class TestCase(unittest.TestCase):
 
         transcript = self.kb.cell.species_types.get_one(id='trans2')
         L = transcript.get_len()
-        self.assertEqual(transcript2_model.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P') * 1
+        self.assertEqual(transcript2_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P') * 1
                          + chem.EmpiricalFormula('C9H12N3O8P') * 1
                          + chem.EmpiricalFormula('C10H12N5O8P') * 1
                          + chem.EmpiricalFormula('C9H11N2O9P') * 1
@@ -275,8 +275,8 @@ class TestCase(unittest.TestCase):
         exp_mol_wt = \
             + Bio.SeqUtils.molecular_weight(transcript.get_seq()) \
             - (L + 1) * mendeleev.element('H').atomic_weight
-        self.assertAlmostEqual(transcript2_model.molecular_weight, exp_mol_wt, places=0)
-        self.assertEqual(transcript2_model.charge, -L - 1)
+        self.assertAlmostEqual(transcript2_model.structure.molecular_weight, exp_mol_wt, places=0)
+        self.assertEqual(transcript2_model.structure.charge, -L - 1)
         self.assertEqual(transcript2_model.comments, '')
 
     def test_gen_protein(self):
@@ -294,9 +294,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(prot3_model.type, onto['WC:protein'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=prot1_model)), True)
         self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=prot3_model)), True)
-        self.assertEqual(prot1_model.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
-        self.assertAlmostEqual(prot1_model.molecular_weight, 1201.49, delta=0.3)
-        self.assertEqual(prot1_model.charge, 1)
+        self.assertEqual(prot1_model.structure.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
+        self.assertAlmostEqual(prot1_model.structure.molecular_weight, 1201.49, delta=0.3)
+        self.assertEqual(prot1_model.structure.charge, 1)
         self.assertEqual(prot1_model.comments, '')
         self.assertEqual(prot3_model.comments, 'Testing')
 
@@ -310,17 +310,10 @@ class TestCase(unittest.TestCase):
         
         self.assertEqual(met1_model.name, 'metabolite1')
         self.assertEqual(met1_model.type, onto['WC:metabolite'])
-        self.assertEqual(met1_model.structure, 'InChI=1S'
-            '/C10H14N5O7P'
-            '/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20'
-            '/h2-4,6-7,10,16-17H,1H2,(H2,11,12,13)(H2,18,19,20)'
-            '/p-2/t4-,6-,7-,10-'
-            '/m1'
-            '/s1')
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=met1_model)]), set(['n', 'e']))
-        self.assertEqual(met1_model.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P'))
-        self.assertAlmostEqual(met1_model.molecular_weight, 345.20530, places=4)
-        self.assertEqual(met1_model.charge, -2)
+        self.assertEqual(met1_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P'))
+        self.assertAlmostEqual(met1_model.structure.molecular_weight, 345.20530, places=4)
+        self.assertEqual(met1_model.structure.charge, -2)
         self.assertEqual(met1_model.comments, '')
 
     def test_complexes(self):        
@@ -333,10 +326,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(comp1_model.name, 'complex1')
         self.assertEqual(comp1_model.type, onto['WC:pseudo_species'])
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=comp1_model)]), set(['n']))
-        self.assertEqual(comp1_model.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1') * 2
+        self.assertEqual(comp1_model.structure.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1') * 2
                             + chem.EmpiricalFormula('C10H12N5O7P') * 3)
-        self.assertAlmostEqual(comp1_model.molecular_weight, 3438.5959, delta=0.3)
-        self.assertEqual(comp1_model.charge, -4)
+        self.assertAlmostEqual(comp1_model.structure.molecular_weight, 3438.5959, delta=0.3)
+        self.assertEqual(comp1_model.structure.charge, -4)
         self.assertEqual(comp1_model.comments, '')
 
         comp2_model = model.species_types.get_one(id='comp2')

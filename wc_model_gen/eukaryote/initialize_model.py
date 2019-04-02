@@ -250,7 +250,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = onto['WC:metabolite'] # metabolite
-            model_species_type.structure = kb_species_type.structure    
+            # model_species_type.structure.value = kb_species_type.structure    
             
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = onto['WC:pseudo_species'] # pseudo species
@@ -259,11 +259,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
 
-        if kb_species_type.get_empirical_formula():
-            model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
+        model_species_type.structure = wc_lang.ChemicalStructure()
+        formula = kb_species_type.get_empirical_formula()
+        if formula:
+            model_species_type.structure.empirical_formula = formula
 
-        model_species_type.molecular_weight = kb_species_type.get_mol_wt()
-        model_species_type.charge = kb_species_type.get_charge()
+        model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+        model_species_type.structure.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
         
         if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):

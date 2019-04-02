@@ -34,25 +34,28 @@ class DynamicsTestCase(unittest.TestCase):
         submodel = model.submodels.create(id='transfer')
 
         # Construct compartments
-        comp_A = model.compartments.create(id='A', name='A', init_volume=wc_lang.InitVolume(mean=1E-15))
+        init_volume = wc_lang.InitVolume(mean=1E-15)
+        comp_A = model.compartments.create(id='A', name='A', init_volume=init_volume)
         comp_A.init_density = model.parameters.create(id='density_A', value=1100., units=unit_registry.parse_units('g l^-1'))
-        comp_B = model.compartments.create(id='B', name='B', init_volume=wc_lang.InitVolume(mean=1E-15))
+        comp_B = model.compartments.create(id='B', name='B', init_volume=init_volume)
         comp_B.init_density = model.parameters.create(id='density_B', value=1100., units=unit_registry.parse_units('g l^-1'))
 
         # Construct species / species types
-        species_type1 = model.species_types.create(id='st1', charge = 0)
+        structure = wc_lang.ChemicalStructure(charge=0)
+
+        species_type1 = model.species_types.create(id='st1', structure=structure)
         specie1A = model.species.create(species_type=species_type1, compartment=comp_A)
         specie1B = model.species.create(species_type=species_type1, compartment=comp_B)
         specie1A.id = specie1A.gen_id()
         specie1B.id = specie1B.gen_id()
 
-        species_type2 = model.species_types.create(id='st2', charge = 0)
+        species_type2 = model.species_types.create(id='st2', structure=structure)
         specie2A = model.species.create(species_type=species_type2, compartment=comp_A)
         specie2B = model.species.create(species_type=species_type2, compartment=comp_B)
         specie2A.id = specie2A.gen_id()
         specie2B.id = specie2B.gen_id()
 
-        species_type3 = model.species_types.create(id='st3', charge = 0)
+        species_type3 = model.species_types.create(id='st3', structure=structure)
         specie3A = model.species.create(species_type=species_type3, compartment=comp_A)
         specie3B = model.species.create(species_type=species_type3, compartment=comp_B)
         specie3A.id = specie3A.gen_id()

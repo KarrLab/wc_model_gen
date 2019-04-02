@@ -100,7 +100,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         volume_c.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
             wc_lang.Compartment: {c.id: c},
             wc_lang.Parameter: {c.init_density.id: c.init_density},
-            })
+        })
         assert error is None, str(error)
 
         """
@@ -120,7 +120,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         volume_e.expression, error = wc_lang.FunctionExpression.deserialize(f'{e.id} / {e.init_density.id}', {
             wc_lang.Compartment: {e.id: e},
             wc_lang.Parameter: {e.init_density.id: e.init_density},
-            })
+        })
         assert error is None, str(error)
 
     def gen_parameters(self):
@@ -134,15 +134,15 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                                        units=unit_registry.parse_units('s'))
 
         Avogadro = model.parameters.create(id='Avogadro',
-                                        type = None,
-                                        value = scipy.constants.Avogadro,
-                                        units = unit_registry.parse_units('molecule mol^-1'))
+                                           type=None,
+                                           value=scipy.constants.Avogadro,
+                                           units=unit_registry.parse_units('molecule mol^-1'))
 
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
-                            id=param.id,                            
-                            value=param.value,
-                            units=param.units)
+                id=param.id,
+                value=param.value,
+                units=param.units)
             if 'K_m' in param.id:
                 model_param.type = onto['WC:K_m']
             elif 'k_cat' in param.id:
@@ -236,23 +236,30 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.name = kb_species_type.name
 
         if isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
-            model_species_type.type = onto['WC:metabolite'] # metabolite
-            model_species_type.structure = kb_species_type.structure
+            model_species_type.type = onto['WC:metabolite']  # metabolite
+            model_species_type.structure = wc_lang.ChemicalStructure(value=kb_species_type.structure,
+                                                             format=wc_lang.ChemicalStructureFormat.SMILES)
 
         elif isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = onto['WC:DNA'] # DNA
-            model_species_type.structure = kb_species_type.get_seq()
+            model_species_type.type = onto['WC:DNA']  # DNA
+            model_species_type.structure = wc_lang.ChemicalStructure(
+                value=kb_species_type.get_seq(),
+                format=wc_lang.ChemicalStructureFormat.BpForms, alphabet=wc_lang.ChemicalStructureAlphabet.dna)
 
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.RnaSpeciesType):
-            model_species_type.type = onto['WC:RNA'] # RNA
-            model_species_type.structure = kb_species_type.get_seq()
+            model_species_type.type = onto['WC:RNA']  # RNA
+            model_species_type.structure = wc_lang.ChemicalStructure(
+                value=kb_species_type.get_seq(),
+                format=wc_lang.ChemicalStructureFormat.BpForms, alphabet=wc_lang.ChemicalStructureAlphabet.rna)
 
         elif isinstance(kb_species_type, wc_kb.prokaryote_schema.ProteinSpeciesType):
-            model_species_type.type = onto['WC:protein'] # protein
-            model_species_type.structure = kb_species_type.get_seq()
+            model_species_type.type = onto['WC:protein']  # protein
+            model_species_type.structure = wc_lang.ChemicalStructure(
+                value=kb_species_type.get_seq(),
+                format=wc_lang.ChemicalStructureFormat.BpForms, alphabet=wc_lang.ChemicalStructureAlphabet.protein)
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            model_species_type.type = onto['WC:protein'] # protein
+            model_species_type.type = onto['WC:protein']  # protein
             model_species_type.structure = None
 
         else:
@@ -261,18 +268,19 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         """
         if kb_species_type.get_empirical_formula():
-            model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
-        model_species_type.molecular_weight = kb_species_type.get_mol_wt()
-        model_species_type.charge = kb_species_type.get_charge()
+            model_species_type.structure.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
+        model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+        model_species_type.structure.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
         compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
          """
 
+        model_species_type.structure = wc_lang.ChemicalStructure()
         if kb_species_type.get_empirical_formula():
-            model_species_type.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
-        model_species_type.molecular_weight = kb_species_type.get_mol_wt()
-        model_species_type.charge = kb_species_type.get_charge()
+            model_species_type.structure.empirical_formula = EmpiricalFormula(kb_species_type.get_empirical_formula())
+        model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+        model_species_type.structure.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
         compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
@@ -298,7 +306,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id()
-            
+
             if conc.units == unit_registry.parse_units('molecule'):
                 mean_concentration = conc.value
             elif conc.units == unit_registry.parse_units('M'):
@@ -308,7 +316,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
             conc = model.distribution_init_concentrations.create(
                 species=species,
-                mean=mean_concentration, 
+                mean=mean_concentration,
                 units=unit_registry.parse_units('molecule'),
                 comments=conc.comments)
             conc.id = conc.gen_id()
@@ -330,19 +338,19 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
                 all_species[model_species.gen_id()] = model_species
-                
+
             for kb_observable_observable in kb_observable.expression.observables:
                 model_observable_observable = model.observables.get_or_create(
                     id=kb_observable_observable.id)
                 all_observables[model_observable_observable.id] = model_observable_observable
-            
+
             model_observable_expression, error = wc_lang.ObservableExpression.deserialize(
                 kb_observable.expression.expression, {
-                wc_lang.Species: all_species,
-                wc_lang.Observable: all_observables,
+                    wc_lang.Species: all_species,
+                    wc_lang.Observable: all_observables,
                 })
             assert error is None, str(error)
-            
+
             model_observable = model.observables.get_or_create(
                 id=kb_observable.id,
                 name=kb_observable.name,
@@ -379,10 +387,10 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
     def gen_kb_rate_laws(self):
         """ Generate rate laws for reactions encoded in KB """
         kb = self.knowledge_base
-        model = self.model  
+        model = self.model
 
         avogadro = model.parameters.get_or_create(id='Avogadro')
-        
+
         for kb_rxn in kb.cell.reactions:
             submodel_id = kb_rxn.submodel
             submodel = model.submodels.get_or_create(id=submodel_id)
@@ -394,7 +402,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 all_species = {}
                 all_observables = {}
                 all_volumes = {}
-                
+
                 kb_expression = kb_rate_law.expression.expression
 
                 for observable in kb_rate_law.expression.observables:
@@ -403,24 +411,25 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                 for species in kb_rate_law.expression.species:
                     model_species_type = model.species_types.get_one(id=species.species_type.id)
                     model_compartment = model.compartments.get_one(id=species.compartment.id)
-                    volume = model_compartment.init_density.function_expressions[0].function                    
+                    volume = model_compartment.init_density.function_expressions[0].function
                     model_species = model_species_type.species.get_one(compartment=model_compartment)
                     all_species[model_species.gen_id()] = model_species
-                    all_volumes[volume.id] = volume    
+                    all_volumes[volume.id] = volume
 
                 for param in kb_rate_law.expression.parameters:
                     all_parameters[param.id] = model.parameters.get_one(id=param.id)
                     if 'K_m' in param.id:
-                        volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
+                        volume = model.compartments.get_one(id=param.id[param.id.rfind(
+                            '_')+1:]).init_density.function_expressions[0].function
                         unit_adjusted_term = '{} * {} * {}'.format(param.id, avogadro.id, volume.id)
-                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)            
+                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)
 
                 rate_law_expression, error = wc_lang.RateLawExpression.deserialize(
                     kb_expression, {
-                    wc_lang.Parameter: all_parameters,
-                    wc_lang.Species: all_species,
-                    wc_lang.Observable: all_observables,
-                    wc_lang.Function: all_volumes,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Species: all_species,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,
                     })
                 assert error is None, str(error)
 
@@ -430,4 +439,3 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
                 model_rate_law.id = model_rate_law.gen_id()
-                

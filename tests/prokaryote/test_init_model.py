@@ -51,7 +51,7 @@ class InitalizeModelTestCase(unittest.TestCase):
             self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
             self.assertIsInstance(model_specie, wc_lang.Species)
             self.assertTrue(len(model_species_type.species)!=0)
-            self.assertTrue(model_species_type.molecular_weight!=0)
+            self.assertTrue(model_species_type.structure.molecular_weight!=0)
 
     def test_protein_species(self):
         cytosol = self.model.compartments.get_one(id='c')
@@ -62,7 +62,7 @@ class InitalizeModelTestCase(unittest.TestCase):
             self.assertIsInstance(model_species_type, wc_lang.SpeciesType)
             self.assertIsInstance(model_specie, wc_lang.Species)
             self.assertTrue(len(model_species_type.species)!=0)
-            self.assertTrue(model_species_type.molecular_weight!=0)
+            self.assertTrue(model_species_type.structure.molecular_weight!=0)
 
     def test_concentrations(self):
         cytosol = self.model.compartments.get_one(id='c')
