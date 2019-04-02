@@ -351,7 +351,8 @@ class TestCase(unittest.TestCase):
 
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_dna', 'gen_distribution_init_concentrations'])}}).run()
         
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
                 
@@ -368,7 +369,8 @@ class TestCase(unittest.TestCase):
 
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_dna', 'gen_distribution_init_concentrations'])}}).run()
         
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
         self.assertEqual(met1_nucleus.mean, 0.5)
@@ -433,8 +435,8 @@ class TestCase(unittest.TestCase):
         
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
-            options={'component': {'InitializeModel': self.set_options(['gen_protein', 
-                'gen_metabolites', 'gen_complexes', 'gen_observables', 
+            options={'component': {'InitializeModel': self.set_options(['gen_dna', 
+                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_observables', 
                 'gen_distribution_init_concentrations', 'gen_kb_reactions', 
                 'gen_kb_rate_laws'])}}).run()
 
