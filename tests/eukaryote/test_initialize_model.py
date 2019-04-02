@@ -50,7 +50,7 @@ class TestCase(unittest.TestCase):
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nTTTATGAARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
                     '>chrX\nATGCGTCA\n'
-                    '>chrMT\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
+                    '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
     
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -61,7 +61,7 @@ class TestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
 
-        chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', name='chromosome 1', 
+        chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', name='chromosome 1', ploidy=2,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
         gene1 = wc_kb.eukaryote_schema.GeneLocus(polymer=chr1, start=1, end=36)
         exon1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)
@@ -75,7 +75,7 @@ class TestCase(unittest.TestCase):
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         prot1_conc = wc_kb.core.Concentration(cell=cell, species=prot1_spec, value=0.03)
 
-        chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', name='chromosome X', 
+        chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', name='chromosome X', ploidy=1, 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
         gene2 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrX, start=1, end=4)
         exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=4)
@@ -84,9 +84,9 @@ class TestCase(unittest.TestCase):
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)         
 
-        chrMT = wc_kb.core.DnaSpeciesType(cell=cell, id='chrMT', name='mitochondrial chromosome', 
+        chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', name='mitochondrial chromosome', ploidy=150,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene3 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrMT, start=1, end=33)
+        gene3 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrM, start=1, end=33)
         exon3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)
         transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene3, exons=[exon3])
@@ -222,13 +222,13 @@ class TestCase(unittest.TestCase):
 
         chr1_model = model.species_types.get_one(id='chr1')
         chrX_model = model.species_types.get_one(id='chrX')
-        chrMT_model = model.species_types.get_one(id='chrMT')
+        chrM_model = model.species_types.get_one(id='chrM')
 
         self.assertEqual(chr1_model.name, 'chromosome 1')
         self.assertEqual(chr1_model.type, onto['WC:DNA'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=chr1_model)), True)
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=chrX_model)), True)
-        self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=chrMT_model)), True)
+        self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=chrM_model)), True)
         
         dna = self.kb.cell.species_types.get_one(id='chrX')
         L = dna.get_len()
@@ -344,7 +344,8 @@ class TestCase(unittest.TestCase):
 
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_dna', 'gen_distribution_init_concentrations'])}}).run()
         
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
                 
@@ -361,11 +362,20 @@ class TestCase(unittest.TestCase):
 
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_distribution_init_concentrations'])}}).run()
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_dna', 'gen_distribution_init_concentrations'])}}).run()
         
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
         self.assertEqual(met1_nucleus.mean, 0.5)
         self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
+
+        chr1_conc = model.distribution_init_concentrations.get_one(id='dist-init-conc-chr1[n]')
+        chrX_conc = model.distribution_init_concentrations.get_one(id='dist-init-conc-chrX[n]')
+        chrM_conc = model.distribution_init_concentrations.get_one(id='dist-init-conc-chrM[m]')
+
+        self.assertEqual(chr1_conc.mean, 2)
+        self.assertEqual(chrX_conc.mean, 1)
+        self.assertEqual(chrM_conc.mean, 150)
 
     def test_gen_observables(self):
 
@@ -418,8 +428,8 @@ class TestCase(unittest.TestCase):
         
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
-            options={'component': {'InitializeModel': self.set_options(['gen_protein', 
-                'gen_metabolites', 'gen_complexes', 'gen_observables', 
+            options={'component': {'InitializeModel': self.set_options(['gen_dna', 
+                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_observables', 
                 'gen_distribution_init_concentrations', 'gen_kb_reactions', 
                 'gen_kb_rate_laws'])}}).run()
 
