@@ -102,10 +102,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
-        if kb.cell.properties.get_one(id='cell_volume'):
-            mean_cell_volume = kb.cell.properties.get_one(id='cell_volume').value
+        if kb.cell.parameters.get_one(id='cell_volume'):
+            mean_cell_volume = kb.cell.parameters.get_one(id='cell_volume').value
         else:
-            raise ValueError('The cell object does not have the property cell_volume')        
+            raise ValueError('The cell object does not have the parameter cell_volume')        
         
         cell_density = self.options['cell_density']
 
@@ -135,11 +135,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                                         value = scipy.constants.Avogadro,
                                         units = unit_registry.parse_units('molecule mol^-1'))
 
-        # Create parameters out of properties
-        if kb.cell.properties.get_one(id='mean_doubling_time'):
-            doubling_time_kb = kb.cell.properties.get_one(id='mean_doubling_time')
+        # Standardize the units of doubling time
+        if kb.cell.parameters.get_one(id='mean_doubling_time'):
+            doubling_time_kb = kb.cell.parameters.get_one(id='mean_doubling_time')
         else:
-            raise ValueError('The cell object does not have the property mean_doubling_time')
+            raise ValueError('The cell object does not have the parameter mean_doubling_time')
 
         if not isinstance(doubling_time_kb.units, unit_registry.Unit):
             ValueError('Unsupported units "{}"'.format(doubling_time_kb.units))
@@ -147,12 +147,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         expr = unit_registry.parse_expression(str(doubling_time_kb.units))
         scale = expr.to(unit_registry.parse_units('second'))
         conversion_factor = scale.magnitude
-
-        model.parameters.create(id='mean_doubling_time',
-                                       type=None,
-                                       value=doubling_time_kb.value * conversion_factor,
-                                       units=unit_registry.parse_units('s'))
- 
+        doubling_time_kb.value *= conversion_factor
+        doubling_time_kb.units = unit_registry.parse_units('s')
+      
         # Create parameters from kb
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
@@ -165,6 +162,26 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_param.type = onto['WC:k_cat']
             else:
                 model_param.type = None
+
+            if param.references:
+                for ref in param.references:
+                    ref_model = wc_lang.Reference(model=model, id=ref.id, 
+                        author=ref.authors,
+                        title=ref.title,
+                        publication=ref.journal,
+                        volume=ref.volume,
+                        issue=ref.issue,
+                        pages=ref.pages,
+                        year=ref.year,
+                        comments=ref.comments, 
+                        type=onto['WC:article'])
+                    model_param.references.append(ref_model)
+
+            if param.identifiers:
+                for identifier in param.identifiers:
+                    identifier_model = wc_lang.Identifier(model=model, 
+                        namespace=identifier.namespace, id=identifier.id)
+                    model_param.identifiers.append(identifier_model)    
 
     def gen_dna(self):
         kb = self.knowledge_base
@@ -321,7 +338,15 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             if conc.references:
                 for ref in conc.references:
-                    ref_model = wc_lang.Reference(model=model, id=ref.id, name=ref.standard_id, 
+                    ref_model = wc_lang.Reference(model=model, id=ref.id, 
+                        author=ref.authors,
+                        title=ref.title,
+                        publication=ref.journal,
+                        volume=ref.volume,
+                        issue=ref.issue,
+                        pages=ref.pages,
+                        year=ref.year,
+                        comments=ref.comments, 
                         type=onto['WC:article'])
                     conc_model.references.append(ref_model)
 
@@ -382,7 +407,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         for kb_rxn in kb.cell.reactions:
-            submodel_id = kb_rxn.submodel
+            submodel_id = 'Metabolism'
             submodel = model.submodels.get_or_create(id=submodel_id)
 
             model_rxn = model.reactions.create(

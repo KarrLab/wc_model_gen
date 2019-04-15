@@ -9,7 +9,7 @@
 from wc_model_gen.eukaryote import core
 from wc_model_gen.eukaryote import initialize_model
 from wc_utils.util import chem
-from wc_onto import onto
+from wc_onto import onto, kb_onto
 from wc_utils.util.units import unit_registry
 import Bio.SeqUtils
 import mendeleev
@@ -55,8 +55,10 @@ class TestCase(unittest.TestCase):
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
 
-        cell.properties.create(id='cell_volume', value=10400.)
-        cell.properties.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
+        ref = wc_kb.core.Reference(id='ref', authors='John Smith', year=2018, comments='No comment')
+        cell.parameters.create(id='cell_volume', value=10400., references=[ref])
+        cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
+        
         nucleus = cell.compartments.create(id='n', name='nucleus', volumetric_fraction=0.5)
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
@@ -98,15 +100,17 @@ class TestCase(unittest.TestCase):
         prot3_spec = wc_kb.core.Species(species_type=prot3, compartment=mito)
         prot3_conc = wc_kb.core.Concentration(cell=cell, species=prot3_spec, value=0.1)
 
-        met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1', structure=(
+        met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
+        met1.properties.append(wc_kb.core.SpeciesTypeProperty(property='structure', value=
             'InChI=1S'
             '/C10H14N5O7P'
             '/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20'
             '/h2-4,6-7,10,16-17H,1H2,(H2,11,12,13)(H2,18,19,20)'
             '/p-2/t4-,6-,7-,10-'
             '/m1'
-            '/s1'
-        ))
+            '/s1',
+            value_type=kb_onto['string']
+            ))
         met1_spec1 = wc_kb.core.Species(species_type=met1, compartment=nucleus)
         met1_conc1 = wc_kb.core.Concentration(cell=cell, species=met1_spec1, value=0.5)
         met1_spec2 = wc_kb.core.Species(species_type=met1, compartment=extra)
@@ -136,10 +140,11 @@ class TestCase(unittest.TestCase):
         participant1 = wc_kb.core.SpeciesCoefficient(species=met1_spec1, coefficient=1)
         participant2 = wc_kb.core.SpeciesCoefficient(species=met1_spec2, coefficient=-1)
         reaction1 = wc_kb.core.Reaction(cell=cell, id='r1', name='reaction1',
-            submodel='Metabolism', participants=[participant1, participant2], reversible=True)
+            participants=[participant1, participant2], reversible=True)
 
+        identifier = wc_kb.core.Identifier(namespace='Sabio-RK', id='1234')
         kcat_r1_forward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_forward', value=0.2, 
-            units=unit_registry.parse_units('s^-1'))
+            units=unit_registry.parse_units('s^-1'), identifiers=[identifier])
         kcat_r1_backward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_backward', value=0.02, 
             units=unit_registry.parse_units('s^-1'))
         Km_r1_backward = wc_kb.core.Parameter(cell=cell, id='K_m_r1_backward_met1_n', value=0.3, 
@@ -192,27 +197,29 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('s^-1'))
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').type, onto['WC:k_cat'])
+        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').identifiers[0].namespace, 'Sabio-RK')
+        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').identifiers[0].id, '1234')
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').value, 0.3)
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').units, unit_registry.parse_units('M'))
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').type, onto['WC:K_m'])
+
+        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].id, 'ref')
+        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].author, 'John Smith')
+        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].year, 2018)
+        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].comments, 'No comment')
 
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').type, None)
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*3600)
 
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
+    def test_time_unit_conversion(self):    
+
+        self.kb.cell.parameters.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*60)
-
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('second')
-        model = core.EukaryoteModelGenerator(self.kb, 
-            component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options([])}}).run()
-        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
-        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20)
 
     def test_gen_dna(self):        
 
@@ -339,7 +346,8 @@ class TestCase(unittest.TestCase):
 
         test_conc = self.kb.cell.concentrations.get_one(value=0.5)
         test_conc.comments = 'Testing'
-        test_conc.references.append(wc_kb.core.Reference(id='ref1', standard_id='doi:1234'))
+        test_conc.references.append(wc_kb.core.Reference(id='ref1', title='Title1', authors='Author1', 
+            journal='Journal1', volume='1', issue='1', pages='20', year=1999, comments='xyz'))
         test_conc.identifiers.append(wc_kb.core.Identifier(namespace='ECMDB', id='12345'))
 
         model = core.EukaryoteModelGenerator(self.kb, 
@@ -354,7 +362,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
         self.assertEqual(met1_nucleus.comments, 'Testing')
         self.assertEqual(met1_nucleus.references[0].id, 'ref1')
-        self.assertEqual(met1_nucleus.references[0].name, 'doi:1234')
+        self.assertEqual(met1_nucleus.references[0].title, 'Title1')
+        self.assertEqual(met1_nucleus.references[0].author, 'Author1')
+        self.assertEqual(met1_nucleus.references[0].publication, 'Journal1')
+        self.assertEqual(met1_nucleus.references[0].volume, '1')
+        self.assertEqual(met1_nucleus.references[0].issue, '1')
+        self.assertEqual(met1_nucleus.references[0].pages, '20')
+        self.assertEqual(met1_nucleus.references[0].year, 1999)
+        self.assertEqual(met1_nucleus.references[0].comments, 'xyz')
         self.assertEqual(met1_nucleus.references[0].type, onto['WC:article'])
         self.assertEqual(met1_nucleus.identifiers[0].serialize(), 'ECMDB: 12345')
 

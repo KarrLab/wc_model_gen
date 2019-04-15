@@ -20,8 +20,8 @@ class TestCase(unittest.TestCase):
         kb = wc_kb.KnowledgeBase()
         cell = kb.cell = wc_kb.Cell()
 
-        cell.properties.create(id='cell_volume', value=1E-15)
-        cell.properties.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
+        cell.parameters.create(id='cell_volume', value=1E-15)
+        cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
 
         compartments = {'c': 0.7, 'n': 0.3, 'e': None}
         for k, v in compartments.items():
