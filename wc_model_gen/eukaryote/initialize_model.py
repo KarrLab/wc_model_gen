@@ -133,22 +133,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         Avogadro = model.parameters.create(id='Avogadro',
                                         type = None,
                                         value = scipy.constants.Avogadro,
-                                        units = unit_registry.parse_units('molecule mol^-1'))
-
-        # Standardize the units of doubling time
-        if kb.cell.parameters.get_one(id='mean_doubling_time'):
-            doubling_time_kb = kb.cell.parameters.get_one(id='mean_doubling_time')
-        else:
-            raise ValueError('The cell object does not have the parameter mean_doubling_time')
-
-        if not isinstance(doubling_time_kb.units, unit_registry.Unit):
-            ValueError('Unsupported units "{}"'.format(doubling_time_kb.units))
-
-        expr = unit_registry.parse_expression(str(doubling_time_kb.units))
-        scale = expr.to(unit_registry.parse_units('second'))
-        conversion_factor = scale.magnitude
-        doubling_time_kb.value *= conversion_factor
-        doubling_time_kb.units = unit_registry.parse_units('s')
+                                        units = unit_registry.parse_units('molecule mol^-1'))       
       
         # Create parameters from kb
         for param in kb.cell.parameters:
@@ -181,7 +166,19 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 for identifier in param.identifiers:
                     identifier_model = wc_lang.Identifier(model=model, 
                         namespace=identifier.namespace, id=identifier.id)
-                    model_param.identifiers.append(identifier_model)    
+                    model_param.identifiers.append(identifier_model)
+
+        # Standardize the units of doubling time
+        if model.parameters.get_one(id='mean_doubling_time'):
+            model_doubling_time = model.parameters.get_one(id='mean_doubling_time')
+        else:
+            raise ValueError('The cell object does not have the parameter mean_doubling_time')
+
+        expr = unit_registry.parse_expression(str(model_doubling_time.units))
+        scale = expr.to(unit_registry.parse_units('second'))
+        conversion_factor = scale.magnitude
+        model_doubling_time.value *= conversion_factor
+        model_doubling_time.units = unit_registry.parse_units('s')                
 
     def gen_dna(self):
         kb = self.knowledge_base
@@ -474,7 +471,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 all_observables = {}
                 all_volumes = {}
                 
-                kb_expression = kb_rate_law.expression.expression
+                model_expression = kb_rate_law.expression.expression
 
                 for observable in kb_rate_law.expression.observables:
                     all_observables[observable.id] = model.observables.get_one(id=observable.id)
@@ -492,10 +489,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     if 'K_m' in param.id:
                         volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
                         unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
-                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)            
+                        model_expression = model_expression.replace(param.id, unit_adjusted_term)            
 
                 rate_law_expression, error = wc_lang.RateLawExpression.deserialize(
-                    kb_expression, {
+                    model_expression, {
                     wc_lang.Parameter: all_parameters,
                     wc_lang.Species: all_species,
                     wc_lang.Observable: all_observables,

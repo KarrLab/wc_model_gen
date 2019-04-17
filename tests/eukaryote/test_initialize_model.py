@@ -52,10 +52,10 @@ class TestCase(unittest.TestCase):
                     '>chrX\nATGCGTCA\n'
                     '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
     
-        self.kb = wc_kb.KnowledgeBase()
-        cell = self.kb.cell = wc_kb.Cell()
+        self.kb = wc_kb.KnowledgeBase(id='test_kb', version='0.0.1')
+        cell = self.kb.cell = wc_kb.Cell(id='test_cell')
 
-        ref = wc_kb.core.Reference(id='ref', authors='John Smith', year=2018, comments='No comment')
+        ref = wc_kb.core.Reference(cell=cell, id='ref', authors='John Smith', year=2018, comments='No comment')
         cell.parameters.create(id='cell_volume', value=10400., references=[ref])
         cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
         
@@ -65,43 +65,48 @@ class TestCase(unittest.TestCase):
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', name='chromosome 1', ploidy=2,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene1 = wc_kb.eukaryote_schema.GeneLocus(polymer=chr1, start=1, end=36)
+        gene1 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=36)
         exon1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)
         transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans1', 
             name='transcript1', gene=gene1, exons=[exon1])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=0.02)
+        transcript1_conc.id = transcript1_conc.serialize()
         cds1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)        
         prot1 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', 
             transcript=transcript1, coding_regions=[cds1])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         prot1_conc = wc_kb.core.Concentration(cell=cell, species=prot1_spec, value=0.03)
+        prot1_conc.id = prot1_conc.serialize()
 
         chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', name='chromosome X', ploidy=1, 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene2 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrX, start=1, end=4)
+        gene2 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene2', polymer=chrX, start=1, end=4)
         exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=4)
         transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans2',
             name='transcript2', gene=gene2, exons=[exon2])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
-        transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)         
+        transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)
+        transcript2_conc.id = transcript2_conc.serialize()         
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', name='mitochondrial chromosome', ploidy=150,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene3 = wc_kb.eukaryote_schema.GeneLocus(polymer=chrM, start=1, end=33)
+        gene3 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene3', polymer=chrM, start=1, end=33)
         exon3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)
         transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene3, exons=[exon3])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=mito)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=0.05)
+        transcript3_conc.id = transcript3_conc.serialize()
         cds3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)        
         prot3 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', 
             transcript=transcript3, coding_regions=[cds3])
         prot3_spec = wc_kb.core.Species(species_type=prot3, compartment=mito)
         prot3_conc = wc_kb.core.Concentration(cell=cell, species=prot3_spec, value=0.1)
+        prot3_conc.id = prot3_conc.serialize()
 
         met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
-        met1.properties.append(wc_kb.core.SpeciesTypeProperty(property='structure', value=
+        met1_structure = wc_kb.core.SpeciesTypeProperty(property='structure', species_type=met1, value=
             'InChI=1S'
             '/C10H14N5O7P'
             '/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20'
@@ -110,11 +115,12 @@ class TestCase(unittest.TestCase):
             '/m1'
             '/s1',
             value_type=kb_onto['string']
-            ))
+            )
+        met1_structure.id = met1_structure.gen_id()
         met1_spec1 = wc_kb.core.Species(species_type=met1, compartment=nucleus)
         met1_conc1 = wc_kb.core.Concentration(cell=cell, species=met1_spec1, value=0.5)
+        met1_conc1.id = met1_conc1.serialize()
         met1_spec2 = wc_kb.core.Species(species_type=met1, compartment=extra)
-        
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
         species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp1', name='complex1',
@@ -126,8 +132,10 @@ class TestCase(unittest.TestCase):
             subunits=[species_type_coeff3, species_type_coeff4])
         complex2_spec1 = wc_kb.core.Species(species_type=complex2, compartment=nucleus)
         complex2_conc1 = wc_kb.core.Concentration(cell=cell, species=complex2_spec1, value=0.)
+        complex2_conc1.id = complex2_conc1.serialize()
         complex2_spec2 = wc_kb.core.Species(species_type=complex2, compartment=extra)
         complex2_conc2 = wc_kb.core.Concentration(cell=cell, species=complex2_spec2, value=0.)
+        complex2_conc2.id = complex2_conc2.serialize()
 
         expr1 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] + 1.3 * prot3[m]',
             species = [prot1_spec, prot3_spec])
@@ -162,11 +170,13 @@ class TestCase(unittest.TestCase):
             reaction=reaction1, 
             direction=wc_kb.core.RateLawDirection.forward,
             expression=forward_exp)
+        forward_rate_law.id = forward_rate_law.gen_id()
         backward_rate_law = wc_kb.core.RateLaw(
             reaction=reaction1, 
             direction=wc_kb.core.RateLawDirection.backward,
-            expression=backward_exp)        
-
+            expression=backward_exp)
+        backward_rate_law.id = backward_rate_law.gen_id()            
+        
     def tearDown(self):    
         shutil.rmtree(self.tmp_dirname)  
 
@@ -212,14 +222,19 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*3600)
 
-    def test_time_unit_conversion(self):    
-
         self.kb.cell.parameters.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*60)
+
+        self.kb.cell.parameters.get_one(id='mean_doubling_time').units = unit_registry.parse_units('s')
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': self.set_options([])}}).run()
+        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
+        self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20)
 
     def test_gen_dna(self):        
 
@@ -474,3 +489,22 @@ class TestCase(unittest.TestCase):
             [model.observables.get_one(id='obs2')])
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').expression.functions, 
             [model.functions.get_one(id='volume_n')])
+
+    def test_unchanged_kb(self):    
+        
+        kb2 = self.kb.copy()
+        
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel], 
+            options={'component': {'InitializeModel': self.set_options([
+                        'gen_dna',
+                        'gen_transcripts',
+                        'gen_protein',
+                        'gen_metabolites',
+                        'gen_complexes',
+                        'gen_distribution_init_concentrations',
+                        'gen_observables',
+                        'gen_kb_reactions',
+                        'gen_kb_rate_laws'])}}).run()
+        
+        self.assertTrue(kb2.is_equal(self.kb))
