@@ -9,7 +9,7 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 import math
 import unittest
 import wc_kb
@@ -111,7 +111,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         test_species_type = kb.cell.species_types.get_one(id='rna_tu_1_1')
         test_species = test_species_type.species.get_one(compartment=cytosol)
         half_life = test_species_type.half_life
-        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+        mean_doubling_time = kb.cell.parameters.get_one(id='mean_doubling_time').value
         rna_reactant_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value
         degrase_mean_concentration = kb.cell.concentrations.get_one(
             species=kb.cell.species_types.get_one(id='prot_gene_1_11').species.get_one(compartment=cytosol)).value

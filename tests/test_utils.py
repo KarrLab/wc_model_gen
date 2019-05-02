@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import math
@@ -78,9 +78,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(set([i.gen_id() for i in rate_law.species]), set(['s1[c]', 's2[c]', 's6[c]']))
         self.assertEqual(set(rate_law.observables), set([modifier1, modifier2]))
         self.assertEqual(set(rate_law.parameters), set(parameters))        
-        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wcm_ontology['WCM:k_cat'])
+        self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').type, wc_ontology['WC:k_cat'])
         self.assertEqual(rate_law.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 molecule^-2'))
-        self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wcm_ontology['WCM:K_m'])
+        self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').type, wc_ontology['WC:K_m'])
         self.assertEqual(rate_law.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
 
         reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant4, participant8])

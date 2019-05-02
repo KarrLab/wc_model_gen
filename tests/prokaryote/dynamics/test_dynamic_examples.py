@@ -10,7 +10,7 @@ from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_sim.multialgorithm.simulation import Simulation
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import numpy as np
 import shutil

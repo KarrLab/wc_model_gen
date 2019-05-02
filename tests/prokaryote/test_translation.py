@@ -9,7 +9,7 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 import math
 import scipy.constants
 import unittest
@@ -145,7 +145,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         test_species_type = kb.cell.species_types.get_one(id='prot_gene_1_1')
         test_species = test_species_type.species.get_one(compartment=cytosol)
         half_life = test_species_type.half_life
-        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+        mean_doubling_time = kb.cell.parameters.get_one(id='mean_doubling_time').value
 
         Avogadro = scipy.constants.Avogadro
         volume = model.compartments.get_one(id='c').mean_init_volume

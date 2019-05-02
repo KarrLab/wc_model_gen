@@ -7,7 +7,7 @@
 :License: MIT
 """
 
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import math
@@ -173,7 +173,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol = model.compartments.get_one(id='c')
 
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        mean_doubling_time = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
 
         init_species_counts = {}
 

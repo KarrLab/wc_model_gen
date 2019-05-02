@@ -9,7 +9,7 @@
 from wc_model_gen.eukaryote import core
 from wc_model_gen.eukaryote import initialize_model
 from wc_utils.util import chem
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import Bio.SeqUtils
 import mendeleev
@@ -55,8 +55,8 @@ class TestCase(unittest.TestCase):
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
 
-        cell.properties.create(id='cell_volume', value=10400.)
-        cell.properties.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
+        cell.parameters.create(id='cell_volume', value=10400.)
+        cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
         nucleus = cell.compartments.create(id='n', name='nucleus', volumetric_fraction=0.5)
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
@@ -191,23 +191,23 @@ class TestCase(unittest.TestCase):
         
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('s^-1'))
-        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').type, wcm_ontology['WCM:k_cat'])
+        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').type, wc_ontology['WC:k_cat'])
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').value, 0.3)
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').units, unit_registry.parse_units('M'))
-        self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').type, wcm_ontology['WCM:K_m'])
+        self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').type, wc_ontology['WC:K_m'])
 
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').type, None)
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*3600)
 
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
+        self.kb.cell.parameters.get_one(id='mean_doubling_time').units = unit_registry.parse_units('minute')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20*60)
 
-        self.kb.cell.properties.get_one(id='mean_doubling_time').units = unit_registry.parse_units('second')
+        self.kb.cell.parameters.get_one(id='mean_doubling_time').units = unit_registry.parse_units('second')
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
@@ -225,7 +225,7 @@ class TestCase(unittest.TestCase):
         chrMT_model = model.species_types.get_one(id='chrMT')
 
         self.assertEqual(chr1_model.name, 'chromosome 1')
-        self.assertEqual(chr1_model.type, wcm_ontology['WCM:DNA'])
+        self.assertEqual(chr1_model.type, wc_ontology['WC:DNA'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=chr1_model)), True)
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=chrX_model)), True)
         self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=chrMT_model)), True)
@@ -259,7 +259,7 @@ class TestCase(unittest.TestCase):
         transcript3_model = model.species_types.get_one(id='trans3')
 
         self.assertEqual(transcript1_model.name, 'transcript1')
-        self.assertEqual(transcript3_model.type, wcm_ontology['WCM:RNA'])
+        self.assertEqual(transcript3_model.type, wc_ontology['WC:RNA'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=transcript1_model)), True)
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=transcript2_model)), True)
         self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=transcript3_model)), True)
@@ -291,7 +291,7 @@ class TestCase(unittest.TestCase):
         prot3_model = model.species_types.get_one(id='prot3')
 
         self.assertEqual(prot1_model.name, 'protein1')
-        self.assertEqual(prot3_model.type, wcm_ontology['WCM:protein'])
+        self.assertEqual(prot3_model.type, wc_ontology['WC:protein'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=prot1_model)), True)
         self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=prot3_model)), True)
         self.assertEqual(prot1_model.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
@@ -309,7 +309,7 @@ class TestCase(unittest.TestCase):
         met1_model = model.species_types.get_one(id='met1')
         
         self.assertEqual(met1_model.name, 'metabolite1')
-        self.assertEqual(met1_model.type, wcm_ontology['WCM:metabolite'])
+        self.assertEqual(met1_model.type, wc_ontology['WC:metabolite'])
         self.assertEqual(met1_model.structure, 'InChI=1S'
             '/C10H14N5O7P'
             '/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20'
@@ -331,7 +331,7 @@ class TestCase(unittest.TestCase):
 
         comp1_model = model.species_types.get_one(id='comp1')        
         self.assertEqual(comp1_model.name, 'complex1')
-        self.assertEqual(comp1_model.type, wcm_ontology['WCM:pseudo_species'])
+        self.assertEqual(comp1_model.type, wc_ontology['WC:pseudo_species'])
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=comp1_model)]), set(['n']))
         self.assertEqual(comp1_model.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1') * 2
                             + chem.EmpiricalFormula('C10H12N5O7P') * 3)
@@ -361,7 +361,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.comments, 'Testing')
         self.assertEqual(met1_nucleus.references[0].id, 'ref1')
         self.assertEqual(met1_nucleus.references[0].name, 'doi:1234')
-        self.assertEqual(met1_nucleus.references[0].type, wcm_ontology['WCM:article'])
+        self.assertEqual(met1_nucleus.references[0].type, wc_ontology['WC:article'])
         self.assertEqual(met1_nucleus.db_refs[0].serialize(), 'ECMDB: 12345')
 
         test_conc.units = unit_registry.parse_units('molecule')

@@ -7,7 +7,7 @@
 """
 
 from wc_utils.util.chem import EmpiricalFormula
-from wc_utils.util.ontology import wcm_ontology
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry, are_units_equivalent
 import math
 import numpy
@@ -102,8 +102,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
-        if kb.cell.properties.get_one(id='cell_volume'):
-            mean_cell_volume = kb.cell.properties.get_one(id='cell_volume').value
+        if kb.cell.parameters.get_one(id='cell_volume'):
+            mean_cell_volume = kb.cell.parameters.get_one(id='cell_volume').value
         else:
             raise ValueError('The cell object does not have the property cell_volume')        
         
@@ -136,8 +136,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                                         units = unit_registry.parse_units('molecule mol^-1'))
 
         # Create parameters out of properties
-        if kb.cell.properties.get_one(id='mean_doubling_time'):
-            doubling_time_kb = kb.cell.properties.get_one(id='mean_doubling_time')
+        if kb.cell.parameters.get_one(id='mean_doubling_time'):
+            doubling_time_kb = kb.cell.parameters.get_one(id='mean_doubling_time')
         else:
             raise ValueError('The cell object does not have the property mean_doubling_time')
 
@@ -160,9 +160,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                             value=param.value,
                             units=param.units)
             if 'K_m' in param.id:
-                model_param.type = wcm_ontology['WCM:K_m']
+                model_param.type = wc_ontology['WC:K_m']
             elif 'k_cat' in param.id:
-                model_param.type = wcm_ontology['WCM:k_cat']
+                model_param.type = wc_ontology['WC:k_cat']
             else:
                 model_param.type = None
 
@@ -240,20 +240,20 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.name = kb_species_type.name
 
         if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:DNA'] # DNA
+            model_species_type.type = wc_ontology['WC:DNA'] # DNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:RNA'] # RNA
+            model_species_type.type = wc_ontology['WC:RNA'] # RNA
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:protein'] # protein
+            model_species_type.type = wc_ontology['WC:protein'] # protein
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:metabolite'] # metabolite
+            model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
             model_species_type.structure = kb_species_type.structure    
             
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            model_species_type.type = wcm_ontology['WCM:pseudo_species'] # pseudo species
+            model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo species
 
         else:
             raise ValueError('Unsupported species type: {}'.format(
@@ -320,7 +320,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             if conc.references:
                 for ref in conc.references:
                     ref_model = wc_lang.Reference(model=model, id=ref.id, name=ref.standard_id, 
-                        type=wcm_ontology['WCM:article'])
+                        type=wc_ontology['WC:article'])
                     conc_model.references.append(ref_model)
 
             if conc.database_references:
