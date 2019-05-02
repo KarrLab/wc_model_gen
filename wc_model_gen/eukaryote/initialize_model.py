@@ -20,7 +20,7 @@ import wc_model_gen
 class InitializeModel(wc_model_gen.ModelComponentGenerator):
     """ Generate compartments """
 
-    def run(self):        
+    def run(self):
         self.clean_and_validate_options()
         options = self.options
 
@@ -31,13 +31,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             self.gen_dna()
 
         if options['gen_transcripts']:
-            self.gen_transcripts()     
+            self.gen_transcripts()
 
         if options['gen_protein']:
-            self.gen_protein()  
+            self.gen_protein()
 
         if options['gen_metabolites']:
-            self.gen_metabolites()        
+            self.gen_metabolites()
 
         if options['gen_complexes']:
             self.gen_complexes()
@@ -67,7 +67,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         gen_transcripts = options.get('gen_transcripts', True)
         assert(isinstance(gen_transcripts, bool))
-        options['gen_transcripts'] = gen_transcripts            
+        options['gen_transcripts'] = gen_transcripts
 
         gen_protein = options.get('gen_protein', True)
         assert(isinstance(gen_protein, bool))
@@ -98,26 +98,32 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         options['gen_kb_rate_laws'] = gen_kb_rate_laws
 
     def gen_compartments(self):
-        
+
         kb = self.knowledge_base
         model = self.model
 
         if kb.cell.parameters.get_one(id='cell_volume'):
             mean_cell_volume = kb.cell.parameters.get_one(id='cell_volume').value
         else:
-            raise ValueError('The cell object does not have the property cell_volume')        
-        
+            raise ValueError('The cell object does not have the property cell_volume')
+
         cell_density = self.options['cell_density']
 
         for comp in kb.cell.compartments:
+
+            if comp.id=='e':
+                init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=10400E5, std=0)
+            else:
+                init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=comp.volumetric_fraction*mean_cell_volume, std=0)
+
             c = model.compartments.get_or_create(
-                    id=comp.id, 
-                    name=comp.name, 
-                    mean_init_volume=1E5*mean_cell_volume if comp.id=='e' else comp.volumetric_fraction*mean_cell_volume,
-                    )
+                    id=comp.id,
+                    name=comp.name,
+                    init_volume=init_volume)
+
             c.init_density = model.parameters.create(
-                id='density_' + c.id, 
-                value=1000 if comp.id=='e' else cell_density, 
+                id='density_' + c.id,
+                value=1000 if comp.id=='e' else cell_density,
                 units=unit_registry.parse_units('g l^-1'))
             volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
             volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
@@ -148,15 +154,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         scale = expr.to(unit_registry.parse_units('second'))
         conversion_factor = scale.magnitude
 
-        model.parameters.create(id='mean_doubling_time',
-                                       type=None,
-                                       value=doubling_time_kb.value * conversion_factor,
-                                       units=unit_registry.parse_units('s'))
- 
         # Create parameters from kb
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
-                            id=param.id,                            
+                            id=param.id,
                             value=param.value,
                             units=param.units)
             if 'K_m' in param.id:
@@ -176,8 +177,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         for kb_species_type in kb_species_types:
             if 'MT' in kb_species_type.id or 'mt' in kb_species_type.id:
                 self.gen_species_type(kb_species_type, ['m'])
-            else:    
-                self.gen_species_type(kb_species_type, ['n'])                
+            else:
+                self.gen_species_type(kb_species_type, ['n'])
 
     def gen_transcripts(self):
         """ Generate transcripts (mature RNAs) for the model from knowledge base """
@@ -187,7 +188,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb_species_types = kb.cell.species_types.get(
             __type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
 
-        for kb_species_type in kb_species_types:           
+        for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
 
     def gen_protein(self):
@@ -210,7 +211,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             __type=wc_kb.core.MetaboliteSpeciesType)
 
         for kb_species_type in kb_species_types:
-            self.gen_species_type(kb_species_type)        
+            self.gen_species_type(kb_species_type)
 
     def gen_complexes(self):
         """ Generate complexes for the model from knowledge base """
@@ -219,7 +220,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         kb_species_types = kb.cell.species_types.get(
             __type=wc_kb.core.ComplexSpeciesType)
-        
+
         for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
 
@@ -250,8 +251,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
-            model_species_type.structure = kb_species_type.structure    
-            
+            inchi_str = kb_species_type.properties.get_one(property='structure').get_value()
+            model_species_type.structure = wc_lang.core.ChemicalStructure(value=inchi_str)
+
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo species
 
@@ -265,20 +267,20 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_species_type.molecular_weight = kb_species_type.get_mol_wt()
         model_species_type.charge = kb_species_type.get_charge()
         model_species_type.comments = kb_species_type.comments
-        
+
         if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
-            subunit_compartments = [[s.compartment.id for s in sub.species_type.species] 
+            subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
                 for sub in kb_species_type.subunits]
-            
+
             shared_compartments = set([])
             for i in range(len(subunit_compartments)):
-                shared_compartments = (set(subunit_compartments[i]) 
+                shared_compartments = (set(subunit_compartments[i])
                     if i==0 else shared_compartments).intersection(
                     set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)
             # Combine compartments where all the subunits exist, where catalyzed reactions occur and the additionally defined extra
             compartment_ids = set(list(shared_compartments) + [s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
-        else:    
+        else:
             compartment_ids = set([s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))
 
@@ -298,7 +300,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         for conc in kb.cell.concentrations:
             species_comp_model = model.compartments.get_one(id=conc.species.compartment.id)
-            
+
             species_type = model.species_types.get_or_create(id=conc.species.species_type.id)
             species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
             species.id = species.gen_id()
@@ -306,34 +308,34 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             if conc.units == unit_registry.parse_units('molecule'):
                 mean_concentration = conc.value
             elif conc.units == unit_registry.parse_units('M'):
-                mean_concentration = conc.value * Avogadro.value * species_comp_model.mean_init_volume
+                mean_concentration = conc.value * Avogadro.value * species_comp_model.init_volume.mean
             else:
                 raise Exception('Unsupported units: {}'.format(conc.units.name))
 
             conc_model = model.distribution_init_concentrations.create(
                 species=species,
-                mean=mean_concentration, 
+                mean=mean_concentration,
                 units=unit_registry.parse_units('molecule'),
                 comments=conc.comments)
             conc_model.id = conc_model.gen_id()
 
             if conc.references:
                 for ref in conc.references:
-                    ref_model = wc_lang.Reference(model=model, id=ref.id, name=ref.standard_id, 
+                    ref_model = wc_lang.Reference(model=model, id=ref.id, name=ref.id,
                         type=wc_ontology['WC:article'])
                     conc_model.references.append(ref_model)
 
-            if conc.database_references:
-                for db_ref in conc.database_references:
-                    db_ref_model = wc_lang.DatabaseReference(model=model, 
-                        database=db_ref.database, id=db_ref.id)
-                    conc_model.db_refs.append(db_ref_model)                
+            if conc.identifiers:
+                for db_ref in conc.identifiers:
+                    db_ref_model = wc_lang.core.Identifier(model=model,
+                        namespace=db_ref.namespace, id=db_ref.id)
+                    conc_model.identifiers.append(db_ref_model)
 
     def gen_observables(self):
         """ Generate observables for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
-        
+
         for kb_observable in kb.cell.observables:
             all_species = {}
             all_observables = {}
@@ -346,31 +348,37 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_species = model_species_type.species.get_one(
                     compartment=model.compartments.get_one(id=kb_compartment.id))
                 all_species[model_species.gen_id()] = model_species
-                
+
             for kb_observable_observable in kb_observable.expression.observables:
                 model_observable_observable = model.observables.get_or_create(
                     id=kb_observable_observable.id)
                 all_observables[model_observable_observable.id] = model_observable_observable
-            
+
             model_observable_expression, error = wc_lang.ObservableExpression.deserialize(
                 kb_observable.expression.expression, {
                 wc_lang.Species: all_species,
                 wc_lang.Observable: all_observables,
                 })
             assert error is None, str(error)
-            
+
             model_observable = model.observables.get_or_create(
                 id=kb_observable.id,
                 name=kb_observable.name,
-                expression=model_observable_expression)           
+                expression=model_observable_expression)
 
     def gen_kb_reactions(self):
-        """ Generate the reactions encoded within the knowledge base """
+        """ Generate reactions encoded within KB
+            TODO: rxn.submodel attribute is removed from KB, so submodel assignement needs to be taken care of here.
+                  Since all rxns explicitly encoded in KB are metabolic ones, it is manually set to be metablism atm, but
+                  not more sophisticated approach
+
+        """
+
         kb = self.knowledge_base
         model = self.model
 
         for kb_rxn in kb.cell.reactions:
-            submodel_id = kb_rxn.submodel
+            submodel_id = 'Metabolism'
             submodel = model.submodels.get_or_create(id=submodel_id)
 
             model_rxn = model.reactions.create(
@@ -388,16 +396,16 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
                 if model_species is None:
                     model_species = self.gen_species_type(kb_species.species_type, model_compartment)
-                
+
                 model_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
         # Generate complexation reactions
-        for compl in kb.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):            
+        for compl in kb.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
             model_compl_species_type = model.species_types.get_one(id=compl.id)
-            
+
             for model_compl_species in model_compl_species_type.species:
-                
+
                 if all(model.species_types.get_one(id=subunit.species_type.id).species.get_one(
                     compartment=model_compl_species.compartment)!=None for subunit in compl.subunits):
 
@@ -409,15 +417,15 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         id=compl.id + '_' + model_compl_species.compartment.id,
                         name='Complexation of ' + compl.id + ' in ' + model_compl_species.compartment.name,
                         reversible=True)
-                    
+
                     for subunit in compl.subunits:
                         model_subunit_species = model.species_types.get_one(
-                            id=subunit.species_type.id).species.get_one(compartment=model_compl_species.compartment) 
+                            id=subunit.species_type.id).species.get_one(compartment=model_compl_species.compartment)
                         model_rxn.participants.add(
                             model_subunit_species.species_coefficients.get_or_create(coefficient=-subunit.coefficient))
 
                     model_rxn.participants.add(
-                            model_compl_species.species_coefficients.get_or_create(coefficient=1))                            
+                            model_compl_species.species_coefficients.get_or_create(coefficient=1))
 
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
@@ -425,7 +433,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         Avogadro = model.parameters.get_or_create(id='Avogadro')
-        
+
         for kb_rxn in kb.cell.reactions:
 
             model_rxn = model.reactions.get_one(id=kb_rxn.id + '_kb')
@@ -436,7 +444,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 all_species = {}
                 all_observables = {}
                 all_volumes = {}
-                
+
                 kb_expression = kb_rate_law.expression.expression
 
                 for observable in kb_rate_law.expression.observables:
@@ -445,17 +453,17 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 for species in kb_rate_law.expression.species:
                     model_species_type = model.species_types.get_one(id=species.species_type.id)
                     model_compartment = model.compartments.get_one(id=species.compartment.id)
-                    volume = model_compartment.init_density.function_expressions[0].function                    
+                    volume = model_compartment.init_density.function_expressions[0].function
                     model_species = model_species_type.species.get_one(compartment=model_compartment)
                     all_species[model_species.gen_id()] = model_species
-                    all_volumes[volume.id] = volume    
+                    all_volumes[volume.id] = volume
 
                 for param in kb_rate_law.expression.parameters:
                     all_parameters[param.id] = model.parameters.get_one(id=param.id)
                     if 'K_m' in param.id:
                         volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
                         unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
-                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)            
+                        kb_expression = kb_expression.replace(param.id, unit_adjusted_term)
 
                 rate_law_expression, error = wc_lang.RateLawExpression.deserialize(
                     kb_expression, {
@@ -471,4 +479,4 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     reaction=model_rxn,
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
-                model_rate_law.id = model_rate_law.gen_id()    
+                model_rate_law.id = model_rate_law.gen_id()
