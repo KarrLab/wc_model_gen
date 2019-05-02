@@ -102,39 +102,39 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='transcription')
-        
+
         modifier_species = model.observables.get_one(id='rna_polymerase_obs').expression.species
-        
+
         for rxn in submodel.reactions:
             rl = rxn.rate_laws[0]
             self.assertIsInstance(rl, wc_lang.RateLaw)
             self.assertEqual(rl.direction, wc_lang.RateLawDirection.forward)
-            self.assertEqual(len(rl.expression.species), 4)            
+            self.assertEqual(len(rl.expression.species), 4)
             self.assertEqual(set(rl.expression.species), set([i for i in rxn.get_reactants() if i not in modifier_species]))
 
         test_reaction = submodel.reactions.get_one(id='transcription_rna_tu_1_1')
-        self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
+        self.assertEqual(test_reaction.rate_laws[0].expression.expression,
             'k_cat_transcription_rna_tu_1_1 * rna_polymerase_obs * '
             '(atp[c] / (atp[c] + K_m_transcription_rna_tu_1_1_atp * Avogadro * volume_c)) * '
             '(ctp[c] / (ctp[c] + K_m_transcription_rna_tu_1_1_ctp * Avogadro * volume_c)) * '
             '(gtp[c] / (gtp[c] + K_m_transcription_rna_tu_1_1_gtp * Avogadro * volume_c)) * '
-            '(utp[c] / (utp[c] + K_m_transcription_rna_tu_1_1_utp * Avogadro * volume_c))')    
+            '(utp[c] / (utp[c] + K_m_transcription_rna_tu_1_1_utp * Avogadro * volume_c))')
 
     def test_calibrate_submodel(self):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='transcription')
-        
+
         cytosol = kb.cell.compartments.get_one(id='c')
         test_species_type = kb.cell.species_types.get_one(id='rna_tu_1_1')
         test_species = test_species_type.species.get_one(compartment=cytosol)
-        half_life = test_species_type.half_life
+        half_life = test_species_type.properties.get_one(property='half_life').get_value()
         mean_doubling_time = kb.cell.parameters.get_one(id='mean_doubling_time').value
         rna_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value
         prot_mean_concentration = kb.cell.concentrations.get_one(
             species=kb.cell.species_types.get_one(id='prot_gene_1_31').species.get_one(compartment=cytosol)).value
-        
+
         check_kcat = math.log(2) * (1. / half_life + 1. / mean_doubling_time) * rna_mean_concentration \
                     / prot_mean_concentration / (0.5**4)
 
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_rna_tu_1_1').value, check_kcat, places=16) 
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_rna_tu_1_1').value, check_kcat, places=16)

@@ -351,7 +351,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         n_rna_deg_rxns = 0
         for rna_lang in rnas_lang:
             rna_kb = self.knowledge_base.cell.species_types.get_one(id=rna_lang.id)
-            half_life = rna_kb.half_life
+            half_life = rna_kb.properties.get_one(property='half_life').get_value()
 
             conc = rna_lang.species.get_one(compartment=cytosol_lang) \
                 .distribution_init_concentration.mean
@@ -376,7 +376,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             prot_kb = self.knowledge_base.cell.species_types.get_one(id=prot_lang.id)
             if isinstance(prot_kb, wc_kb.core.ComplexSpeciesType):
                 continue
-            half_life = prot_kb.half_life
+            half_life = prot_kb.properties.get_one(property='half_life').get_value()
 
             conc = prot_lang.species.get_one(compartment=cytosol_lang)\
                 .distribution_init_concentration.mean
@@ -395,7 +395,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         rna_copy_num = []
         for rna in rnas_kb:
-            conc = rna.species.get_one(compartment=cytosol_kb).concentration.value
+            conc = rna.species.get_one(compartment=cytosol_kb).concentrations.value
             rna_copy_num.append(round(conc * volume * Avogadro))
 
         avg_rna_copy_num = numpy.mean(rna_copy_num)
@@ -412,7 +412,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         prot_copy_num = []
         for prot in prots_kb:
-            conc = prot.species.get_one(compartment=cytosol_kb).concentration.value
+            conc = prot.species.get_one(compartment=cytosol_kb).concentrations.value
             prot_copy_num.append(round(conc*volume*Avogadro))
 
         avg_prot_copy_num = numpy.mean(prot_copy_num)

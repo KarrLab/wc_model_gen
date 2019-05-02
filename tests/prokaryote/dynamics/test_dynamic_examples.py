@@ -10,6 +10,7 @@ from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_sim.multialgorithm.simulation import Simulation
+from wc_lang.core import ChemicalStructure
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import numpy as np
@@ -35,25 +36,31 @@ class DynamicsTestCase(unittest.TestCase):
         submodel = model.submodels.create(id='transfer')
 
         # Construct compartments
-        comp_A = model.compartments.create(id='A', name='A', mean_init_volume=1E-15)
+        init_volume_A = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=1E-15, std=0)
+        comp_A = model.compartments.create(id='A', name='A', init_volume=init_volume_A)
         comp_A.init_density = model.parameters.create(id='density_A', value=1100., units=unit_registry.parse_units('g l^-1'))
-        comp_B = model.compartments.create(id='B', name='B', mean_init_volume=1E-15)
+
+        init_volume_B = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=1.1E-15, std=0)
+        comp_B = model.compartments.create(id='B', name='B', init_volume=init_volume_B)
         comp_B.init_density = model.parameters.create(id='density_B', value=1100., units=unit_registry.parse_units('g l^-1'))
 
         # Construct species / species types
-        species_type1 = model.species_types.create(id='st1', charge = 0)
+        structure = ChemicalStructure(charge=0, molecular_weight=1)
+        species_type1 = model.species_types.create(id='st1', structure=structure)
         specie1A = model.species.create(species_type=species_type1, compartment=comp_A)
         specie1B = model.species.create(species_type=species_type1, compartment=comp_B)
         specie1A.id = specie1A.gen_id()
         specie1B.id = specie1B.gen_id()
 
-        species_type2 = model.species_types.create(id='st2', charge = 0)
+        structure = ChemicalStructure(charge=0, molecular_weight=2)
+        species_type2 = model.species_types.create(id='st2', structure=structure)
         specie2A = model.species.create(species_type=species_type2, compartment=comp_A)
         specie2B = model.species.create(species_type=species_type2, compartment=comp_B)
         specie2A.id = specie2A.gen_id()
         specie2B.id = specie2B.gen_id()
 
-        species_type3 = model.species_types.create(id='st3', charge = 0)
+        structure = ChemicalStructure(charge=0, molecular_weight=3)
+        species_type3 = model.species_types.create(id='st3', structure=structure)
         specie3A = model.species.create(species_type=species_type3, compartment=comp_A)
         specie3B = model.species.create(species_type=species_type3, compartment=comp_B)
         specie3A.id = specie3A.gen_id()
