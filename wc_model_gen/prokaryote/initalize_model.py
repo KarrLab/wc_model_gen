@@ -105,7 +105,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         volume_c.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
             wc_lang.Compartment: {c.id: c},
             wc_lang.Parameter: {c.init_density.id: c.init_density},
-
+            })
         assert error is None, str(error)
 
         # Extracellular space
@@ -252,7 +252,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
-            model_species_type.structure = None
+            model_species_type.structure = wc_lang.core.ChemicalStructure()
 
         else:
             raise ValueError('Unsupported species type: {}'.format(
