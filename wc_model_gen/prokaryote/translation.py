@@ -7,6 +7,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import math
@@ -18,10 +19,10 @@ import wc_kb
 
 
 class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generate translation submodel 
+    """ Generate translation submodel
 
         Options:
-        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
     """
 
@@ -172,7 +173,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol = model.compartments.get_one(id='c')
 
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        mean_doubling_time = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
 
         init_species_counts = {}
 
@@ -184,7 +185,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for protein_kb, reaction in zip(protein_kb, self.submodel.reactions):
 
             protein_product = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
-            half_life = protein_kb.half_life
+            half_life = protein_kb.properties.get_one(property='half_life').get_value()
             mean_concentration = protein_product.distribution_init_concentration.mean
 
             average_rate = utils.calc_avg_syn_rate(

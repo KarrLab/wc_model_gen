@@ -9,6 +9,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import scipy.constants
@@ -20,10 +21,10 @@ import math
 
 
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for protein degradation model 
+    """ Generator for protein degradation model
 
         Options:
-        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
     """
 
@@ -147,7 +148,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
 
             protein_reactant = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
-            half_life = protein_kb.half_life
+            half_life = protein_kb.properties.get_one(property='half_life').get_value()
             mean_concentration = protein_reactant.distribution_init_concentration.mean
 
             average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)

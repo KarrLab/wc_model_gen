@@ -10,7 +10,7 @@ from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_sim.multialgorithm.run_results import RunResults
 from wc_sim.multialgorithm.simulation import Simulation
-from wc_onto import onto
+from wc_onto import onto as wc_ontology
 import numpy as np
 import os
 import shutil
@@ -69,7 +69,7 @@ class DynamicsTestCase(unittest.TestCase):
 
         cytosol = self.model.compartments.get_one(id='c')
         rna_ids = []
-        for rna in self.model.species_types.get(type=onto['WC:RNA']): # RNA
+        for rna in self.model.species_types.get(type=wc_ontology['WC:RNA']): # RNA
             rna_ids.append(rna.species.get_one(compartment=cytosol).id)
 
         avg_init_rna_cn = np.mean(df.loc[0.0, rna_ids].values)

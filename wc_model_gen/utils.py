@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_onto import onto
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import math
 import scipy.constants
@@ -94,7 +94,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     parameters[avogadro.id] = avogadro
 
     model_k_cat = model.parameters.get_or_create(id='k_cat_{}'.format(reaction.id),
-                                                 type=onto['WC:k_cat'],
+                                                 type=wc_ontology['WC:k_cat'],
                                                  units=unit_registry.parse_units('s^-1{}'.format(
                                                     (' * molecule^{{-{}}}'.format(len(modifiers))) if modifiers else '')))
     parameters[model_k_cat.id] = model_k_cat
@@ -109,7 +109,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
             all_species[species.gen_id()] = species
 
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
-                                                type=onto['WC:K_m'],
+                                                type=wc_ontology['WC:K_m'],
                                                 units=unit_registry.parse_units('M'))
             parameters[model_k_m.id] = model_k_m
 

@@ -49,8 +49,8 @@ class TestCase(unittest.TestCase):
                         'gen_observables': False,
                         'gen_kb_reactions': False,
                         'gen_kb_rate_laws': False,
-                        }            
-                    }	       
+                        }
+                    }
                 }
             )
 

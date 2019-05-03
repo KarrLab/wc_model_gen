@@ -9,6 +9,7 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
+from wc_onto import onto as wc_ontology
 import math
 import unittest
 import wc_kb
@@ -74,9 +75,9 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model
         kb = self.kb
         submodel = model.submodels.get_one(id='protein_degradation')
-        
+
         modifier_species = model.observables.get_one(id='degrade_protease_obs').expression.species
-        
+
         for rxn in submodel.reactions:
             self.assertEqual(len(rxn.rate_laws), 1)
             rl = rxn.rate_laws[0]
@@ -87,11 +88,11 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 i for i in rxn.get_reactants() if i not in modifier_species or i.species_type.id in rxn.id]))
 
         test_reaction = submodel.reactions.get_one(id='degradation_prot_gene_1_34')
-        self.assertEqual(test_reaction.rate_laws[0].expression.expression, 
+        self.assertEqual(test_reaction.rate_laws[0].expression.expression,
             'k_cat_degradation_prot_gene_1_34 * degrade_protease_obs * '
             '(prot_gene_1_34[c] / (prot_gene_1_34[c] + K_m_degradation_prot_gene_1_34_prot_gene_1_34 * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_degradation_prot_gene_1_34_atp * Avogadro * volume_c)) * '
-            '(h2o[c] / (h2o[c] + K_m_degradation_prot_gene_1_34_h2o * Avogadro * volume_c))')    
+            '(h2o[c] / (h2o[c] + K_m_degradation_prot_gene_1_34_h2o * Avogadro * volume_c))')
 
     def test_calibrate_submodel(self):
         model = self.model
@@ -101,12 +102,12 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         cytosol = kb.cell.compartments.get_one(id='c')
         test_species_type = kb.cell.species_types.get_one(id='prot_gene_1_1')
         test_species = test_species_type.species.get_one(compartment=cytosol)
-        half_life = test_species_type.half_life
-        mean_doubling_time = kb.cell.properties.get_one(id='mean_doubling_time').value
+        half_life = test_species_type.properties.get_one(property='half_life').get_value()
+        mean_doubling_time = kb.cell.parameters.get_one(id='mean_doubling_time').value
         protein_reactant_mean_concentration = kb.cell.concentrations.get_one(species=test_species).value
         degrase_mean_concentration = kb.cell.concentrations.get_one(
             species=kb.cell.species_types.get_one(id='prot_gene_1_34').species.get_one(compartment=cytosol)).value
-        
+
         check_kcat = math.log(2) / half_life * protein_reactant_mean_concentration \
                     / degrase_mean_concentration / (0.5**3)
 

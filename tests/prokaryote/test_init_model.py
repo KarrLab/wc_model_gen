@@ -1,6 +1,7 @@
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
 from wc_utils.util.units import unit_registry
+from wc_onto import kb_onto as kbOnt
 import unittest
 import wc_kb
 import wc_lang

@@ -12,7 +12,7 @@ TODO: improve terminology to better distinguish this and the metabolism species 
 """
 
 from scipy.constants import Avogadro
-from wc_onto import onto
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import numpy
 import wc_lang
@@ -141,8 +141,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = model.submodels.get_one(id='metabolism')
         c = model.compartments.get_one(id='c')
         e = model.compartments.get_one(id='e')
-        volume = cell.properties.get_one(id='mean_volume').value
-        cc_length = cell.properties.get_one(id='mean_doubling_time').value
+        volume = cell.parameters.get_one(id='mean_volume').value
+        cc_length = cell.parameters.get_one(id='mean_doubling_time').value
 
         # Calculate rates
         mpp_transfer_rate = self.calc_mpp_transfer_rate()
@@ -163,7 +163,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.id = rate_law.gen_id()
 
             param = model.parameters.create(id='k_cat_{}'.format(rxn.id),
-                                            type=onto['WC:k_cat'],
+                                            type=wc_ontology['WC:k_cat'],
                                             units=unit_registry.parse_units('s^-1'))
 
             # Rates for transfer reactions from extracellular space
@@ -219,7 +219,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         n_h_transfer = (n_transcription_rxns - n_degrad_rxns) * avg_H_per_transcription
 
         # Each transfer reactions transports 10 TPs, thus the final /10
-        cc_length = kb.cell.properties.get_one(id='mean_doubling_time').value
+        cc_length = kb.cell.parameters.get_one(id='mean_doubling_time').value
         h_transfer_rate = n_h_transfer / cc_length / self.reaction_scale
         return h_transfer_rate
 
@@ -233,7 +233,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
         tpp_in_cell = avg_tpp_per_rna*avg_rna_copy_num*len(rnas_kb)
 
-        cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
         mpp_transfer_rate = (tpp_in_cell/cc_length/self.reaction_scale)
 
         return mpp_transfer_rate
@@ -248,7 +248,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         aa_in_cell = avg_aa_per_prot*avg_prot_copy_num*len(prots_kb)
 
-        cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
         aa_transfer_rate = (aa_in_cell/cc_length/self.reaction_scale)
 
         return aa_transfer_rate
@@ -264,7 +264,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Calculate # of mpps needed to be converted
         n_mpp_to_convert = avg_mpp_per_deg_rxn*n_rna_deg_rxns
 
-        cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
+        cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
         mpp_conversion_rate = n_mpp_to_convert/cc_length/self.reaction_scale
 
         return mpp_conversion_rate  # This is only the rate from degradation, needs to add new mpp conversion!
@@ -342,16 +342,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        rnas_lang = self.model.species_types.get(type=onto['WC:RNA'])  # RNA
-        cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-        volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
+        rnas_lang = self.model.species_types.get(type=wc_ontology['WC:RNA'])  # RNA
+        cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
+        volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
 
         # Calculate the # of degradation reactions over CC
         # Each Rna degrad reaction fires: (cc_length/rna.half_life)*rna_copy_number(t=0)
         n_rna_deg_rxns = 0
         for rna_lang in rnas_lang:
             rna_kb = self.knowledge_base.cell.species_types.get_one(id=rna_lang.id)
-            half_life = rna_kb.half_life
+            half_life = rna_kb.properties.get_one(property='half_life').get_value()
 
             conc = rna_lang.species.get_one(compartment=cytosol_lang) \
                 .distribution_init_concentration.mean
@@ -365,9 +365,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         cytosol_lang = self.model.compartments.get_one(id='c')
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        prots_lang = self.model.species_types.get(type=onto['WC:protein'])  # protein
-        cc_length = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-        volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
+        prots_lang = self.model.species_types.get(type=wc_ontology['WC:protein'])  # protein
+        cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
+        volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
 
         # Calculate the # of degradation reactions over CC
         # Each prot degrad reaction fires: (cc_length/prot.half_life)*prot_copy_number(t=0)
@@ -376,7 +376,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             prot_kb = self.knowledge_base.cell.species_types.get_one(id=prot_lang.id)
             if isinstance(prot_kb, wc_kb.core.ComplexSpeciesType):
                 continue
-            half_life = prot_kb.half_life
+            half_life = prot_kb.properties.get_one(property='half_life').get_value()
 
             conc = prot_lang.species.get_one(compartment=cytosol_lang)\
                 .distribution_init_concentration.mean
@@ -389,13 +389,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def calc_rna_copy_num(self):
         """ Calculates the # of RNA molecules at t=0 """
 
-        volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
+        volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
         rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
 
         rna_copy_num = []
         for rna in rnas_kb:
-            conc = rna.species.get_one(compartment=cytosol_kb).concentration.value
+            conc = rna.species.get_one(compartment=cytosol_kb).concentrations.value
             rna_copy_num.append(round(conc * volume * Avogadro))
 
         avg_rna_copy_num = numpy.mean(rna_copy_num)
@@ -406,13 +406,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Calculates the # of RNA molecules at t=0 """
         # TODO: check if conc is in CN already
 
-        volume = self.knowledge_base.cell.properties.get_one(id='mean_volume').value
+        volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
         prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
 
         prot_copy_num = []
         for prot in prots_kb:
-            conc = prot.species.get_one(compartment=cytosol_kb).concentration.value
+            conc = prot.species.get_one(compartment=cytosol_kb).concentrations.value
             prot_copy_num.append(round(conc*volume*Avogadro))
 
         avg_prot_copy_num = numpy.mean(prot_copy_num)
@@ -422,7 +422,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def calc_gtp_corr_rate(self):
         """ Calculates the extra amount of GTP needed if model has translation subunit """
         cell = self.knowledge_base.cell
-        cc_length = cell.properties.get_one(id='mean_doubling_time').value
+        cc_length = cell.parameters.get_one(id='mean_doubling_time').value
 
         avg_gtp_per_translate = self.calc_gtp_per_translate()
         avg_prot_copy_num = self.calc_prot_copy_num()  # Number of new proteins needed

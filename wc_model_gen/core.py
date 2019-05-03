@@ -18,7 +18,7 @@ import wc_utils.util.string
 from wc_lang.util import get_model_summary
 from wc_sim.multialgorithm.simulation import Simulation
 from wc_sim.multialgorithm.run_results import RunResults
-from wc_onto import onto
+from wc_onto import onto as wc_ontology
 
 
 class ModelGenerator(object):
@@ -159,7 +159,8 @@ class ModelGenerator(object):
 
         rna_ids = []
         df = run_results.get('populations')
-        for rna in model.species_types.get(type=onto['WC:RNA']): #RNA
+
+        for rna in model.species_types.get(type=wc_ontology['WC:RNA']): #RNA
             rna_ids.append(rna.species[0].id)
 
         txt = 'Init copy number mean={}; std={} \n'.format(round(np.mean(df.loc[0.0, rna_ids].values), 2),

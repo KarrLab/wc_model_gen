@@ -8,6 +8,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import scipy.constants
@@ -19,10 +20,10 @@ import math
 
 
 class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for RNA degradation submodel 
+    """ Generator for RNA degradation submodel
 
         Options:
-        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
     """
 
@@ -83,7 +84,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Generate rate laws for the reactions in the submodel """
 
         model = self.model
-        
+
         modifier = model.observables.get_one(id='degrade_rnase_obs')
 
         for reaction in self.submodel.reactions:
@@ -122,7 +123,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
-            half_life = rna_kb.half_life
+            half_life = rna_kb.properties.get_one(property='half_life').get_value()
             mean_concentration = rna_reactant.distribution_init_concentration.mean
 
             average_rate = average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
