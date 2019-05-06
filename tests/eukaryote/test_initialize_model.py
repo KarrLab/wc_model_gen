@@ -505,6 +505,8 @@ class TestCase(unittest.TestCase):
     def test_unchanged_kb(self):    
         
         kb2 = self.kb.copy()
+
+        self.assertTrue(kb2.is_equal(self.kb))
         
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 

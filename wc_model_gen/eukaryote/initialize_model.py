@@ -143,24 +143,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                                         type = None,
                                         value = scipy.constants.Avogadro,
                                         units = unit_registry.parse_units('molecule mol^-1'))       
-
-        # Create parameters out of properties
-        if kb.cell.parameters.get_one(id='mean_doubling_time'):
-            doubling_time_kb = kb.cell.parameters.get_one(id='mean_doubling_time')
-        else:
-            raise ValueError('The cell object does not have the parameter mean_doubling_time')
-
-        if not isinstance(doubling_time_kb.units, unit_registry.Unit):
-            ValueError('Unsupported units "{}"'.format(doubling_time_kb.units))
-
-        expr = unit_registry.parse_expression(str(doubling_time_kb.units))
-        scale = expr.to(unit_registry.parse_units('second'))
-        conversion_factor = scale.magnitude
-
+      
         # Create parameters from kb
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
-                            id=param.id,
+                            id=param.id,                            
                             value=param.value,
                             units=param.units)
             if 'K_m' in param.id:
@@ -200,7 +187,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         scale = expr.to(unit_registry.parse_units('second'))
         conversion_factor = scale.magnitude
         model_doubling_time.value *= conversion_factor
-        model_doubling_time.units = unit_registry.parse_units('s')                
+        model_doubling_time.units = unit_registry.parse_units('s')                 
 
     def gen_dna(self):
         kb = self.knowledge_base
