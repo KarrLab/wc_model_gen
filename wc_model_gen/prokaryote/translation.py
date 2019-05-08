@@ -61,7 +61,8 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         codons = [a + b + c for a in bases for b in bases for c in bases]
 
         proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
-        for protein_kb in proteins_kb:
+        for idx, protein_kb in enumerate(proteins_kb):
+            print('Protein: {}'.format(idx))
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
@@ -77,7 +78,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Add tRNAs to LHS
             for codon in codons:
-                if codon not in ['TAG', 'TAA', 'TGA']:
+                if codon not in ['TAG', 'TAA', 'TGA']: #stop codons
                     n = 0
 
                     for base in range(0, len(protein_kb.gene.get_seq()), 3):
@@ -144,6 +145,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=-1))
                 reaction.participants.add(ribosome_model.species_coefficients.get_or_create(coefficient=1))
 
+
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
         model = self.model
@@ -156,8 +158,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law = model.rate_laws.create(direction=wc_lang.RateLawDirection.forward,
                                               type=None,
                                               expression=rate_law_exp,
-                                              reaction=reaction,
-                                              )
+                                              reaction=reaction)
             rate_law.id = rate_law.gen_id()
 
     def calibrate_submodel(self):

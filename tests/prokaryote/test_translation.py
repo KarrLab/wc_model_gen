@@ -19,16 +19,14 @@ import wc_lang
 
 class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
-    """ unitest.skip not ignoring setUpClass, thus commenting out
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     @classmethod
     def setUpClass(cls):
+
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
         with env:
-            cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
-                                           'tests/fixtures/test_broken_seq.fna',
-                                           )[wc_kb.KnowledgeBase][0]
+            cls.kb = wc_kb.io.Reader(). run('tests/fixtures/min_model_kb.xlsx',
+                                           'tests/fixtures/min_model_seq.fna')[wc_kb.KnowledgeBase][0]
 
         cls.model = prokaryote.ProkaryoteModelGenerator(
             knowledge_base=cls.kb,
@@ -37,13 +35,10 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             options={'component': {
                 'TranslationSubmodelGenerator': {'beta': 1.}}}).run()
 
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     @classmethod
     def tearDownClass(cls):
         pass
-    """
-    
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
+
     def test_submodels(self):
         kb = self.kb
         model = self.model
@@ -52,7 +47,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertIsInstance(submodel, wc_lang.Submodel)
         self.assertEqual(len(model.submodels), 2)
 
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     def test_species(self):
         model = self.model
         kb = self.kb
@@ -65,7 +59,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
             self.assertIsInstance(model_species_cytosol, wc_lang.Species)
 
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     def test_reactions(self):
         model = self.model
         kb = self.kb
@@ -124,7 +117,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(rxn.participants.get_one(species=release_factors).coefficient, (length+2))
             """
 
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     def test_rate_laws(self):
         model = self.model
         kb = self.kb
@@ -143,7 +135,6 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(len(test_reaction.rate_laws[0].expression.species), 5) # 4 aa + 1 gtp
         self.assertEqual(len(test_reaction.rate_laws[0].expression.functions), 1) # volume
 
-    @unittest.skip('tests run incredibly slow, need to check submodel generation')
     def test_calibrate_submodel(self):
         model = self.model
         kb = self.kb

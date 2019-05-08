@@ -33,8 +33,8 @@ class ModelGeneratorTestCase(unittest.TestCase):
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
         with env:
-            cls.kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
-                                           'tests/fixtures/test_broken_seq.fna',
+            cls.kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+                                           'tests/fixtures/min_model_seq.fna',
                                            )[wc_kb.KnowledgeBase][0]
 
         cls.model = prokaryote.ProkaryoteModelGenerator(knowledge_base=cls.kb).run()

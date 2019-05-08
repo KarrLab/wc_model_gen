@@ -24,8 +24,8 @@ class ModelIOTestCase(unittest.TestCase):
         env = EnvironmentVarGuard()
         env.set('CONFIG__DOT__wc_kb__DOT__io__DOT__strict', '0')
         with env:
-            kb = wc_kb.io.Reader().run('tests/fixtures/test_broken_kb.xlsx',
-                                       'tests/fixtures/test_broken_seq.fna',
+            kb = wc_kb.io.Reader().run('tests/fixtures/min_model_kb.xlsx',
+                                       'tests/fixtures/min_model_seq.fna',
                                        )[wc_kb.KnowledgeBase][0]
 
         """ Generate and write models from KBs """
