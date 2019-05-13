@@ -10,7 +10,6 @@ from wc_model_gen.eukaryote import core
 from wc_model_gen.eukaryote import initialize_model
 from wc_utils.util import chem
 from wc_onto import onto as wc_ontology
-from wc_onto import kb_onto
 from wc_utils.util.units import unit_registry
 from wc_lang.core import ChemicalStructure
 import Bio.SeqUtils
@@ -116,7 +115,7 @@ class TestCase(unittest.TestCase):
             '/p-2/t4-,6-,7-,10-'
             '/m1'
             '/s1',
-            value_type=kb_onto['string']
+            value_type=wc_ontology['WC:string']
             )
         met1_structure.id = met1_structure.gen_id()
 

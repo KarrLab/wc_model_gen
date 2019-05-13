@@ -19,7 +19,6 @@ import wc_kb
 import wc_lang
 import wc_model_gen
 from wc_onto import onto as wc_ontology
-from wc_onto import kb_onto as kbOnt
 
 
 class InitalizeModel(wc_model_gen.ModelComponentGenerator):
