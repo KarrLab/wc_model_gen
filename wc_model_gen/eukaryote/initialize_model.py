@@ -8,7 +8,7 @@
 
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto as wc_ontology
-from wc_utils.util.units import unit_registry, are_units_equivalent
+from wc_utils.util.units import unit_registry
 import math
 import numpy
 import scipy.constants

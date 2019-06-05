@@ -6,7 +6,6 @@
 :License: MIT
 """
 
-from wc_utils.util.ontology import wcm_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.utils as utils
 import math
@@ -49,8 +48,6 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
-        submodel_id = 'Transcription'
-        submodel = model.submodels.get_or_create(id=submodel_id)
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
@@ -71,14 +68,14 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         self._transcription_modifier = {}
         for rna_kb in rna_kbs:
             
-            rna_gene_compartment_id = rna_kb.gene.polymer.species[0].compartment.id
-            if rna_gene_compartment_id == 'n':
+            rna_kb_compartment_id = rna_kb.species[0].compartment.id
+            if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
             else:
                 rna_compartment = mitochondrion    
             
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
-            reaction = model.reactions.get_or_create(submodel=submodel, id='transcription_' + rna_kb.id)
+            reaction = model.reactions.get_or_create(submodel=self.submodel, id='transcription_' + rna_kb.id)
             reaction.name = 'transcription ' + rna_kb.name
             seq = rna_kb.get_seq()
 
@@ -141,7 +138,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             modifier = self._transcription_modifier[reaction.name]
 
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                model, reaction, modifiers=[modifier])
+                self.model, reaction, modifiers=[modifier])
             self.model.parameters += parameters
 
             rate_law = self.model.rate_laws.create(
@@ -168,19 +165,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
 
-        mean_doubling_time = self.knowledge_base.cell.properties.get_one(id='mean_doubling_time').value
-        
-        init_species_counts = {}
-        
-        modifier = self._transcription_modifier[reaction.name]      
-        for species in modifier.expression.species:
-            init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean             
+        mean_doubling_time = model.parameters.get_one(id='mean_doubling_time').value       
         
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
-            rna_gene_compartment_id = rna_kb.gene.polymer.species[0].compartment.id
-            if rna_gene_compartment_id == 'n':
+            init_species_counts = {}
+        
+            modifier = self._transcription_modifier[reaction.name]      
+            for species in modifier.expression.species:
+                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+
+            rna_kb_compartment_id = rna_kb.species[0].compartment.id
+            if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
             else:
                 rna_compartment = mitochondrion    
@@ -201,13 +198,13 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
-                        / Avogadro.value / species.compartment.mean_init_volume
+                        / Avogadro.value / species.compartment.init_volume.mean
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.
             model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
                 wc_lang.Species: init_species_counts,
                 wc_lang.Compartment: {
-                    rna_compartment.id: rna_compartment.mean_init_volume * rna_compartment.init_density.value},
+                    rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
                 })
         
