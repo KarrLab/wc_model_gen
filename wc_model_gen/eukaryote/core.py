@@ -19,7 +19,15 @@ class EukaryoteModelGenerator(wc_model_gen.ModelGenerator):
     * name
     * version
     * component
+
+        * InitializeModel
+        * TranscriptionSubmodelGenerator
     """
+
+    DEFAULT_COMPONENT_GENERATORS = (
+        InitializeModel,
+        TranscriptionSubmodelGenerator,
+    )
 
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
