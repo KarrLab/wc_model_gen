@@ -56,6 +56,8 @@ class TestCase(unittest.TestCase):
         self.kb = wc_kb.KnowledgeBase(id='test_kb', version='0.0.1')
         cell = self.kb.cell = wc_kb.Cell(id='test_cell')
 
+        cell.taxon = 9606
+
         ref = wc_kb.core.Reference(cell=cell, id='ref', authors='John Smith', year=2018, comments='No comment')
         cell.parameters.create(id='cell_volume', value=10400., references=[ref])
         cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))        
@@ -183,11 +185,15 @@ class TestCase(unittest.TestCase):
     def tearDown(self):    
         shutil.rmtree(self.tmp_dirname)  
 
-    def test_gen_compartments_and_parameters(self):
+    def test_gen_taxon_compartments_parameters(self):
 
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
+
+        self.assertEqual(model.taxon.id, '9606')
+        self.assertEqual(model.taxon.name, 'Homo sapiens')
+        self.assertEqual(model.taxon.rank, wc_lang.TaxonRank.species)
 
         self.assertEqual(model.parameters.get_one(id='Avogadro').value, scipy.constants.Avogadro)
         self.assertEqual(model.parameters.get_one(id='Avogadro').type, None)

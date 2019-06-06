@@ -9,6 +9,7 @@
 from wc_utils.util.chem import EmpiricalFormula
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import ete3
 import math
 import numpy
 import scipy.constants
@@ -24,6 +25,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         self.clean_and_validate_options()
         options = self.options
 
+        self.gen_taxon()
         self.gen_compartments()
         self.gen_parameters()
 
@@ -96,6 +98,17 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         gen_kb_rate_laws = options.get('gen_kb_rate_laws', True)
         assert(isinstance(gen_kb_rate_laws, bool))
         options['gen_kb_rate_laws'] = gen_kb_rate_laws
+
+    def gen_taxon(self):
+
+        kb = self.knowledge_base
+        model = self.model
+
+        ncbi_taxa = ete3.NCBITaxa()
+        taxon_name = ncbi_taxa.get_taxid_translator([kb.cell.taxon])[kb.cell.taxon]
+        taxon_rank = ncbi_taxa.get_rank([kb.cell.taxon])[kb.cell.taxon]
+        model_taxon = wc_lang.core.Taxon(id=str(kb.cell.taxon), name=taxon_name, model=model, 
+            rank=wc_lang.core.TaxonRank[taxon_rank]) 
 
     def gen_compartments(self):
 

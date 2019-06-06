@@ -20,6 +20,8 @@ class TestCase(unittest.TestCase):
         kb = wc_kb.KnowledgeBase()
         cell = kb.cell = wc_kb.Cell()
 
+        cell.taxon = 9606
+
         cell.parameters.create(id='cell_volume', value=1E-15)
         cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))
 
