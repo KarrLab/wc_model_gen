@@ -20,7 +20,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         Options:
         * rna_exo_pair (:obj:`dict`): a dictionary of RNA id as key and
-            the id of exosome complex that degrades the RNA as value
+            a list of the ids of exosome complexes that degrade the RNA as value
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1      
@@ -90,40 +90,58 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
                              
             # Assign modifier
-            exo_id = rna_exo_pair[rna_kb.id]
-            complexes = model.species_types.get(name=exo_id)
+            exo_ids = rna_exo_pair[rna_kb.id]
+            modifier_obs = []
+            for exo_id in exo_ids:
+                complexes = model.species_types.get(name=exo_id)
 
-            if not complexes:
-                raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
+                if not complexes:
+                    raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
 
-            else:                
-                observable = model.observables.get_one(
-                    name='{} observable in {}'.format(exo_id, rna_compartment.name))
+                else:                
+                    observable = model.observables.get_one(
+                        name='{} observable in {}'.format(exo_id, rna_compartment.name))
 
-                if not observable:
-                    
-                    all_species = {}                             
-                    complex_species = []
+                    if not observable:
+                        
+                        all_species = {}                             
+                        
+                        for compl_variant in complexes:
+                            exo_species = compl_variant.species.get_one(compartment=rna_compartment)
+                            if not exo_species:
+                                raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
+                            all_species[exo_species.gen_id()] = exo_species
+                            
+                        observable_expression, error = wc_lang.ObservableExpression.deserialize(
+                            ' + '.join(list(all_species.keys())), {
+                            wc_lang.Species: all_species,
+                            })
+                        assert error is None, str(error)
 
-                    for compl_variant in complexes:
-                        exo_species = compl_variant.species.get_one(compartment=rna_compartment)
-                        if not exo_species:
-                            raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
-                        all_species[exo_species.gen_id()] = exo_species
-                        complex_species.append(exo_species.gen_id())
+                        observable = model.observables.create(
+                                name='{} observable in {}'.format(exo_id, rna_compartment.name),
+                                expression=observable_expression)
+                        observable.id = 'obs_{}'.format(len(model.observables))
 
-                    observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                        ' + '.join(complex_species), {
-                        wc_lang.Species: all_species,
-                        })
-                    assert error is None, str(error)
+                if observable not in modifier_obs:
+                    modifier_obs.append(observable)    
 
-                    observable = model.observables.create(
-                            name='{} observable in {}'.format(exo_id, rna_compartment.name),
+            if len(modifier_obs) == 1:
+                self._degradation_modifier[reaction.name] = modifier_obs[0]
+            else:
+                all_obs = {obs.id: obs for obs in modifier_obs} 
+                observable_expression, error = wc_lang.ObservableExpression.deserialize(
+                    ' + '.join(list(all_obs.keys())), {
+                    wc_lang.Observable: all_obs,
+                    })
+                assert error is None, str(error)
+
+                observable = model.observables.create(
+                            name='Combined exosome observable in {}'.format(rna_compartment.name),
                             expression=observable_expression)
-                    observable.id = 'obs_{}'.format(len(model.observables))
+                observable.id = 'obs_{}'.format(len(model.observables))
 
-            self._degradation_modifier[reaction.name] = observable    
+                self._degradation_modifier[reaction.name] = observable        
             
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
@@ -168,6 +186,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             modifier = self._degradation_modifier[reaction.name]      
             for species in modifier.expression.species:
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+            for observable in modifier.expression.observables:
+                for species in observable.expression.species:
+                    init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean    
         
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':

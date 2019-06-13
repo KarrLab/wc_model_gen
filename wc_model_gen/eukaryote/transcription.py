@@ -21,13 +21,13 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         Options:
         * rna_pol_pair (:obj:`dict`): a dictionary of RNA id as key and
-            the id of RNA polymerase complex that transcribes the RNA as value, e.g.
+            a list of the ids of RNA polymerase complexes that transcribe the RNA as value, e.g.
             rna_pol_pair = {
-                'rRNA45S':'DNA-directed RNA Polymerase I complex', 
-                'mRNA': 'DNA-directed RNA Polymerase II complex',
-                'sRNA': 'DNA-directed RNA Polymerase II complex', 
-                'tRNA': 'DNA-directed RNA Polymerase III complex',
-                'rRNA5S': 'DNA-directed RNA Polymerase III complex'
+                'rRNA45S': ['DNA-directed RNA Polymerase I complex'], 
+                'mRNA': ['DNA-directed RNA Polymerase II complex'],
+                'sRNA': ['DNA-directed RNA Polymerase II complex'], 
+                'tRNA': ['DNA-directed RNA Polymerase III complex'],
+                'rRNA5S': ['DNA-directed RNA Polymerase III complex']
                 }
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
             concentration (Km/[S]) for use when estimating Km values, the default value is 1      
@@ -95,30 +95,30 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
 
             # Assign modifier
-            polr_id = rna_pol_pair[rna_kb.id]
-            complexes = model.species_types.get(name=polr_id)
+            polr_ids = rna_pol_pair[rna_kb.id]
+            modifier_obs = []
+            for polr_id in polr_ids: 
+                complexes = model.species_types.get(name=polr_id)
+                
+                if not complexes:
+                    raise ValueError('{} that catalyzes the transcription of {} cannot be found'.format(polr_id, rna_kb.id))
             
-            if not complexes:
-                raise ValueError('{} that catalyzes the transcription of {} cannot be found'.format(polr_id, rna_kb.id))
-            
-            else:                
-                observable = model.observables.get_one(
-                    name='{} observable in {}'.format(polr_id, rna_compartment.name))
+                else:                
+                    observable = model.observables.get_one(
+                        name='{} observable in {}'.format(polr_id, rna_compartment.name))
 
                 if not observable:
                     
                     all_species = {}                             
-                    complex_species = []
-
+                    
                     for compl_variant in complexes:
                         polr_species = compl_variant.species.get_one(compartment=rna_compartment)
                         if not polr_species:
                             raise ValueError('{} cannot be found in the {}'.format(polr_species, rna_compartment.name))
                         all_species[polr_species.gen_id()] = polr_species
-                        complex_species.append(polr_species.gen_id())
-
+                       
                     observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                        ' + '.join(complex_species), {
+                        ' + '.join(list(all_species.keys())), {
                         wc_lang.Species: all_species,
                         })
                     assert error is None, str(error)
@@ -128,7 +128,25 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             expression=observable_expression)
                     observable.id = 'obs_{}'.format(len(model.observables))
 
-            self._transcription_modifier[reaction.name] = observable
+                if observable not in modifier_obs:
+                    modifier_obs.append(observable)
+
+            if len(modifier_obs) == 1:
+                self._transcription_modifier[reaction.name] = modifier_obs[0]
+            else:
+                all_obs = {obs.id: obs for obs in modifier_obs} 
+                observable_expression, error = wc_lang.ObservableExpression.deserialize(
+                    ' + '.join(list(all_obs.keys())), {
+                    wc_lang.Observable: all_obs,
+                    })
+                assert error is None, str(error)
+
+                observable = model.observables.create(
+                            name='Combined RNA polymerase observable in {}'.format(rna_compartment.name),
+                            expression=observable_expression)
+                observable.id = 'obs_{}'.format(len(model.observables))
+
+                self._transcription_modifier[reaction.name] = observable  
 
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """                     
@@ -175,6 +193,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             modifier = self._transcription_modifier[reaction.name]      
             for species in modifier.expression.species:
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+            for observable in modifier.expression.observables:
+                for species in observable.expression.species:
+                    init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean    
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
