@@ -82,7 +82,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 mean=10., units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
 
-        complexes = {'complex1': ('Degradosome','n'), 'complex2': ('Degradosome', 'n'), 'complex3': ('Mitochondrial Degradosome', 'm')}
+        complexes = {'complex1': ('Exosome','n'), 'complex2': ('Exosome', 'n'), 'complex3': ('Mitochondrial Exosome', 'm')}
         for k, v in complexes.items():
             model_species_type = model.species_types.create(id=k, name=v[0])
             model_compartment = model.compartments.get_one(id=v[1])
@@ -109,7 +109,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     def test_methods(self):
 
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
-            'rna_deg_pair': {'trans1': 'Degradosome', 'trans2': 'Mitochondrial Degradosome'}
+            'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome'}
             })
         gen.run()
 
@@ -123,10 +123,10 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
             {'amp[m]': 2, 'cmp[m]': 2, 'gmp[m]': 1, 'ump[m]': 5, 'h[m]': 9, 'h2o[m]': -9, 'trans2[m]': -1})
         self.assertEqual(len(self.model.observables), 2)
-        self.assertEqual(self.model.observables.get_one(name='Degradosome observable in nucleus').id, 'obs_1')
-        self.assertEqual(self.model.observables.get_one(name='Degradosome observable in nucleus').expression.expression,
+        self.assertEqual(self.model.observables.get_one(name='Exosome observable in nucleus').id, 'obs_1')
+        self.assertEqual(self.model.observables.get_one(name='Exosome observable in nucleus').expression.expression,
             'complex1[n] + complex2[n]')
-        self.assertEqual(self.model.observables.get_one(name='Mitochondrial Degradosome observable in mitochondria').expression.expression,
+        self.assertEqual(self.model.observables.get_one(name='Mitochondrial Exosome observable in mitochondria').expression.expression,
             'complex3[m]')
 
         # Test gen_rate_laws

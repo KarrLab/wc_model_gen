@@ -19,8 +19,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for rna degradation submodel
 
         Options:
-        * rna_deg_pair (:obj:`dict`): a dictionary of RNA id as key and
-            the id of degradosome complex that degrades the RNA as value
+        * rna_exo_pair (:obj:`dict`): a dictionary of RNA id as key and
+            the id of exosome complex that degrades the RNA as value
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1      
@@ -33,10 +33,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = options.get('beta', 1.)
         options['beta'] = beta
 
-        if 'rna_deg_pair' not in options:
-            raise ValueError('The dictionary rna_deg_pair has not been provided')
+        if 'rna_exo_pair' not in options:
+            raise ValueError('The dictionary rna_exo_pair has not been provided')
         else:    
-            rna_deg_pair = options['rna_deg_pair']
+            rna_exo_pair = options['rna_exo_pair']
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -55,8 +55,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 'm': met_species_type.species.get_one(compartment=mitochondrion)
                 }
 
-        # Create reaction for each RNA and get degradosome
-        rna_deg_pair = self.options.get('rna_deg_pair')
+        # Create reaction for each RNA and get exosome
+        rna_exo_pair = self.options.get('rna_exo_pair')
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         self._degradation_modifier = {}
         for rna_kb in rna_kbs:  
@@ -90,15 +90,15 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
                              
             # Assign modifier
-            deg_id = rna_deg_pair[rna_kb.id]
-            complexes = model.species_types.get(name=deg_id)
+            exo_id = rna_exo_pair[rna_kb.id]
+            complexes = model.species_types.get(name=exo_id)
 
             if not complexes:
-                raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(deg_id, rna_kb.id))
+                raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
 
             else:                
                 observable = model.observables.get_one(
-                    name='{} observable in {}'.format(deg_id, rna_compartment.name))
+                    name='{} observable in {}'.format(exo_id, rna_compartment.name))
 
                 if not observable:
                     
@@ -106,11 +106,11 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     complex_species = []
 
                     for compl_variant in complexes:
-                        deg_species = compl_variant.species.get_one(compartment=rna_compartment)
-                        if not deg_species:
-                            raise ValueError('{} cannot be found in the {}'.format(deg_species, rna_compartment.name))
-                        all_species[deg_species.gen_id()] = deg_species
-                        complex_species.append(deg_species.gen_id())
+                        exo_species = compl_variant.species.get_one(compartment=rna_compartment)
+                        if not exo_species:
+                            raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
+                        all_species[exo_species.gen_id()] = exo_species
+                        complex_species.append(exo_species.gen_id())
 
                     observable_expression, error = wc_lang.ObservableExpression.deserialize(
                         ' + '.join(complex_species), {
@@ -119,7 +119,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     assert error is None, str(error)
 
                     observable = model.observables.create(
-                            name='{} observable in {}'.format(deg_id, rna_compartment.name),
+                            name='{} observable in {}'.format(exo_id, rna_compartment.name),
                             expression=observable_expression)
                     observable.id = 'obs_{}'.format(len(model.observables))
 
