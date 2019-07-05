@@ -133,7 +133,7 @@ class ModelGenerator(object):
 
             wc_kb.io.Writer().run(core_path, kb,
                                   seq_path=seq_path,
-                                  set_repo_metadata_from_path=False)
+                                  data_repo_metadata=False)
 
         return kb
 
