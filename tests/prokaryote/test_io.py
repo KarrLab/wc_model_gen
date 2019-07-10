@@ -31,7 +31,7 @@ class ModelIOTestCase(unittest.TestCase):
         """ Generate and write models from KBs """
         model = prokaryote.ProkaryoteModelGenerator(knowledge_base=kb).run()
         wc_lang.io.Writer().run(os.path.join(self.dir, 'model.xlsx'), model,
-                                set_repo_metadata_from_path=False)
+                                data_repo_metadata=False)
 
         """ Read back KBs from disk """
         model_read = wc_lang.io.Reader().run(os.path.join(self.dir, 'model.xlsx'))[wc_lang.Model][0]

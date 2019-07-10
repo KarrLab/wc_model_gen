@@ -7,6 +7,7 @@
 """
 
 from .initialize_model import InitializeModel
+from .transcription import TranscriptionSubmodelGenerator
 import wc_model_gen
 
 
@@ -18,12 +19,14 @@ class EukaryoteModelGenerator(wc_model_gen.ModelGenerator):
     * name
     * version
     * component
-    
-        * InitalizeModel
+
+        * InitializeModel
+        * TranscriptionSubmodelGenerator
     """
 
     DEFAULT_COMPONENT_GENERATORS = (
         InitializeModel,
+        TranscriptionSubmodelGenerator,
     )
 
     def clean_and_validate_options(self):

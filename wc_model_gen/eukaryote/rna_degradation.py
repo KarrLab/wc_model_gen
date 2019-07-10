@@ -1,7 +1,6 @@
-""" Generator for transcription submodels for eukaryotes
-
+""" Generator for rna degradation submodel for eukaryotes
 :Author: Yin Hoon Chew <yinhoon.chew@mssm.edu>
-:Date: 2019-01-07
+:Date: 2019-06-11
 :Copyright: 2019, Karr Lab
 :License: MIT
 """
@@ -16,21 +15,15 @@ import wc_lang
 import wc_model_gen
 
 
-class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
-    """ Generator for transcription submodel 
+class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
+    """ Generator for rna degradation submodel
 
         Options:
-        * rna_pol_pair (:obj:`dict`): a dictionary of RNA id as key and
-            a list of the ids of RNA polymerase complexes that transcribe the RNA as value, e.g.
-            rna_pol_pair = {
-                'rRNA45S': ['DNA-directed RNA Polymerase I complex'], 
-                'mRNA': ['DNA-directed RNA Polymerase II complex'],
-                'sRNA': ['DNA-directed RNA Polymerase II complex'], 
-                'tRNA': ['DNA-directed RNA Polymerase III complex'],
-                'rRNA5S': ['DNA-directed RNA Polymerase III complex']
-                }
-        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
-            concentration (Km/[S]) for use when estimating Km values, the default value is 1      
+        * rna_exo_pair (:obj:`dict`): a dictionary of RNA id as key and
+            a list of the ids of exosome complexes that degrade the RNA as value
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
+            to substrate concentration (Km/[S]) for use when estimating 
+            Km values, the default value is 1      
     """
 
     def clean_and_validate_options(self):
@@ -40,10 +33,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = options.get('beta', 1.)
         options['beta'] = beta
 
-        if 'rna_pol_pair' not in options:
-            raise ValueError('The dictionary rna_pol_pair has not been provided')
+        if 'rna_exo_pair' not in options:
+            raise ValueError('The dictionary rna_exo_pair has not been provided')
         else:    
-            rna_pol_pair = options['rna_pol_pair']
+            rna_exo_pair = options['rna_exo_pair']
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -51,23 +44,23 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
-
+        
         # Get species involved in reaction
-        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi']
+        metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
         metabolites = {}
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
                 'n': met_species_type.species.get_one(compartment=nucleus),
                 'm': met_species_type.species.get_one(compartment=mitochondrion)
-                }            
-        
-        # Create reaction for each RNA and get RNA polymerase
-        rna_pol_pair = self.options.get('rna_pol_pair')
+                }
+
+        # Create reaction for each RNA and get exosome
+        rna_exo_pair = self.options.get('rna_exo_pair')
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
-        self._transcription_modifier = {}
-        for rna_kb in rna_kbs:
-            
+        self._degradation_modifier = {}
+        for rna_kb in rna_kbs:  
+
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
@@ -75,64 +68,66 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rna_compartment = mitochondrion    
             
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
-            reaction = model.reactions.get_or_create(submodel=self.submodel, id='transcription_' + rna_kb.id)
-            reaction.name = 'transcription of ' + rna_kb.name
+            reaction = model.reactions.get_or_create(submodel=self.submodel, id='degradation_' + rna_kb.id)
+            reaction.name = 'degradation of ' + rna_kb.name
             seq = rna_kb.get_seq()
 
             # Adding participants to LHS
-            reaction.participants.append(metabolites['atp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-seq.count('A')))
-            reaction.participants.append(metabolites['ctp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-seq.count('C')))
-            reaction.participants.append(metabolites['gtp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-seq.count('G')))
-            reaction.participants.append(metabolites['utp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-seq.count('U')))
-            
-            # Adding participants to RHS
-            reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=1))
-            reaction.participants.append(metabolites['ppi'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
+            reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=-1))
+            reaction.participants.append(metabolites['h2o'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
 
+            # Adding participants to RHS
+            reaction.participants.append(metabolites['amp'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
+            reaction.participants.append(metabolites['cmp'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
+            reaction.participants.append(metabolites['gmp'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
+            reaction.participants.append(metabolites['ump'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
+            reaction.participants.append(metabolites['h'][
+                rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
+                             
             # Assign modifier
-            polr_ids = rna_pol_pair[rna_kb.id]
+            exo_ids = rna_exo_pair[rna_kb.id]
             modifier_obs = []
-            for polr_id in polr_ids: 
-                complexes = model.species_types.get(name=polr_id)
-                
+            for exo_id in exo_ids:
+                complexes = model.species_types.get(name=exo_id)
+
                 if not complexes:
-                    raise ValueError('{} that catalyzes the transcription of {} cannot be found'.format(polr_id, rna_kb.id))
-            
+                    raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
+
                 else:                
                     observable = model.observables.get_one(
-                        name='{} observable in {}'.format(polr_id, rna_compartment.name))
+                        name='{} observable in {}'.format(exo_id, rna_compartment.name))
 
-                if not observable:
-                    
-                    all_species = {}                             
-                    
-                    for compl_variant in complexes:
-                        polr_species = compl_variant.species.get_one(compartment=rna_compartment)
-                        if not polr_species:
-                            raise ValueError('{} cannot be found in the {}'.format(polr_species, rna_compartment.name))
-                        all_species[polr_species.gen_id()] = polr_species
-                       
-                    observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                        ' + '.join(list(all_species.keys())), {
-                        wc_lang.Species: all_species,
-                        })
-                    assert error is None, str(error)
+                    if not observable:
+                        
+                        all_species = {}                             
+                        
+                        for compl_variant in complexes:
+                            exo_species = compl_variant.species.get_one(compartment=rna_compartment)
+                            if not exo_species:
+                                raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
+                            all_species[exo_species.gen_id()] = exo_species
+                            
+                        observable_expression, error = wc_lang.ObservableExpression.deserialize(
+                            ' + '.join(list(all_species.keys())), {
+                            wc_lang.Species: all_species,
+                            })
+                        assert error is None, str(error)
 
-                    observable = model.observables.create(
-                            name='{} observable in {}'.format(polr_id, rna_compartment.name),
-                            expression=observable_expression)
-                    observable.id = 'obs_{}'.format(len(model.observables))
+                        observable = model.observables.create(
+                                name='{} observable in {}'.format(exo_id, rna_compartment.name),
+                                expression=observable_expression)
+                        observable.id = 'obs_{}'.format(len(model.observables))
 
                 if observable not in modifier_obs:
-                    modifier_obs.append(observable)
+                    modifier_obs.append(observable)    
 
             if len(modifier_obs) == 1:
-                self._transcription_modifier[reaction.name] = modifier_obs[0]
+                self._degradation_modifier[reaction.name] = modifier_obs[0]
             else:
                 all_obs = {obs.id: obs for obs in modifier_obs} 
                 observable_expression, error = wc_lang.ObservableExpression.deserialize(
@@ -142,18 +137,18 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 assert error is None, str(error)
 
                 observable = model.observables.create(
-                            name='Combined RNA polymerase observable in {}'.format(rna_compartment.name),
+                            name='Combined exosome observable in {}'.format(rna_compartment.name),
                             expression=observable_expression)
                 observable.id = 'obs_{}'.format(len(model.observables))
 
-                self._transcription_modifier[reaction.name] = observable  
-
+                self._degradation_modifier[reaction.name] = observable        
+            
     def gen_rate_laws(self):
-        """ Generate rate laws for the reactions in the submodel """                     
-
+        """ Generate rate laws for the reactions in the submodel """
+                
         for reaction in self.submodel.reactions:
 
-            modifier = self._transcription_modifier[reaction.name]
+            modifier = self._degradation_modifier[reaction.name]
 
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
                 self.model, reaction, modifiers=[modifier])
@@ -166,7 +161,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction=reaction,
                 )
             rate_law.id = rate_law.gen_id()
-                        
+
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
         
@@ -181,40 +176,37 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
-            units=unit_registry.parse_units('molecule mol^-1'))
+            units=unit_registry.parse_units('molecule mol^-1'))       
 
-        mean_doubling_time = model.parameters.get_one(id='mean_doubling_time').value       
-        
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             init_species_counts = {}
         
-            modifier = self._transcription_modifier[reaction.name]      
+            modifier = self._degradation_modifier[reaction.name]      
             for species in modifier.expression.species:
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
             for observable in modifier.expression.observables:
                 for species in observable.expression.species:
                     init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean    
-
+        
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
             else:
-                rna_compartment = mitochondrion    
-            
-            rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)           
-            
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
-            mean_concentration = rna_product.distribution_init_concentration.mean         
+                rna_compartment = mitochondrion 
 
-            average_rate = utils.calc_avg_syn_rate(
-                mean_concentration, half_life, mean_doubling_time)
-            
+            rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
+
+            half_life = rna_kb.properties.get_one(property='half_life').get_value()
+            mean_concentration = rna_reactant.distribution_init_concentration.mean
+
+            average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
+
             for species in reaction.get_reactants():
-                
+
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-                
+
                 if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
                     model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
@@ -227,5 +219,4 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 wc_lang.Species: init_species_counts,
                 wc_lang.Compartment: {
                     rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
-                })
-        
+            })       
