@@ -62,7 +62,6 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
         for idx, protein_kb in enumerate(proteins_kb):
-            print('Protein: {}'.format(idx))
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
             n_steps = protein_kb.get_len()
