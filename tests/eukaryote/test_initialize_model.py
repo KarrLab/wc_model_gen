@@ -63,6 +63,7 @@ class TestCase(unittest.TestCase):
         cell.parameters.create(id='mean_doubling_time', value=20., units=unit_registry.parse_units('hour'))        
 
         nucleus = cell.compartments.create(id='n', name='nucleus', volumetric_fraction=0.5)
+        nucleus_membrane = cell.compartments.create(id='n_m', name='nucleus membrane')
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
 
@@ -200,10 +201,12 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='Avogadro').units, unit_registry.parse_units('molecule mol^-1'))
 
         self.assertEqual(model.compartments.get_one(id='n').name, 'nucleus')
-        self.assertEqual(model.compartments.get_one(id='n').init_volume.mean, 5200.)
-        self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 10400E5)
+        self.assertAlmostEqual(model.compartments.get_one(id='n').init_volume.mean, 5199.999998548484)
+        self.assertAlmostEqual(model.compartments.get_one(id='n_m').init_volume.mean, 1.4515160909356243e-06)
+        self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
 
         self.assertEqual(model.parameters.get_one(id='density_n').value, 1040.)
+        self.assertEqual(model.parameters.get_one(id='density_n_m').value, 1160.)
         self.assertEqual(model.parameters.get_one(id='density_e').value, 1000.)
         self.assertEqual(model.parameters.get_one(id='density_n').units, unit_registry.parse_units('g l^-1'))
 
@@ -211,8 +214,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(wc_lang.Function.expression.serialize(
             model.functions.get_one(id='volume_n').expression), 'n / density_n')
         self.assertEqual(wc_lang.Function.expression.serialize(
-            model.functions.get_one(id='volume_e').expression), 'e / density_e')
-
+            model.functions.get_one(id='volume_n_m').expression), 'n_m / density_n_m')
+        
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('s^-1'))
 
@@ -390,7 +393,7 @@ class TestCase(unittest.TestCase):
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
 
         self.assertEqual(met1_nucleus.species, model.species.get_one(id='met1[n]'))
-        self.assertEqual(met1_nucleus.mean, 0.5*scipy.constants.Avogadro*0.5*10400.)
+        self.assertEqual(met1_nucleus.mean, 0.5*scipy.constants.Avogadro*(0.5*10400.-4.836E-09*(0.5*10400.)**(2/3)))
         self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
         self.assertEqual(met1_nucleus.comments, 'Testing')
         self.assertEqual(met1_nucleus.references[0].id, 'ref1')

@@ -59,9 +59,17 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     def clean_and_validate_options(self):
         options = self.options
 
+        culture_volume = options.get('culture_volume', 1.)
+        assert(isinstance(culture_volume, float))
+        options['culture_volume'] = culture_volume
+
         cell_density = options.get('cell_density', 1040.)
         assert(isinstance(cell_density, float))
         options['cell_density'] = cell_density
+
+        membrane_density = options.get('membrane_density', 1160.)
+        assert(isinstance(membrane_density, float))
+        options['membrane_density'] = membrane_density        
 
         gen_dna = options.get('gen_dna', True)
         assert(isinstance(gen_dna, bool))
@@ -120,33 +128,47 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         else:
             raise ValueError('The cell object does not have the parameter cell_volume')        
         
+        culture_volume = self.options['culture_volume']
         cell_density = self.options['cell_density']
+        membrane_density = self.options['membrane_density']
 
         for comp in kb.cell.compartments:
 
-            if comp.id=='e':
-                init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
-                    mean=1E5*mean_cell_volume, std=0)
-            else:
-                init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
-                    mean=comp.volumetric_fraction*mean_cell_volume, std=0)
-
             c = model.compartments.get_or_create(
-                    id=comp.id, 
-                    name=comp.name, 
-                    init_volume=init_volume,
-                    )
+                    id=comp.id, name=comp.name)
 
             c.init_density = model.parameters.create(
                 id='density_' + c.id,
-                value=1000 if comp.id=='e' else cell_density,
                 units=unit_registry.parse_units('g l^-1'))
-            volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
-            volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
-                wc_lang.Compartment: {c.id: c},
-                wc_lang.Parameter: {c.init_density.id: c.init_density},
-                })
-            assert error is None, str(error)
+
+            if comp.id=='e':
+                c.init_density.value = 1000.
+                c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
+                    mean=culture_volume, std=0)                
+                
+            elif '_m' in comp.id:
+                c.init_density.value = membrane_density
+                organelle_fraction = kb.cell.compartments.get_one(id=comp.id[:comp.id.index('_')]).volumetric_fraction              
+                c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
+                    mean=4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
+                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))                    
+                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                    wc_lang.Compartment: {c.id: c},
+                    wc_lang.Parameter: {c.init_density.id: c.init_density},
+                    })
+                assert error is None, str(error)
+
+            else:
+                c.init_density.value = cell_density
+                organelle_fraction = kb.cell.compartments.get_one(id=comp.id).volumetric_fraction
+                c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
+                    mean=mean_cell_volume*organelle_fraction - 4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
+                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
+                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                    wc_lang.Compartment: {c.id: c},
+                    wc_lang.Parameter: {c.init_density.id: c.init_density},
+                    })
+                assert error is None, str(error)           
 
     def gen_parameters(self):
         kb = self.knowledge_base
@@ -511,16 +533,22 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 for species in kb_rate_law.expression.species:
                     model_species_type = model.species_types.get_one(id=species.species_type.id)
                     model_compartment = model.compartments.get_one(id=species.compartment.id)
-                    volume = model_compartment.init_density.function_expressions[0].function
+                    if model_compartment.init_density.function_expressions:
+                        volume = model_compartment.init_density.function_expressions[0].function
+                        all_volumes[volume.id] = volume
                     model_species = model_species_type.species.get_one(compartment=model_compartment)
-                    all_species[model_species.gen_id()] = model_species
-                    all_volumes[volume.id] = volume
+                    all_species[model_species.gen_id()] = model_species                    
 
                 for param in kb_rate_law.expression.parameters:
                     all_parameters[param.id] = model.parameters.get_one(id=param.id)
                     if 'K_m' in param.id:
-                        volume = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:]).init_density.function_expressions[0].function
-                        unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
+                        model_compartment = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:])
+                        if model_compartment.init_density.function_expressions:
+                            volume = model_compartment.init_density.function_expressions[0].function
+                            unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
+                        else:
+                            volume = model_compartment.init_volume.mean    
+                            unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume)
                         model_expression = model_expression.replace(param.id, unit_adjusted_term)            
 
                 rate_law_expression, error = wc_lang.RateLawExpression.deserialize(

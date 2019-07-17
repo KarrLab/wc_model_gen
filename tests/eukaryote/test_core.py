@@ -64,5 +64,5 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 72000)
         self.assertEqual(model.parameters.get_one(id='density_n').value, 1100)
         self.assertEqual(model.parameters.get_one(id='density_e').value, 1000)
-        self.assertEqual(model.compartments.get_one(id='n').init_volume.mean, 3E-16)
-        self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1E-10)
+        self.assertEqual(model.compartments.get_one(id='n').init_volume.mean, 2.997832792664565e-16)
+        self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
