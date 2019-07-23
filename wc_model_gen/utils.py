@@ -44,6 +44,82 @@ def calc_avg_deg_rate(mean_concentration, half_life):
     return ave_degradation_rate
 
 
+def simple_repressor (model, reaction_id, repressor):
+    """ Generate the parameters and string expression of the regulation factor 
+        derived in Bintu et al (2005) for the case of a simple repressor
+
+        Args:
+            model (:obj:`wc_lang.Model`): model
+            reaction_id (:obj:`str`): reaction id   
+            repressor (:obj:`wc_lang.Species`): repressor
+
+        Returns:
+            :obj:`str`: string expression of the regulation factor
+            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law                
+    """  
+    parameters = []
+
+    avogadro = model.parameters.get_or_create(
+        id='Avogadro',
+        type=None,
+        value=scipy.constants.Avogadro,
+        units=unit_registry.parse_units('molecule mol^-1'))
+    parameters.append(avogadro)
+
+    Kr = model.parameters.get_or_create(
+            id='Kr_{}_{}'.format(reaction_id, repressor.id),
+            type=None,
+            units=unit_registry.parse_units('M'))
+    parameters.append(Kr)
+
+    volume = repressor.compartment.init_density.function_expressions[0].function
+
+    F_rep = '(1 / (1 + {} / ({} * {} * {}))'.format(repressor.id, Kr.id, avogadro.id, volume.id)
+
+    return F_rep, parameters
+
+
+def simple_activator (model, reaction_id, activator):
+    """ Generate the parameters and string expression of the regulation factor 
+        derived in Bintu et al (2005) for the case of a simple activator
+
+        Args:
+            model (:obj:`wc_lang.Model`): model
+            reaction_id (:obj:`str`): reaction id
+            activator (:obj:`wc_lang.Species`): activator
+
+        Returns:
+            :obj:`str`: string expression of the regulation factor
+            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law                
+    """  
+    parameters = []
+
+    avogadro = model.parameters.get_or_create(
+        id='Avogadro',
+        type=None,
+        value=scipy.constants.Avogadro,
+        units=unit_registry.parse_units('molecule mol^-1'))
+    parameters.append(avogadro)
+
+    Ka = model.parameters.get_or_create(
+        id='Ka_{}_{}'.format(reaction_id, activator.id),
+        type=None,
+        units=unit_registry.parse_units('M'))
+    parameters.append(Ka)
+    
+    f = model.parameters.get_or_create(
+        id='f_{}_{}'.format(reaction_id, activator.id),
+        type=None)
+    parameters.append(f)
+
+    volume = activator.compartment.init_density.function_expressions[0].function
+    
+    F_act = '(1 + {} / ({} * {} * {}) * {}) / (1 + {} / ({} * {} * {}))'.format(
+        activator.id, Ka.id, avogadro.id, volume.id, f.id, activator.id, Ka.id, avogadro.id, volume.id)   
+
+    return F_act, parameters    
+
+
 def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier_reactants=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation

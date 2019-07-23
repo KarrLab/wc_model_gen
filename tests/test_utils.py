@@ -27,6 +27,59 @@ class TestCase(unittest.TestCase):
         test_rate = utils.calc_avg_deg_rate(0.5, 300.)
         self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)
 
+    def test_simple_repressor(self):
+        model = wc_lang.Model()
+
+        init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=0.5, std=0)
+        c = wc_lang.Compartment(id='c', init_volume=init_volume)
+        c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)
+
+        volume = wc_lang.Function(id='volume_' + c.id)
+        volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+        assert error is None, str(error)
+
+        tf_species_type = wc_lang.SpeciesType(id='Repressor')
+        tf_species = wc_lang.Species(species_type=tf_species_type, compartment=c)
+        tf_species.id = tf_species.gen_id()
+        wc_lang.DistributionInitConcentration(species=tf_species, mean=0.5)
+
+        F_rep, parameters = utils.simple_repressor(model, 'transcription_rna1', tf_species)
+
+        self.assertEqual(F_rep, '(1 / (1 + Repressor[c] / (Kr_transcription_rna1_Repressor[c] * Avogadro * volume_c))')
+        self.assertEqual(set(model.parameters), set(parameters))
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor[c]').type, None)
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor[c]').units, unit_registry.parse_units('M'))
+     
+    def test_simple_activator(self):
+        model = wc_lang.Model()
+
+        init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=0.5, std=0)
+        c = wc_lang.Compartment(id='c', init_volume=init_volume)
+        c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)
+
+        volume = wc_lang.Function(id='volume_' + c.id)
+        volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+        assert error is None, str(error)
+
+        tf_species_type = wc_lang.SpeciesType(id='Activator')
+        tf_species = wc_lang.Species(species_type=tf_species_type, compartment=c)
+        tf_species.id = tf_species.gen_id()
+        wc_lang.DistributionInitConcentration(species=tf_species, mean=0.5)
+
+        F_act, parameters = utils.simple_activator(model, 'transcription_rna1', tf_species)
+
+        self.assertEqual(F_act, '(1 + Activator[c] / (Ka_transcription_rna1_Activator[c] * Avogadro * volume_c) * f_transcription_rna1_Activator[c]) / '
+            '(1 + Activator[c] / (Ka_transcription_rna1_Activator[c] * Avogadro * volume_c))')
+        self.assertEqual(set(model.parameters), set(parameters))
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator[c]').type, None)
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator[c]').units, unit_registry.parse_units('M'))
+
     def test_gen_michaelis_menten_like_rate_law(self):
         model = wc_lang.Model()
 
