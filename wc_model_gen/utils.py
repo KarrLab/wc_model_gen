@@ -55,28 +55,38 @@ def simple_repressor (model, reaction_id, repressor):
 
         Returns:
             :obj:`str`: string expression of the regulation factor
-            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law                
+            :obj:`dict` of :obj:`wc_lang.Species`: dict of species in the expression 
+                with the species ids as keys and the species objects as values
+            :obj:`dict` of :obj:`wc_lang.Parameter`: dict of parameters in the expression 
+                with the parameter ids as keys and the parameter objects as values
+            :obj:`dict` of :obj:`wc_lang.Function`: dict of functions in the expression 
+                with the function ids as keys and the function objects as values                     
     """  
-    parameters = []
+    species = {}
+    parameters = {}
+    functions = {}
+
+    species[repressor.id] = repressor
 
     avogadro = model.parameters.get_or_create(
         id='Avogadro',
         type=None,
         value=scipy.constants.Avogadro,
         units=unit_registry.parse_units('molecule mol^-1'))
-    parameters.append(avogadro)
+    parameters[avogadro.id] = avogadro
 
     Kr = model.parameters.get_or_create(
             id='Kr_{}_{}'.format(reaction_id, repressor.id),
             type=None,
             units=unit_registry.parse_units('M'))
-    parameters.append(Kr)
+    parameters[Kr.id] = Kr
 
     volume = repressor.compartment.init_density.function_expressions[0].function
+    functions[volume.id] = volume
 
     F_rep = '(1 / (1 + {} / ({} * {} * {}))'.format(repressor.id, Kr.id, avogadro.id, volume.id)
 
-    return F_rep, parameters
+    return F_rep, species, parameters, functions
 
 
 def simple_activator (model, reaction_id, activator):
@@ -90,34 +100,44 @@ def simple_activator (model, reaction_id, activator):
 
         Returns:
             :obj:`str`: string expression of the regulation factor
-            :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law                
+            :obj:`dict` of :obj:`wc_lang.Species`: dict of species in the expression 
+                with the species ids as keys and the species objects as values
+            :obj:`dict` of :obj:`wc_lang.Parameter`: dict of parameters in the expression 
+                with the parameter ids as keys and the parameter objects as values
+            :obj:`dict` of :obj:`wc_lang.Function`: dict of functions in the expression 
+                with the function ids as keys and the function objects as values            
     """  
-    parameters = []
+    species = {}
+    parameters = {}
+    functions = {}
+
+    species[activator.id] = activator
 
     avogadro = model.parameters.get_or_create(
         id='Avogadro',
         type=None,
         value=scipy.constants.Avogadro,
         units=unit_registry.parse_units('molecule mol^-1'))
-    parameters.append(avogadro)
+    parameters[avogadro.id] = avogadro
 
     Ka = model.parameters.get_or_create(
         id='Ka_{}_{}'.format(reaction_id, activator.id),
         type=None,
         units=unit_registry.parse_units('M'))
-    parameters.append(Ka)
+    parameters[Ka.id] = Ka
     
     f = model.parameters.get_or_create(
         id='f_{}_{}'.format(reaction_id, activator.id),
         type=None)
-    parameters.append(f)
+    parameters[f] = f
 
     volume = activator.compartment.init_density.function_expressions[0].function
+    functions[volume.id] = volume
     
     F_act = '(1 + {} / ({} * {} * {}) * {}) / (1 + {} / ({} * {} * {}))'.format(
         activator.id, Ka.id, avogadro.id, volume.id, f.id, activator.id, Ka.id, avogadro.id, volume.id)   
 
-    return F_act, parameters    
+    return F_act, species, parameters, functions
 
 
 def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier_reactants=None):
