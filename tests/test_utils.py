@@ -153,6 +153,58 @@ class TestCase(unittest.TestCase):
         self.assertEqual(rate_law.expression, 'k_cat_r1')
 
 
+    def test_gen_michaelis_menten_like_propensity_function(self):
+        model = wc_lang.Model()
+
+        init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=0.5, std=0)
+        c = wc_lang.Compartment(id='c', init_volume=init_volume)
+        c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)
+
+        volume = wc_lang.Function(id='volume_' + c.id)
+        volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+        assert error is None, str(error)
+
+        species_types = {}
+        species = {}
+        for i in range(1,7):
+            Id = 's' + str(i)
+            species_types[Id] = wc_lang.SpeciesType(id=Id)
+            model_species = wc_lang.Species(species_type=species_types[Id], compartment=c)
+            model_species.id = model_species.gen_id()
+            species[Id + '_c'] = model_species 
+            wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
+
+        participant1 = wc_lang.SpeciesCoefficient(species=species['s1_c'], coefficient=-1)
+        participant2 = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
+        participant3 = wc_lang.SpeciesCoefficient(species=species['s3_c'], coefficient=-1)
+        participant4 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=-1)
+        participant5 = wc_lang.SpeciesCoefficient(species=species['s5_c'], coefficient=1)
+        participant6 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=1)
+        
+        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3,
+            participant4, participant5, participant6])
+
+        with self.assertRaises(ValueError):
+            rate_law1, parameters = utils.gen_michaelis_menten_like_propensity_function(
+                model, reaction)
+
+        rate_law2, parameters = utils.gen_michaelis_menten_like_propensity_function(
+            model, reaction, substrates_as_modifiers=[species['s3_c']])
+        self.assertEqual(rate_law2.expression, 'k_cat_r1 * s3[c] * '
+            '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
+            '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
+            '(s4[c] / (s4[c] + K_m_r1_s4 * Avogadro * volume_c))') 
+        self.assertEqual(set([i.gen_id() for i in rate_law2.species]), set(['s1[c]', 's2[c]', 's3[c]', 's4[c]']))
+        self.assertEqual(set(rate_law2.parameters), set(parameters))
+        self.assertEqual(rate_law2.parameters.get_one(id='k_cat_r1').type, wc_ontology['WC:k_cat'])
+        self.assertEqual(rate_law2.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 molecule^-1'))
+        self.assertEqual(rate_law2.parameters.get_one(id='K_m_r1_s2').type, wc_ontology['WC:K_m'])
+        self.assertEqual(rate_law2.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))      
+
+
     def test_gen_mass_action_rate_law(self):
         model = wc_lang.Model()
         c = wc_lang.Compartment(id='c', init_volume=wc_lang.InitVolume(mean=0.5))

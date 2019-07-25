@@ -213,6 +213,89 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     return rate_law_expression, list(parameters.values())
 
 
+def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as_modifiers=None):
+    """ Generate a Michaelis-Menten-like propensity function. 
+        For species that are considered 'substrates', the substrate term is formulated as the 
+        multiplication of a Hill equation with a coefficient of 1 for each 'substrate'. 
+        For species that are considered 'modifiers', the modifier term is formulated
+        as the multiplication of the modifier concentrations. 
+
+        Example:
+
+                Rate = k_cat * [E1] * [E2] * [S1]/(Km_S1 + [S1]) * [S2]/(Km_S2 + [S2])
+
+                where
+                    k_cat: catalytic constant
+                    [En]: concentration of nth modifier
+                    [Sn]: concentration of nth substrate
+                    Km_Sn: Michaelis-Menten constant for nth substrate   
+
+        Args:
+            model (:obj:`wc_lang.Model`): model
+            reaction (:obj:`wc_lang.Reaction`): reaction    
+            substrates_as_modifiers (:obj:`list` of :obj:`wc_lang.Species`): list of reactant species 
+                that should be considered as modifiers in the rate law    
+
+        Returns:
+                :obj:`wc_lang.RateLawExpression`: rate law
+                :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law     
+    """
+    if substrates_as_modifiers is None:
+        raise ValueError('No list has been provided for the input argument substrates_as_modifiers')
+    
+    parameters = {}
+
+    avogadro = model.parameters.get_or_create(
+        id='Avogadro',
+        type=None,
+        value=scipy.constants.Avogadro,
+        units=unit_registry.parse_units('molecule mol^-1'))
+    parameters[avogadro.id] = avogadro
+
+    model_k_cat = model.parameters.get_or_create(id='k_cat_{}'.format(reaction.id),
+                                                 type=wc_ontology['WC:k_cat'],
+                                                 units=unit_registry.parse_units('s^-1{}'.format(
+                                                    (' * molecule^{{-{}}}'.format(
+                                                    len(substrates_as_modifiers))))))
+    parameters[model_k_cat.id] = model_k_cat
+
+    expression_terms = []
+    all_species = {}
+    all_volumes = {}
+    for species in reaction.get_reactants():
+
+        all_species[species.gen_id()] = species
+
+        if species not in substrates_as_modifiers:            
+
+            model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
+                                                type=wc_ontology['WC:K_m'],
+                                                units=unit_registry.parse_units('M'))
+            parameters[model_k_m.id] = model_k_m
+
+            volume = species.compartment.init_density.function_expressions[0].function
+            all_volumes[volume.id] = volume
+
+            expression_terms.append('({} / ({} + {} * {} * {}))'.format(species.gen_id(),
+                                                                        species.gen_id(),
+                                                                        model_k_m.id, avogadro.id,
+                                                                        volume.id))
+
+    expression = '{}{}{}'.format(
+        model_k_cat.id,
+        (' * {}'.format(' * '.join([i.id for i in substrates_as_modifiers]))),
+        (' * {}'.format(' * '.join(expression_terms))))
+
+    rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
+        wc_lang.Parameter: parameters,
+        wc_lang.Species: all_species,
+        wc_lang.Function: all_volumes,
+    })
+    assert error is None, str(error)
+
+    return rate_law_expression, list(parameters.values())    
+
+
 def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_reactants=None):
     """ Generate a mass action rate law.
 
