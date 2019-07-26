@@ -233,7 +233,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     return rate_law_expression, list(parameters.values())
 
 
-def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as_modifiers=None):
+def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as_modifiers=None, exclude_substrates=None):
     """ Generate a Michaelis-Menten-like propensity function. 
         For species that are considered 'substrates', the substrate term is formulated as the 
         multiplication of a Hill equation with a coefficient of 1 for each 'substrate'. 
@@ -254,7 +254,9 @@ def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as
             model (:obj:`wc_lang.Model`): model
             reaction (:obj:`wc_lang.Reaction`): reaction    
             substrates_as_modifiers (:obj:`list` of :obj:`wc_lang.Species`): list of reactant species 
-                that should be considered as modifiers in the rate law    
+                that should be considered as modifiers in the rate law
+            exclude_substrates (:obj:`list` of :obj:`wc_lang.Species`): list of reactant species 
+                that would be excluded from the rate law        
 
         Returns:
                 :obj:`wc_lang.RateLawExpression`: rate law
@@ -262,6 +264,11 @@ def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as
     """
     if substrates_as_modifiers is None:
         raise ValueError('No list has been provided for the input argument substrates_as_modifiers')
+
+    if exclude_substrates:
+        excluded_reactants = exclude_substrates
+    else:
+        excluded_reactants = []        
     
     parameters = {}
 
@@ -286,7 +293,7 @@ def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as
 
         all_species[species.gen_id()] = species
 
-        if species not in substrates_as_modifiers:            
+        if species not in substrates_as_modifiers and species not in excluded_reactants:            
 
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
                                                 type=wc_ontology['WC:K_m'],

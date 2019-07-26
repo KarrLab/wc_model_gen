@@ -206,7 +206,15 @@ class TestCase(unittest.TestCase):
         self.assertEqual(rate_law2.parameters.get_one(id='k_cat_r1').type, wc_ontology['WC:k_cat'])
         self.assertEqual(rate_law2.parameters.get_one(id='k_cat_r1').units, unit_registry.parse_units('s^-1 molecule^-1'))
         self.assertEqual(rate_law2.parameters.get_one(id='K_m_r1_s2').type, wc_ontology['WC:K_m'])
-        self.assertEqual(rate_law2.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))      
+        self.assertEqual(rate_law2.parameters.get_one(id='K_m_r1_s2').units, unit_registry.parse_units('M'))
+
+        rate_law3, parameters = utils.gen_michaelis_menten_like_propensity_function(
+            model, reaction, substrates_as_modifiers=[species['s3_c']], exclude_substrates=[species['s1_c']])
+        self.assertEqual(rate_law3.expression, 'k_cat_r1 * s3[c] * '
+            '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
+            '(s4[c] / (s4[c] + K_m_r1_s4 * Avogadro * volume_c))') 
+        self.assertEqual(set([i.gen_id() for i in rate_law3.species]), set(['s2[c]', 's3[c]', 's4[c]']))
+        self.assertEqual(set(rate_law3.parameters), set(parameters))
 
 
     def test_gen_mass_action_rate_law(self):
