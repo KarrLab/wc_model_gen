@@ -48,12 +48,13 @@ class TestCase(unittest.TestCase):
 
         F_rep, species, parameters, functions = utils.simple_repressor(model, 'transcription_rna1', tf_species)
 
-        self.assertEqual(F_rep, '(1 / (1 + Repressor[c] / (Kr_transcription_rna1_Repressor[c] * Avogadro * volume_c))')
+        self.assertEqual(F_rep, '(1 / (1 + Repressor[c] / (Kr_transcription_rna1_Repressor * Avogadro * volume_c)))')
         self.assertEqual(species, {'Repressor[c]': tf_species})
         self.assertEqual(functions, {'volume_c': volume})
         self.assertEqual(set(model.parameters), set(parameters.values()))
-        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor[c]').type, None)
-        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor[c]').units, unit_registry.parse_units('M'))
+        self.assertEqual(sorted(list(parameters.keys())), sorted(['Avogadro', 'Kr_transcription_rna1_Repressor']))
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor').type, None)
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_rna1_Repressor').units, unit_registry.parse_units('M'))
      
     def test_simple_activator(self):
         model = wc_lang.Model()
@@ -76,13 +77,14 @@ class TestCase(unittest.TestCase):
 
         F_act, species, parameters, functions = utils.simple_activator(model, 'transcription_rna1', tf_species)
 
-        self.assertEqual(F_act, '(1 + Activator[c] / (Ka_transcription_rna1_Activator[c] * Avogadro * volume_c) * f_transcription_rna1_Activator[c]) / '
-            '(1 + Activator[c] / (Ka_transcription_rna1_Activator[c] * Avogadro * volume_c))')
+        self.assertEqual(F_act, '((1 + Activator[c] / (Ka_transcription_rna1_Activator * Avogadro * volume_c) * f_transcription_rna1_Activator) / '
+            '(1 + Activator[c] / (Ka_transcription_rna1_Activator * Avogadro * volume_c)))')
         self.assertEqual(species, {'Activator[c]': tf_species})
         self.assertEqual(functions, {'volume_c': volume})
         self.assertEqual(set(model.parameters), set(parameters.values()))
-        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator[c]').type, None)
-        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator[c]').units, unit_registry.parse_units('M'))
+        self.assertEqual(sorted(list(parameters.keys())), sorted(['Avogadro', 'f_transcription_rna1_Activator', 'Ka_transcription_rna1_Activator']))
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator').type, None)
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_rna1_Activator').units, unit_registry.parse_units('M'))
 
     def test_gen_michaelis_menten_like_rate_law(self):
         model = wc_lang.Model()

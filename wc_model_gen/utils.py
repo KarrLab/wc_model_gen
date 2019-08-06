@@ -76,7 +76,7 @@ def simple_repressor (model, reaction_id, repressor):
     parameters[avogadro.id] = avogadro
 
     Kr = model.parameters.get_or_create(
-            id='Kr_{}_{}'.format(reaction_id, repressor.id),
+            id='Kr_{}_{}'.format(reaction_id, repressor.species_type.id),
             type=None,
             units=unit_registry.parse_units('M'))
     parameters[Kr.id] = Kr
@@ -84,7 +84,7 @@ def simple_repressor (model, reaction_id, repressor):
     volume = repressor.compartment.init_density.function_expressions[0].function
     functions[volume.id] = volume
 
-    F_rep = '(1 / (1 + {} / ({} * {} * {}))'.format(repressor.id, Kr.id, avogadro.id, volume.id)
+    F_rep = '(1 / (1 + {} / ({} * {} * {})))'.format(repressor.id, Kr.id, avogadro.id, volume.id)
 
     return F_rep, species, parameters, functions
 
@@ -121,20 +121,20 @@ def simple_activator (model, reaction_id, activator):
     parameters[avogadro.id] = avogadro
 
     Ka = model.parameters.get_or_create(
-        id='Ka_{}_{}'.format(reaction_id, activator.id),
+        id='Ka_{}_{}'.format(reaction_id, activator.species_type.id),
         type=None,
         units=unit_registry.parse_units('M'))
     parameters[Ka.id] = Ka
     
     f = model.parameters.get_or_create(
-        id='f_{}_{}'.format(reaction_id, activator.id),
+        id='f_{}_{}'.format(reaction_id, activator.species_type.id),
         type=None)
-    parameters[f] = f
+    parameters[f.id] = f
 
     volume = activator.compartment.init_density.function_expressions[0].function
     functions[volume.id] = volume
     
-    F_act = '(1 + {} / ({} * {} * {}) * {}) / (1 + {} / ({} * {} * {}))'.format(
+    F_act = '((1 + {} / ({} * {} * {}) * {}) / (1 + {} / ({} * {} * {})))'.format(
         activator.id, Ka.id, avogadro.id, volume.id, f.id, activator.id, Ka.id, avogadro.id, volume.id)   
 
     return F_act, species, parameters, functions
