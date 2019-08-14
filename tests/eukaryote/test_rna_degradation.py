@@ -69,7 +69,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         model.parameters.create(id='Avogadro', value = scipy.constants.Avogadro,
                                 units = unit_registry.parse_units('molecule mol^-1'))
 
-        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14)}
+        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14), 'c': ('cytoplasm', 9E-14)}
         for k, v in compartments.items():
             init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=v[1], std=0)
@@ -92,21 +92,22 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 mean=10., units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
 
-        complexes = {'complex1': ('Exosome','n'), 'complex2': ('Exosome', 'n'), 'complex3': ('Mitochondrial Exosome', 'm'),
-            'complex4': ('Mitochondrial Exosome variant', 'm')}
+        complexes = {'complex1': ('Exosome', ['c', 'n']), 'complex2': ('Exosome variant', ['c', 'n']), 'complex3': ('Mitochondrial Exosome', ['m']),
+            'complex4': ('Mitochondrial Exosome variant', ['m'])}
         for k, v in complexes.items():
-            model_species_type = model.species_types.create(id=k, name=v[0])
-            model_compartment = model.compartments.get_one(id=v[1])
-            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
-            model_species.id = model_species.gen_id()
-            conc_model = model.distribution_init_concentrations.create(species=model_species, 
-                mean=100., units=unit_registry.parse_units('molecule'))
-            conc_model.id = conc_model.gen_id()
+            model_species_type = model.species_types.get_or_create(id=k, name=v[0])
+            for comp in v[1]:
+                model_compartment = model.compartments.get_one(id=comp)
+                model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+                model_species.id = model_species.gen_id()
+                conc_model = model.distribution_init_concentrations.create(species=model_species, 
+                    mean=100., units=unit_registry.parse_units('molecule'))
+                conc_model.id = conc_model.gen_id()
 
         metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i)
-            for c in ['n', 'm']:
+            for c in ['n', 'm', 'c']:
                 model_compartment = model.compartments.get_one(id=c)
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
@@ -120,8 +121,8 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     def test_methods(self):
 
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
-            'rna_exo_pair': {'trans1': ['Exosome'], 'trans2': ['Mitochondrial Exosome'], 
-            'trans3': ['Mitochondrial Exosome', 'Mitochondrial Exosome variant']}
+            'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
+            'trans3': 'Mitochondrial Exosome'}
             })
         gen.run()
 
@@ -133,37 +134,27 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             sorted(['degradation of transcript1', 'degradation of transcript2', 'degradation of transcript3']))
         self.assertEqual(set([i.submodel.id for i in self.model.reactions]), set(['rna_degradation']))
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
-            {'amp[n]': 4, 'cmp[n]': 2, 'gmp[n]': 2, 'ump[n]': 7, 'h[n]': 14, 'h2o[n]': -14, 'trans1[n]': -1})
+            {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[n]': -1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
             {'amp[m]': 2, 'cmp[m]': 2, 'gmp[m]': 1, 'ump[m]': 5, 'h[m]': 9, 'h2o[m]': -9, 'trans2[m]': -1})
-        self.assertEqual(len(self.model.observables), 4)
-        self.assertEqual(self.model.observables.get_one(name='Exosome observable in nucleus').id, 'obs_1')
-        self.assertEqual(self.model.observables.get_one(name='Exosome observable in nucleus').expression.expression,
-            'complex1[n] + complex2[n]')
-        self.assertEqual(self.model.observables.get_one(name='Mitochondrial Exosome observable in mitochondria').expression.expression,
-            'complex3[m]')
-        self.assertEqual(self.model.observables.get_one(name='Mitochondrial Exosome variant observable in mitochondria').expression.expression,
-            'complex4[m]')
-        self.assertEqual(self.model.observables.get_one(name='Combined exosome observable in mitochondria').expression.expression,
-            'obs_2 + obs_3')
-
+        
         # Test gen_rate_laws
         self.assertEqual(len(self.model.rate_laws), 3)
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans1-forward').expression.expression,
-            'k_cat_degradation_trans1 * obs_1 * '
+            'k_cat_degradation_trans1 * complex1[c] * '
             '(trans1[n] / (trans1[n] + K_m_degradation_trans1_trans1 * Avogadro * volume_n)) * '
-            '(h2o[n] / (h2o[n] + K_m_degradation_trans1_h2o * Avogadro * volume_n))')
+            '(h2o[c] / (h2o[c] + K_m_degradation_trans1_h2o * Avogadro * volume_c))')
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans2-forward').expression.expression,
-            'k_cat_degradation_trans2 * obs_2 * '
+            'k_cat_degradation_trans2 * complex3[m] * '
             '(trans2[m] / (trans2[m] + K_m_degradation_trans2_trans2 * Avogadro * volume_m)) * '
             '(h2o[m] / (h2o[m] + K_m_degradation_trans2_h2o * Avogadro * volume_m))')
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans3-forward').expression.expression,
-            'k_cat_degradation_trans3 * obs_4 * '
+            'k_cat_degradation_trans3 * complex3[m] * '
             '(trans3[m] / (trans3[m] + K_m_degradation_trans3_trans3 * Avogadro * volume_m)) * '
             '(h2o[m] / (h2o[m] + K_m_degradation_trans3_h2o * Avogadro * volume_m))')
         
         # Test calibrate_submodel
-        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans1_h2o').value, 1500/scipy.constants.Avogadro/5E-14)
+        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans1_h2o').value, 1500/scipy.constants.Avogadro/9E-14)
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').value, 10/scipy.constants.Avogadro/2.5E-14)
-        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5**2*200))
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5**2*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5**2*100))

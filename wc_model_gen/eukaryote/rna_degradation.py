@@ -20,7 +20,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         Options:
         * rna_exo_pair (:obj:`dict`): a dictionary of RNA id as key and
-            a list of the ids of exosome complexes that degrade the RNA as value
+            the name of exosome complex that degrades the RNA as value
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1      
@@ -44,6 +44,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
+        cytoplasm = model.compartments.get_one(id='c')
         
         # Get species involved in reaction
         metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
@@ -51,7 +52,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
-                'n': met_species_type.species.get_one(compartment=nucleus),
+                'c': met_species_type.species.get_one(compartment=cytoplasm),
                 'm': met_species_type.species.get_one(compartment=mitochondrion)
                 }
 
@@ -64,8 +65,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
+                degradation_compartment = cytoplasm
             else:
-                rna_compartment = mitochondrion    
+                rna_compartment = mitochondrion
+                degradation_compartment = mitochondrion    
             
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
             reaction = model.reactions.get_or_create(submodel=self.submodel, id='degradation_' + rna_kb.id)
@@ -75,74 +78,24 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Adding participants to LHS
             reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=-1))
             reaction.participants.append(metabolites['h2o'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
 
             # Adding participants to RHS
             reaction.participants.append(metabolites['amp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
             reaction.participants.append(metabolites['cmp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
             reaction.participants.append(metabolites['gmp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
             reaction.participants.append(metabolites['ump'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
             reaction.participants.append(metabolites['h'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
                              
             # Assign modifier
-            exo_ids = rna_exo_pair[rna_kb.id]
-            modifier_obs = []
-            for exo_id in exo_ids:
-                complexes = model.species_types.get(name=exo_id)
-
-                if not complexes:
-                    raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
-
-                else:                
-                    observable = model.observables.get_one(
-                        name='{} observable in {}'.format(exo_id, rna_compartment.name))
-
-                    if not observable:
-                        
-                        all_species = {}                             
-                        
-                        for compl_variant in complexes:
-                            exo_species = compl_variant.species.get_one(compartment=rna_compartment)
-                            if not exo_species:
-                                raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
-                            all_species[exo_species.gen_id()] = exo_species
-                            
-                        observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                            ' + '.join(list(all_species.keys())), {
-                            wc_lang.Species: all_species,
-                            })
-                        assert error is None, str(error)
-
-                        observable = model.observables.create(
-                                name='{} observable in {}'.format(exo_id, rna_compartment.name),
-                                expression=observable_expression)
-                        observable.id = 'obs_{}'.format(len(model.observables))
-
-                if observable not in modifier_obs:
-                    modifier_obs.append(observable)    
-
-            if len(modifier_obs) == 1:
-                self._degradation_modifier[reaction.name] = modifier_obs[0]
-            else:
-                all_obs = {obs.id: obs for obs in modifier_obs} 
-                observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                    ' + '.join(list(all_obs.keys())), {
-                    wc_lang.Observable: all_obs,
-                    })
-                assert error is None, str(error)
-
-                observable = model.observables.create(
-                            name='Combined exosome observable in {}'.format(rna_compartment.name),
-                            expression=observable_expression)
-                observable.id = 'obs_{}'.format(len(model.observables))
-
-                self._degradation_modifier[reaction.name] = observable        
-            
+            self._degradation_modifier[reaction.name] = model.species_types.get_one(
+                name=rna_exo_pair[rna_kb.id]).species.get_one(compartment=degradation_compartment)        
+        
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
                 
@@ -169,6 +122,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
+        cytoplasm = model.compartments.get_one(id='c')
 
         beta = self.options.get('beta')
 
@@ -183,18 +137,16 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             init_species_counts = {}
         
-            modifier = self._degradation_modifier[reaction.name]      
-            for species in modifier.expression.species:
-                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-            for observable in modifier.expression.observables:
-                for species in observable.expression.species:
-                    init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean    
-        
+            modifier_species = self._degradation_modifier[reaction.name]      
+            init_species_counts[modifier_species.gen_id()] = modifier_species.distribution_init_concentration.mean
+                    
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
                 rna_compartment = nucleus
+                degradation_compartment = cytoplasm
             else:
-                rna_compartment = mitochondrion 
+                rna_compartment = mitochondrion
+                degradation_compartment = mitochondrion 
 
             rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
 
@@ -218,5 +170,6 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
                 wc_lang.Species: init_species_counts,
                 wc_lang.Compartment: {
-                    rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
+                    rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value,
+                    degradation_compartment.id: degradation_compartment.init_volume.mean * degradation_compartment.init_density.value}
             })       
