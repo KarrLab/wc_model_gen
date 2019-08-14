@@ -7,7 +7,9 @@
 """
 
 from .initialize_model import InitializeModel
+from .complexation import ComplexationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
+from .rna_degradation import RnaDegradationSubmodelGenerator
 import wc_model_gen
 
 
@@ -26,7 +28,9 @@ class EukaryoteModelGenerator(wc_model_gen.ModelGenerator):
 
     DEFAULT_COMPONENT_GENERATORS = (
         InitializeModel,
+        ComplexationSubmodelGenerator,
         TranscriptionSubmodelGenerator,
+        RnaDegradationSubmodelGenerator,
     )
 
     def clean_and_validate_options(self):

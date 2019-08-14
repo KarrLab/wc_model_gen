@@ -20,8 +20,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         Options:
         * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
             as keys and amino acid metabolite ids as values
-        * codon_table (:obj:`int`): NCBI identifier for translation table, 
-            the default is 1 (standard table)
+        * codon_table (:obj:`dict`): a dictionary with protein subunit id as key and 
+            NCBI identifier for translation table as value, the default is 1 (standard table) 
+            for all protein
         * cds (:obj:`bool`): True indicates the sequences of protein subunits are complete CDS,
             the default if True    
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
@@ -109,8 +110,13 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 subunit_coefficient = subunit.coefficient if subunit.coefficient else 1
                                 
                                 if subunit.species_type==compl_subunit.species_type:
+
+                                    if codon_table == 1:
+                                        codon_id = 1
+                                    else:
+                                        codon_id = codon_table[subunit.species_type.id]    
                                     
-                                    protein_seq = subunit.species_type.get_seq(table=codon_table, cds=cds)
+                                    protein_seq = subunit.species_type.get_seq(table=codon_id, cds=cds)
                                     aa_content = {}
                                     for aa in protein_seq:
                                         aa_id = amino_acid_id_conversion[aa]
