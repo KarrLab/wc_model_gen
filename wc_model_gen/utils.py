@@ -160,9 +160,10 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
         Args:
             model (:obj:`wc_lang.Model`): model
             reaction (:obj:`wc_lang.Reaction`): reaction    
-            modifiers (:obj:`list` of :obj:`wc_lang.Observable`): list of observables,
-                each of which evaluates to the total concentration of all enzymes that 
-                catalyze the same intermediate step in the reaction
+            modifiers (:obj:`list` of :obj:`wc_lang.Observable` or :obj:`wc_lang.Species`): 
+                list of observables (each of which evaluates to the total concentration of all enzymes 
+                that catalyze the same intermediate step in the reaction) or enzyme species
+                (that catalyze the reaction) 
             modifier_reactants (:obj:`list` of :obj:`wc_lang.Species`): list of species 
                 in modifiers that should be included as reactants in the rate law    
 
@@ -170,34 +171,42 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
                 :obj:`wc_lang.RateLawExpression`: rate law
                 :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law     
     """
-    if modifiers is None:
-        modifier_species = []
-    else:
-        modifier_species = [i for modifier in modifiers for i in modifier.expression.species]
+    modifier_species = []
+    all_species = {}
+    all_volumes = {}
+    all_observables = {}
+    all_parameters = {}
+    if modifiers:
+        for modifier in modifiers:
+            if type(modifier) == wc_lang.Observable:
+                all_observables[modifier.id] = modifier
+                for species in modifier.expression.species:
+                    modifier_species.append(species)                    
+            elif type(modifier) == wc_lang.Species:
+                modifier_species.append(modifier)
+                all_species[modifier.gen_id()] = modifier
+            else:
+                raise TypeError('The modifiers contain element(s) that is not an observable or a species')          
 
     if modifier_reactants is None:
         additional_reactants = []
     else:
         additional_reactants = modifier_reactants
 
-    parameters = {}
-
     avogadro = model.parameters.get_or_create(
         id='Avogadro',
         type=None,
         value=scipy.constants.Avogadro,
         units=unit_registry.parse_units('molecule mol^-1'))
-    parameters[avogadro.id] = avogadro
+    all_parameters[avogadro.id] = avogadro
 
     model_k_cat = model.parameters.get_or_create(id='k_cat_{}'.format(reaction.id),
                                                  type=wc_ontology['WC:k_cat'],
                                                  units=unit_registry.parse_units('s^-1{}'.format(
-                                                    (' * molecule^{{-{}}}'.format(len(modifiers))) if modifiers else '')))
-    parameters[model_k_cat.id] = model_k_cat
+                                                (' * molecule^{{-{}}}'.format(len(modifiers))) if modifiers else '')))
+    all_parameters[model_k_cat.id] = model_k_cat
 
-    expression_terms = []
-    all_species = {}
-    all_volumes = {}
+    expression_terms = []    
     for species in reaction.get_reactants():
 
         if species not in modifier_species or species in additional_reactants:
@@ -207,7 +216,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
             model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
                                                 type=wc_ontology['WC:K_m'],
                                                 units=unit_registry.parse_units('M'))
-            parameters[model_k_m.id] = model_k_m
+            all_parameters[model_k_m.id] = model_k_m
 
             volume = species.compartment.init_density.function_expressions[0].function
             all_volumes[volume.id] = volume
@@ -219,18 +228,19 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
 
     expression = '{}{}{}'.format(
         model_k_cat.id,
-        (' * {}'.format(' * '.join([i.id for i in modifiers]))) if modifiers else '',
+        (' * {}'.format(' * '.join([i.id if type(i)==wc_lang.Observable else i.gen_id() \
+            for i in modifiers]))) if modifiers else '',
         (' * {}'.format(' * '.join(expression_terms))) if expression_terms else '')
-
+    
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
-        wc_lang.Parameter: parameters,
+        wc_lang.Parameter: all_parameters,
         wc_lang.Species: all_species,
-        wc_lang.Observable: {i.id: i for i in modifiers} if modifiers else {},
+        wc_lang.Observable: all_observables,
         wc_lang.Function: all_volumes,
     })
     assert error is None, str(error)
 
-    return rate_law_expression, list(parameters.values())
+    return rate_law_expression, list(all_parameters.values())
 
 
 def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as_modifiers=None, exclude_substrates=None):

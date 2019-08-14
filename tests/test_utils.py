@@ -158,6 +158,15 @@ class TestCase(unittest.TestCase):
             model, reaction)
         self.assertEqual(rate_law.expression, 'k_cat_r1')
 
+        reaction = wc_lang.Reaction(id='r1', participants=[participant3, participant6])
+        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
+            model, reaction, modifiers=[modifier1, species['s6_c']])
+        self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * s6[c]')
+
+        with self.assertRaises(TypeError) as ctx:
+            rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
+                model, reaction, modifiers=['s6_c'])
+        self.assertEqual('The modifiers contain element(s) that is not an observable or a species', str(ctx.exception))  
 
     def test_gen_michaelis_menten_like_propensity_function(self):
         model = wc_lang.Model()
