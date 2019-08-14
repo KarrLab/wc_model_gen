@@ -454,8 +454,8 @@ class TestCase(unittest.TestCase):
             options={'component': {'InitializeModel': self.set_options([
                 'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()
 
-        self.assertEqual(len(model.reactions), 2)
-        self.assertEqual(len(model.submodels), 2)
+        self.assertEqual(len(model.reactions), 1)
+        self.assertEqual(len(model.submodels), 1)
 
         self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.id, 'Metabolism')
@@ -463,17 +463,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
         self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='r1_kb').participants],
             [('met1[n]', 1), ('met1[e]', -1)])
-
-        self.assertEqual(model.reactions.get_one(id='comp1_n').name, 'Complexation of comp1 in nucleus')
-        self.assertEqual(model.reactions.get_one(id='comp1_n').submodel.id, 'Complexation')
-        self.assertEqual(model.reactions.get_one(id='comp1_n').reversible, True)
-        self.assertEqual(model.reactions.get_one(id='comp1_n').comments, '')
-        self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='comp1_n').participants],
-            [('prot1[n]', -2), ('met1[n]', -3), ('comp1[n]', 1)])
-
-        self.assertEqual(model.reactions.get_one(id='comp2_n'), None)
-        self.assertEqual(model.reactions.get_one(id='comp2_e'), None)
-
+        
     def test_gen_kb_rate_laws(self):
         
         model = core.EukaryoteModelGenerator(self.kb, 

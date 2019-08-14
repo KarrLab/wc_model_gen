@@ -448,10 +448,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
     def gen_kb_reactions(self):
         """ Generate reactions encoded within KB
-            TODO: rxn.submodel attribute is removed from KB, so submodel assignement needs to be taken care of here.
-                  Since all rxns explicitly encoded in KB are metabolic ones, it is manually set to be metablism atm, but
-                  not more sophisticated approach
-
         """
 
         kb = self.knowledge_base
@@ -478,34 +474,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     model_species = self.gen_species_type(kb_species.species_type, model_compartment)
 
                 model_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
-
-        # Generate complexation reactions
-        for compl in kb.cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
-            model_compl_species_type = model.species_types.get_one(id=compl.id)
-
-            for model_compl_species in model_compl_species_type.species:
-
-                if all(model.species_types.get_one(id=subunit.species_type.id).species.get_one(
-                    compartment=model_compl_species.compartment)!=None for subunit in compl.subunits):
-
-                    submodel_id = 'Complexation'
-                    submodel = model.submodels.get_or_create(id=submodel_id)
-
-                    model_rxn = model.reactions.create(
-                        submodel=submodel,
-                        id=compl.id + '_' + model_compl_species.compartment.id,
-                        name='Complexation of ' + compl.id + ' in ' + model_compl_species.compartment.name,
-                        reversible=True)
-
-                    for subunit in compl.subunits:
-                        model_subunit_species = model.species_types.get_one(
-                            id=subunit.species_type.id).species.get_one(compartment=model_compl_species.compartment)
-                        model_rxn.participants.add(
-                            model_subunit_species.species_coefficients.get_or_create(coefficient=-subunit.coefficient))
-
-                    model_rxn.participants.add(
-                            model_compl_species.species_coefficients.get_or_create(coefficient=1))
+                    model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))        
 
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
