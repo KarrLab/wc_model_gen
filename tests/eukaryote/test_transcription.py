@@ -65,6 +65,15 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=nucleus)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=10.)
 
+        gene4 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene4', polymer=chr1, start=1, end=3)
+        exon4 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=3)
+        transcript4 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans4', 
+            name='transcript4', gene=gene4, exons=[exon4])
+        transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript4, 
+            value='36000.0', value_type=wc_ontology['WC:float'])
+        transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=nucleus)
+        transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)
+
         activator = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='activator')
         repressor = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='repressor')
         gene2_reg1 = gene2.regulatory_modules.create(
@@ -112,7 +121,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
-                mean=100, units=unit_registry.parse_units('molecule'))
+                mean=2500 if k=='complex2' else 100, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
 
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'amp', 'cmp', 'gmp', 'ump', 'h2o', 'h', 'adp', 'pi']
@@ -142,7 +151,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
-                            'trans3': 'RNA Polymerase II'},
+                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II'},
             'polr_occupancy_width': 2,                
             })
         gen.run()
@@ -182,8 +191,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='non_specific_binding_complex2').submodel.id, 'transcription')
 
         # initiation
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene1_binding_site[n]').mean, 9)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene2_binding_site[m]').mean, 9)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene1_binding_site[n]').mean, 10)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene2_binding_site[m]').mean, 10)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene4_binding_site[n]').mean, 2)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_initiation_trans1').participants},
             {'gene1_binding_site[n]': -1, 'complex1_bound_non_specific_site[n]': -1, 'polr_non_specific_binding_site[n]': 1, 'complex1_bound_gene1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_initiation_trans2').participants},
@@ -204,7 +214,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 9)
+        self.assertEqual(len(model.rate_laws), 11)
 
         # binding to non-specific site
         self.assertEqual(model.rate_laws.get_one(id='non_specific_binding_complex1-forward').expression.expression,
@@ -226,9 +236,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             '(Kr_transcription_initiation_trans2_repressor * Avogadro * volume_m)))) * '
             'exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans1-forward').expression.expression,
-            'p_bound_gene1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n]')
+            'p_bound_gene1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , 1) , 0)')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans2-forward').expression.expression,
-            'p_bound_gene2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m]')
+            'p_bound_gene2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , 1) , 0)')
 
         # elongation
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans2-forward').expression.expression,
@@ -256,8 +266,11 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_non_specific_binding_complex3').value, math.log(2)*(1/(20*3600) + 1/15000)*10/75)
         self.assertAlmostEqual(model.parameters.get_one(id='k_specific_binding_complex1').value, 
             math.log(2)*(1/(20*3600) + 1/36000)*10/(24*1/(1+9/100*math.exp(math.log(1e-09/1e-03)))), places=20)
+        self.assertAlmostEqual(model.parameters.get_one(id='k_specific_binding_complex2').value, 
+            2*math.log(2)*(1/(20*3600) + 1/36000)*10/(618*2/(1+9/2500*math.exp(math.log(1e-09/1e-03)))), places=20)
         self.assertAlmostEqual(model.parameters.get_one(id='k_specific_binding_complex3').value, 
             math.log(2)*(1/(20*3600) + 1/15000)*10/(24*1/(1+10/(100*((1+1.2)/(1+1))*(1/(1+1)))*math.exp(math.log(1e-09/1e-03)))), places=20)
 
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10/(0.5**4*1))
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*2))

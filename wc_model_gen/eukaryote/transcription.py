@@ -206,7 +206,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Create initiation and elongation reactions for each RNA
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         self._initiation_polr_species = {}
-        self._elongation_modifier = {}        
+        self._elongation_modifier = {}
+        self._allowable_queue_len = {}        
         for rna_kb in rna_kbs:
             
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
@@ -240,13 +241,14 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             gene_seq = gene.get_seq() 
             conc_model = model.distribution_init_concentrations.create(
                 species=polr_binding_site_species,
-                mean=math.floor(len(gene_seq)/polr_occupancy_width),
+                mean=math.floor(len(gene_seq)/polr_occupancy_width) + 1,
                 units=unit_registry.parse_units('molecule'),
                 comments='Set to gene length divided by {} bp to allow '
                     'queueing of RNA polymerase during transcription'.format(polr_occupancy_width),
                 references=[ref_polr_width]    
                 )
             conc_model.id = conc_model.gen_id()
+            self._allowable_queue_len[rna_kb.id] = (polr_binding_site_species, conc_model.mean)
 
             polr_bound_species_type = model.species_types.get_or_create(
                 id='{}_bound_{}'.format(polr_complex.id, gene.id),
@@ -556,11 +558,13 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 id='k_specific_binding_{}'.format(polr_complex_species.species_type.id))
             reg_parameters[specific_binding_constant.id] = specific_binding_constant
 
-            expression = '{} * {} * {}'.format(
+            expression = '{} * {} * {} * max(min({} , 1) , 0)'.format(
                 p_bound_function.id,
                 specific_binding_constant.id,
-                polr_bound_non_specific_species.id                
+                polr_bound_non_specific_species.id,
+                self._allowable_queue_len[rna_kb.id][0].id                
                 )
+            reg_species[self._allowable_queue_len[rna_kb.id][0].id] = self._allowable_queue_len[rna_kb.id][0]
 
             init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
                 wc_lang.Species: reg_species,
@@ -715,9 +719,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
 
-            polr_gene_bound_conc = p_bound[rna_kb.id] / total_p_bound[rna_pol_pair[rna_kb.id]] \
-                * total_gene_bound[rna_pol_pair[rna_kb.id]]
-
+            polr_gene_bound_conc = min(self._allowable_queue_len[rna_kb.id][1], 
+                round(p_bound[rna_kb.id] / total_p_bound[rna_pol_pair[rna_kb.id]] * \
+                total_gene_bound[rna_pol_pair[rna_kb.id]]))
+            
             polr_gene_bound_species = self._elongation_modifier[rna_kb.id]            
             model.distribution_init_concentrations.get_one(
                 species=polr_gene_bound_species).mean = polr_gene_bound_conc
