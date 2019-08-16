@@ -163,6 +163,13 @@ class TestCase(unittest.TestCase):
             model, reaction, modifiers=[modifier1, species['s6_c']])
         self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * s6[c]')
 
+        reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant4, participant8])
+        rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
+            model, reaction, exclude_substrates=[species['s1_c']])
+        self.assertEqual(rate_law.expression, 'k_cat_r1 * '
+            '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
+            '(s4[c] / (s4[c] + K_m_r1_s4 * Avogadro * volume_c))')
+
         with self.assertRaises(TypeError) as ctx:
             rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
                 model, reaction, modifiers=['s6_c'])

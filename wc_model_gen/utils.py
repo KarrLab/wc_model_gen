@@ -140,7 +140,7 @@ def simple_activator (model, reaction_id, activator):
     return F_act, species, parameters, functions
 
 
-def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier_reactants=None):
+def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier_reactants=None, exclude_substrates=None):
     """ Generate a Michaelis-Menten-like rate law. For a multi-substrate reaction,  
         the substrate term is formulated as the multiplication of a Hill equation
         with a coefficient of 1 for each substrate. For multi-steps reaction where
@@ -165,7 +165,9 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
                 that catalyze the same intermediate step in the reaction) or enzyme species
                 (that catalyze the reaction) 
             modifier_reactants (:obj:`list` of :obj:`wc_lang.Species`): list of species 
-                in modifiers that should be included as reactants in the rate law    
+                in modifiers that should be included as reactants in the rate law 
+            exclude_substrates (:obj:`list` of :obj:`wc_lang.Species`): list of reactant species 
+                that would be excluded from the rate law       
 
         Returns:
                 :obj:`wc_lang.RateLawExpression`: rate law
@@ -193,6 +195,11 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     else:
         additional_reactants = modifier_reactants
 
+    if exclude_substrates:
+        excluded_reactants = exclude_substrates
+    else:
+        excluded_reactants = []    
+
     avogadro = model.parameters.get_or_create(
         id='Avogadro',
         type=None,
@@ -209,7 +216,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
     expression_terms = []    
     for species in reaction.get_reactants():
 
-        if species not in modifier_species or species in additional_reactants:
+        if (species not in modifier_species or species in additional_reactants) and species not in excluded_reactants:
 
             all_species[species.gen_id()] = species
 
