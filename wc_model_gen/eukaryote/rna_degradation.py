@@ -98,13 +98,28 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-                
-        for reaction in self.submodel.reactions:
+        model = self.model        
+        cell = self.knowledge_base.cell
+        nucleus = model.compartments.get_one(id='n')
+        mitochondrion = model.compartments.get_one(id='m')
+        cytoplasm = model.compartments.get_one(id='c')
+
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
+
+            rna_kb_compartment_id = rna_kb.species[0].compartment.id
+            if rna_kb_compartment_id == 'n':
+                degradation_compartment = cytoplasm
+            else:
+                degradation_compartment = mitochondrion 
 
             modifier = self._degradation_modifier[reaction.name]
 
+            h2o_species = model.species_types.get_one(id='h2o').species.get_one(
+                compartment=degradation_compartment)
+
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                self.model, reaction, modifiers=[modifier])
+                self.model, reaction, modifiers=[modifier], exclude_substrates=[h2o_species])
             self.model.parameters += parameters
 
             rate_law = self.model.rate_laws.create(

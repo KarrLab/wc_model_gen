@@ -142,19 +142,15 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(len(self.model.rate_laws), 3)
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans1-forward').expression.expression,
             'k_cat_degradation_trans1 * complex1[c] * '
-            '(trans1[n] / (trans1[n] + K_m_degradation_trans1_trans1 * Avogadro * volume_n)) * '
-            '(h2o[c] / (h2o[c] + K_m_degradation_trans1_h2o * Avogadro * volume_c))')
+            '(trans1[n] / (trans1[n] + K_m_degradation_trans1_trans1 * Avogadro * volume_n))')
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans2-forward').expression.expression,
             'k_cat_degradation_trans2 * complex3[m] * '
-            '(trans2[m] / (trans2[m] + K_m_degradation_trans2_trans2 * Avogadro * volume_m)) * '
-            '(h2o[m] / (h2o[m] + K_m_degradation_trans2_h2o * Avogadro * volume_m))')
+            '(trans2[m] / (trans2[m] + K_m_degradation_trans2_trans2 * Avogadro * volume_m))')
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans3-forward').expression.expression,
             'k_cat_degradation_trans3 * complex3[m] * '
-            '(trans3[m] / (trans3[m] + K_m_degradation_trans3_trans3 * Avogadro * volume_m)) * '
-            '(h2o[m] / (h2o[m] + K_m_degradation_trans3_h2o * Avogadro * volume_m))')
+            '(trans3[m] / (trans3[m] + K_m_degradation_trans3_trans3 * Avogadro * volume_m))')
         
         # Test calibrate_submodel
-        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans1_h2o').value, 1500/scipy.constants.Avogadro/9E-14)
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').value, 10/scipy.constants.Avogadro/2.5E-14)
-        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5**2*100))
-        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5**2*100))
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5*100))
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5*100))
