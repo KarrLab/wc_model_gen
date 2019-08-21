@@ -37,6 +37,7 @@ class TestCase(unittest.TestCase):
                         'gen_observables': False,
                         'gen_kb_reactions': False,
                         'gen_kb_rate_laws': False,
+                        'gen_environment': False,
                         }
 
         for i in options:
@@ -192,7 +193,7 @@ class TestCase(unittest.TestCase):
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([])}}).run()
 
-        self.assertEqual(model.taxon.id, '9606')
+        self.assertEqual(model.taxon.id, 'taxon')
         self.assertEqual(model.taxon.name, 'Homo sapiens')
         self.assertEqual(model.taxon.rank, wc_lang.TaxonRank.species)
 
@@ -201,9 +202,11 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='Avogadro').units, unit_registry.parse_units('molecule mol^-1'))
 
         self.assertEqual(model.compartments.get_one(id='n').name, 'nucleus')
+        self.assertEqual(model.compartments.get_one(id='n').biological_type, wc_ontology['WC:cellular_compartment'])
         self.assertAlmostEqual(model.compartments.get_one(id='n').init_volume.mean, 5199.999998548484)
         self.assertAlmostEqual(model.compartments.get_one(id='n_m').init_volume.mean, 1.4515160909356243e-06)
         self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
+        self.assertEqual(model.compartments.get_one(id='e').biological_type, wc_ontology['WC:extracellular_compartment'])
 
         self.assertEqual(model.parameters.get_one(id='density_n').value, 1040.)
         self.assertEqual(model.parameters.get_one(id='density_n_m').value, 1160.)
@@ -345,20 +348,15 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(met1_model.name, 'metabolite1')
         self.assertEqual(met1_model.type, wc_ontology['WC:metabolite'])
-        self.assertEqual(met1_model.structure.value, 'InChI=1S'
-            '/C10H14N5O7P'
-            '/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20'
-            '/h2-4,6-7,10,16-17H,1H2,(H2,11,12,13)(H2,18,19,20)'
-            '/p-2/t4-,6-,7-,10-'
-            '/m1'
-            '/s1')
+        self.assertEqual(met1_model.structure.value, 'O[C@@H]1[C@H](O)[C@H](O[C@H]1n1cnc2c1ncnc2N)COP(=O)([O-])[O-]')
+        self.assertEqual(met1_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=met1_model)]), set(['n', 'e']))
         self.assertEqual(met1_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P'))
-        self.assertAlmostEqual(met1_model.structure.molecular_weight, 345.20530, places=4)
+        self.assertAlmostEqual(met1_model.structure.molecular_weight, 345.20776199799997, places=4)
         self.assertEqual(met1_model.structure.charge, -2)
         self.assertEqual(met1_model.comments, '')
 
-    def test_complexes(self):
+    def test_gen_complexes(self):
 
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
@@ -458,7 +456,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(len(model.submodels), 1)
 
         self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
-        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.id, 'Metabolism')
+        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.id, 'metabolism')
+        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.framework, wc_ontology['WC:dynamic_flux_balance_analysis'])
+        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.dfba_obj.id, 'dfba-obj-metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
         self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='r1_kb').participants],
@@ -499,6 +499,24 @@ class TestCase(unittest.TestCase):
             [model.observables.get_one(id='obs2')])
         self.assertEqual(model.rate_laws.get_one(id='r1_kb-backward').expression.functions,
             [model.functions.get_one(id='volume_n')])
+
+    def test_gen_environment(self):
+
+        environment = {'id': 'env', 'name': 'test_environment', 'temperature': 37., 'comments': ''}
+        test_option = self.set_options(['gen_environment'])
+        test_option['environment'] = environment
+
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel], 
+            options={'component': {'InitializeModel': test_option
+                }}).run()
+
+        self.assertEqual(model.env.id, 'env')
+        self.assertEqual(model.env.name, 'test_environment')
+        self.assertEqual(model.env.temp, 37.)
+        self.assertEqual(model.env.temp_units, unit_registry.parse_units('celsius'))
+        self.assertEqual(model.env.comments, '')
+
 
     def test_unchanged_kb(self):    
         

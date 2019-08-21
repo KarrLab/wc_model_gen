@@ -6,12 +6,14 @@
 :License: MIT
 """
 
-from wc_utils.util.chem import EmpiricalFormula
+from wc_utils.util.chem import EmpiricalFormula, OpenBabelUtils
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+from wc_utils.util import chem
 import ete3
 import math
 import numpy
+import openbabel
 import scipy.constants
 import wc_kb
 import wc_lang
@@ -56,6 +58,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         if options['gen_kb_rate_laws']:
             self.gen_kb_rate_laws()
 
+        if options['gen_environment']:
+            self.gen_environment()    
+
     def clean_and_validate_options(self):
         options = self.options
 
@@ -69,7 +74,19 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         membrane_density = options.get('membrane_density', 1160.)
         assert(isinstance(membrane_density, float))
-        options['membrane_density'] = membrane_density        
+        options['membrane_density'] = membrane_density
+
+        cds = options.get('cds', True)
+        assert(isinstance(cds, bool))
+        options['cds'] = cds
+
+        environment = options.get('environment', {})
+        assert(isinstance(environment, dict))
+        options['environment'] = environment
+
+        ph = options.get('ph', 7.95)
+        assert(isinstance(ph, float))
+        options['ph'] = ph        
 
         gen_dna = options.get('gen_dna', True)
         assert(isinstance(gen_dna, bool))
@@ -107,6 +124,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         assert(isinstance(gen_kb_rate_laws, bool))
         options['gen_kb_rate_laws'] = gen_kb_rate_laws
 
+        gen_environment = options.get('gen_environment', True)
+        assert(isinstance(gen_environment, bool))
+        options['gen_environment'] = gen_environment
+
     def gen_taxon(self):
 
         kb = self.knowledge_base
@@ -115,7 +136,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         ncbi_taxa = ete3.NCBITaxa()
         taxon_name = ncbi_taxa.get_taxid_translator([kb.cell.taxon])[kb.cell.taxon]
         taxon_rank = ncbi_taxa.get_rank([kb.cell.taxon])[kb.cell.taxon]
-        model_taxon = wc_lang.core.Taxon(id=str(kb.cell.taxon), name=taxon_name, model=model, 
+        model_taxon = wc_lang.core.Taxon(id='taxon', name=taxon_name, model=model, 
             rank=wc_lang.core.TaxonRank[taxon_rank]) 
 
     def gen_compartments(self):
@@ -142,6 +163,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 units=unit_registry.parse_units('g l^-1'))
 
             if comp.id=='e':
+                c.biological_type = wc_ontology['WC:extracellular_compartment']
                 c.init_density.value = 1000.
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=culture_volume, std=0)                
@@ -208,7 +230,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             if param.identifiers:
                 for identifier in param.identifiers:
-                    identifier_model = wc_lang.Identifier(model=model, 
+                    identifier_model = wc_lang.Identifier(
                         namespace=identifier.namespace, id=identifier.id)
                     model_param.identifiers.append(identifier_model)
 
@@ -282,7 +304,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             self.gen_species_type(kb_species_type)
 
     def gen_species_type(self, kb_species_type, extra_compartment_ids=None):
-        """ Generate a model species type
+        """ Generate a model species type and species
 
         Args:
             kb_species_type (:obj:`wc_kb.SpeciesType`): knowledge base species type
@@ -294,42 +316,92 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         """
 
         model = self.model
+        ph = self.options['ph']
+
         model_species_type = model.species_types.get_or_create(id=kb_species_type.id)
         model_species_type.name = kb_species_type.name
+        model_species_type.structure = wc_lang.ChemicalStructure()
+        model_species_type.comments = kb_species_type.comments
 
         if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
             model_species_type.type = wc_ontology['WC:DNA'] # DNA
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+            model_species_type.structure.charge = kb_species_type.get_charge()
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+            model_species_type.structure.charge = kb_species_type.get_charge()
 
         elif isinstance(kb_species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
+            table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
+            cds = self.options['cds']            
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
+                table=table, cds=cds)
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
+                table=table, cds=cds)
+            model_species_type.structure.charge = kb_species_type.get_charge(
+                table=table, cds=cds)
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
+            inchi_str = kb_species_type.properties.get_one(property='structure')
+            if inchi_str:
+                smiles, formula, charge, mol_wt = self.inchi_to_smiles_and_props(
+                    inchi_str.get_value(), ph)
+                model_species_type.structure.value = smiles
+                model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
+            else:
+                formula = kb_species_type.get_empirical_formula()
+                charge = kb_species_type.get_charge()
+                mol_wt = kb_species_type.get_mol_wt()
+            model_species_type.structure.empirical_formula = formula
+            model_species_type.structure.molecular_weight = mol_wt
+            model_species_type.structure.charge = charge
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo specie
+            formula = chem.EmpiricalFormula()
+            charge = 0
+            weight = 0
+            for subunit in kb_species_type.subunits:
+                if isinstance(subunit.species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
+                    table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
+                    cds = self.options['cds']
+                    for coeff in range(0, abs(int(subunit.coefficient))):
+                        formula += subunit.species_type.get_empirical_formula(
+                            table=table, cds=cds)
+                    charge += abs(subunit.coefficient)*subunit.species_type.get_charge(
+                        table=table, cds=cds)
+                    weight += abs(subunit.coefficient)*subunit.species_type.get_mol_wt(
+                        table=table, cds=cds)
+                else:
+                    inchi_str = subunit.species_type.properties.get_one(property='structure')
+                    if inchi_str:
+                        _, sub_formula, sub_charge, sub_mol_wt = self.inchi_to_smiles_and_props(
+                            inchi_str.get_value(), ph)
+                    else:
+                        sub_formula = subunit.species_type.get_empirical_formula()
+                        sub_charge = subunit.species_type.get_charge()
+                        sub_mol_wt = subunit.species_type.get_mol_wt()    
+                    
+                    for coeff in range(0, abs(int(subunit.coefficient))):                         
+                        formula += sub_formula
+                    charge += abs(subunit.coefficient)*sub_charge
+                    weight += abs(subunit.coefficient)*sub_mol_wt        
+            
+            model_species_type.structure.empirical_formula = formula
+            model_species_type.structure.molecular_weight = weight
+            model_species_type.structure.charge = charge
 
         else:
             raise ValueError('Unsupported species type: {}'.format(
                 kb_species_type.__class__.__name__))
 
-        model_species_type.structure = wc_lang.ChemicalStructure()
-
-        inchi_str = kb_species_type.properties.get_one(property='structure')
-        if inchi_str:
-            model_species_type.structure.value = inchi_str.get_value()
-
-        formula = kb_species_type.get_empirical_formula()
-        if formula:
-            model_species_type.structure.empirical_formula = formula
-
-        model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
-        model_species_type.structure.charge = kb_species_type.get_charge()
-        model_species_type.comments = kb_species_type.comments
-
+        # Create species
         if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
                 for sub in kb_species_type.subunits]
@@ -397,7 +469,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             if conc.identifiers:
                 for identifier in conc.identifiers:
-                    identifier_model = wc_lang.Identifier(model=model, 
+                    identifier_model = wc_lang.Identifier(
                         namespace=identifier.namespace, id=identifier.id)
                     conc_model.identifiers.append(identifier_model)
 
@@ -452,11 +524,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         kb = self.knowledge_base
         model = self.model
-
+        submodel = model.submodels.get_or_create(id='metabolism', 
+            framework=wc_ontology['WC:dynamic_flux_balance_analysis'])              
+ 
         for kb_rxn in kb.cell.reactions:
-            submodel_id = 'Metabolism'
-            submodel = model.submodels.get_or_create(id=submodel_id)
-
+            
             model_rxn = model.reactions.create(
                 submodel=submodel,
                 id=kb_rxn.id + '_kb',
@@ -474,7 +546,16 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     model_species = self.gen_species_type(kb_species.species_type, model_compartment)
 
                 model_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))        
+                    model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
+
+        # Temporary code to be moved to metabolism model gen later
+        submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
+        submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
+        obj_expression = model_rxn.id
+        dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
+            obj_expression, {wc_lang.Reaction: {model_rxn.id: model_rxn}})
+        assert error is None, str(error)
+        submodel.dfba_obj.expression = dfba_obj_expression                    
 
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
@@ -511,7 +592,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 for param in kb_rate_law.expression.parameters:
                     all_parameters[param.id] = model.parameters.get_one(id=param.id)
                     if 'K_m' in param.id:
-                        model_compartment = model.compartments.get_one(id=param.id[param.id.rfind('_')+1:])
+                        model_compartment = model.compartments.get_one(id=param.id.split('_')[-1])
                         if model_compartment.init_density.function_expressions:
                             volume = model_compartment.init_density.function_expressions[0].function
                             unit_adjusted_term = '{} * {} * {}'.format(param.id, Avogadro.id, volume.id)
@@ -535,3 +616,48 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     direction=wc_lang.RateLawDirection[kb_rate_law.direction.name],
                     comments=kb_rate_law.comments)
                 model_rate_law.id = model_rate_law.gen_id()
+
+    def gen_environment(self):            
+        """ Generate the environment, i.e. temperature, for the simulated cells """
+
+        model = self.model
+        environment = self.options['environment']
+
+        if environment:
+            wc_lang.Environment(
+                id=environment['id'],
+                name=environment['name'],
+                model=model,
+                temp=environment['temperature'],
+                comments=environment['comments'])
+
+    def inchi_to_smiles_and_props(self, inchi, ph):
+        """ Convert an InChI string to a SMILES string and calculate properties such
+            as empirical formula, charge and molecular weight 
+
+        Args:
+            inchi (:obj:`str`): InChI string
+            ph (:obj:`float`): pH at which the properties should be determined
+
+        Returns:
+            :obj:`str`: SMILES string
+            :obj:`wc_utils.util.chem.core.EmpiricalFormula`: empirical formula
+            :obj:`int`: charge
+            :obj:`float`: molecular weight    
+        """
+
+        mol = openbabel.OBMol()
+        conv = openbabel.OBConversion()
+        conv.SetInFormat('inchi')
+        conv.SetOutFormat('smi')
+        conv.SetOptions('c', conv.OUTOPTIONS)
+        conv.ReadString(mol, inchi)
+        mol.CorrectForPH(ph)
+        smiles = conv.WriteString(mol, True)
+
+        empirical_formula = OpenBabelUtils.get_formula(mol)
+        charge = mol.GetTotalCharge()
+        mol_wt = empirical_formula.get_molecular_weight()
+        
+        return smiles, empirical_formula, charge, mol_wt
+        
