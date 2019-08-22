@@ -56,10 +56,12 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 'm': met_species_type.species.get_one(compartment=mitochondrion)
                 }
 
+        print('Start generating RNA degradation submodel...')
         # Create reaction for each RNA and get exosome
         rna_exo_pair = self.options.get('rna_exo_pair')
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         self._degradation_modifier = {}
+        deg_rxn_no = 0
         for rna_kb in rna_kbs:  
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
@@ -94,7 +96,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                              
             # Assign modifier
             self._degradation_modifier[reaction.name] = model.species_types.get_one(
-                name=rna_exo_pair[rna_kb.id]).species.get_one(compartment=degradation_compartment)        
+                name=rna_exo_pair[rna_kb.id]).species.get_one(compartment=degradation_compartment)
+
+            deg_rxn_no += 1
+        print('{} RNA degradation reactions have been generated'.format(deg_rxn_no))                
         
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
@@ -104,6 +109,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mitochondrion = model.compartments.get_one(id='m')
         cytoplasm = model.compartments.get_one(id='c')
 
+        rate_law_no = 0
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
@@ -129,6 +135,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction=reaction,
                 )
             rate_law.id = rate_law.gen_id()
+            rate_law_no += 1
+
+        print('{} rate laws for RNA degradation have been generated')    
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
@@ -187,4 +196,6 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 wc_lang.Compartment: {
                     rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value,
                     degradation_compartment.id: degradation_compartment.init_volume.mean * degradation_compartment.init_density.value}
-            })       
+            })
+
+        print('RNA degradation submodel has been generated')           

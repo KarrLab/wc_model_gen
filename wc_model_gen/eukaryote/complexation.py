@@ -56,7 +56,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         amino_acid_id_conversion = self.options['amino_acid_id_conversion']
         codon_table = self.options['codon_table']
         cds = self.options['cds']
-
+        
+        print('Start generating complexation submodel...')
+        assembly_rxn_no = 0
+        disassembly_rxn_no = 0
         for compl in cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
             
             model_compl_species_type = model.species_types.get_one(id=compl.id)            
@@ -86,6 +89,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_rxn.participants.add(
                         model_compl_species.species_coefficients.get_or_create(coefficient=1))
 
+                    assembly_rxn_no += 1
+
                     # Generate reactions that lump complex dissociation and subunit degradation
                     for compl_subunit in compl.subunits:
 
@@ -102,6 +107,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             model_rxn.participants.add(
                                 model_compl_species.species_coefficients.get_or_create(
                                 coefficient=-1))
+
+                            disassembly_rxn_no += 1
 
                             for subunit in compl.subunits:
                                 
@@ -147,11 +154,13 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                     model_rxn.participants.add(
                                         model_subunit_species.species_coefficients.get_or_create(
                                         coefficient=subunit_coefficient))                              
-            
+        print('{} reactions of complex assembly and {} reactions of complex dissociation have been generated'.format(
+            assembly_rxn_no, disassembly_rxn_no))
+
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
         model = self.model
-        
+        rate_law_no = 0
         for reaction in self.submodel.reactions:
 
             if 'complex_association_' in reaction.id:
@@ -180,8 +189,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     expression=rate_law_exp,
                     reaction=reaction,
                     )
-            rate_law.id = rate_law.gen_id()    
-
+            rate_law.id = rate_law.gen_id() 
+            rate_law_no += 1
+        
+        print('{} rate laws for complex assembly and dissociation have been generated'.format(rate_law_no))
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """        
@@ -239,4 +250,6 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     species=degraded_subunit_species).coefficient                           
 
                 diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
-                diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife                    
+                diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
+
+        print('Complexation submodel has been generated')                                

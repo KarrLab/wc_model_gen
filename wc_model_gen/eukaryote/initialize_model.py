@@ -27,6 +27,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         self.clean_and_validate_options()
         options = self.options
 
+        print('Model generator is being initialized')
+
         self.gen_taxon()
         self.gen_compartments()
         self.gen_parameters()
@@ -59,7 +61,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             self.gen_kb_rate_laws()
 
         if options['gen_environment']:
-            self.gen_environment()    
+            self.gen_environment()
+
+        print('Model generator has been initialized')        
 
     def clean_and_validate_options(self):
         options = self.options

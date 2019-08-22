@@ -113,7 +113,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             volume='14',
             pages='796-806'
             )
-        ref_polr_distribution.id = 'ref_'+str(len(model.references))                    
+        ref_polr_distribution.id = 'ref_'+str(len(model.references))  
+
+        print('Start generating transcription submodel...')                  
         
         # Create for each RNA polymerase a reaction of binding to non-specific site        
         nuclear_genome_length = 0
@@ -204,6 +206,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=1))
         
         # Create initiation and elongation reactions for each RNA
+        init_el_rxn_no = 0
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         self._initiation_polr_species = {}
         self._elongation_modifier = {}
@@ -361,6 +364,11 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 polr_binding_site_species.species_coefficients.get_or_create(
                 coefficient=1))
 
+            init_el_rxn_no += 1
+
+        print('{} reactions each for initiation and elongation have been generated'.format(
+            init_el_rxn_no))    
+
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
 
@@ -471,7 +479,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 units=unit_registry.parse_units('s^-1')
                 )                    
                 
-        # Generate rate laws for initiation and elongation & termination                    
+        # Generate rate laws for initiation and elongation & termination
+        rate_law_no = 0                    
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
         for rna_kb in rnas_kb:
 
@@ -596,7 +605,11 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 expression=rate_law_exp,
                 reaction=elongation_reaction,
                 )
-            rate_law.id = rate_law.gen_id()          
+            rate_law.id = rate_law.gen_id()
+
+            rate_law_no += 1
+
+        print('{} rate laws for initiation and elongation have been generated'.format(rate_law_no))              
         
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
@@ -747,3 +760,5 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     wc_lang.Compartment: {
                         rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
                 })
+
+        print('Transcription submodel has been generated')        
