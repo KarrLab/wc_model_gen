@@ -204,7 +204,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         # Create parameters from kb
         for param in kb.cell.parameters:
             model_param = model.parameters.create(
-                            id=param.id,                            
+                            id=param.id,
+                            name=param.name,                            
                             value=param.value,
                             units=param.units)
             if 'K_m' in param.id:
