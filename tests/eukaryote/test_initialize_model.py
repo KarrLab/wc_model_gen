@@ -128,6 +128,8 @@ class TestCase(unittest.TestCase):
         met1_conc1.id = met1_conc1.serialize()
         met1_spec2 = wc_kb.core.Species(species_type=met1, compartment=extra)
 
+        electron = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='el', name='electron')
+
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
         species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp1', name='complex1',
@@ -356,6 +358,16 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_model.structure.charge, -2)
         self.assertEqual(met1_model.comments, '')
 
+        electron_model = model.species_types.get_one(id='el')
+
+        self.assertEqual(electron_model.name, 'electron')
+        self.assertEqual(electron_model.type, wc_ontology['WC:metabolite'])
+        self.assertEqual(electron_model.structure.value, '[*-]')
+        self.assertEqual(electron_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
+        self.assertEqual(electron_model.structure.empirical_formula, chem.EmpiricalFormula())
+        self.assertEqual(electron_model.structure.molecular_weight, 0.)
+        self.assertEqual(electron_model.structure.charge, -1)
+        
     def test_gen_complexes(self):
 
         model = core.EukaryoteModelGenerator(self.kb,

@@ -27,42 +27,53 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         self.clean_and_validate_options()
         options = self.options
 
-        print('Model generator is being initialized')
+        print('Initialization is starting...')
 
         self.gen_taxon()
         self.gen_compartments()
         self.gen_parameters()
 
+        print('Taxon, compartments, and parameters have been initialized')
+
         if options['gen_dna']:
             self.gen_dna()
+            print('DNA species type and species have been initialized')    
 
         if options['gen_transcripts']:
             self.gen_transcripts()
+            print('Transcript species type and species have been initialized')    
 
         if options['gen_protein']:
             self.gen_protein()
+            print('Protein species type and species have been initialized')    
 
         if options['gen_metabolites']:
             self.gen_metabolites()
+            print('Protein species type and species have been initialized')    
 
         if options['gen_complexes']:
             self.gen_complexes()
+            print('Complex species type and species have been initialized')    
 
         if options['gen_distribution_init_concentrations']:
             self.gen_distribution_init_concentrations()
+            print('Concentrations of species have been initialized')    
 
         if options['gen_observables']:
             self.gen_observables()
+            print('Model observables have been initialized')    
 
         if options['gen_kb_reactions']:
             self.gen_kb_reactions()
+            print('Reactions in knowledge base have been initialized')    
 
         if options['gen_kb_rate_laws']:
             self.gen_kb_rate_laws()
+            print('Rate laws in knowledge base have been initialized')    
 
         if options['gen_environment']:
             self.gen_environment()
-
+            
         print('Model generator has been initialized')        
 
     def clean_and_validate_options(self):
@@ -353,23 +364,30 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
-            inchi_str = kb_species_type.properties.get_one(property='structure')
-            if inchi_str:
-                smiles, formula, charge, mol_wt = self.inchi_to_smiles_and_props(
-                    inchi_str.get_value(), ph)
-                model_species_type.structure.value = smiles
+            if kb_species_type.name == 'electron':
+                model_species_type.structure.value = '[*-]'
                 model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
-            else:
-                formula = kb_species_type.get_empirical_formula()
-                charge = kb_species_type.get_charge()
-                mol_wt = kb_species_type.get_mol_wt()
-            model_species_type.structure.empirical_formula = formula
-            model_species_type.structure.molecular_weight = mol_wt
-            model_species_type.structure.charge = charge
+                model_species_type.structure.empirical_formula = EmpiricalFormula()
+                model_species_type.structure.molecular_weight = 0.
+                model_species_type.structure.charge = -1
+            else:    
+                inchi_str = kb_species_type.properties.get_one(property='structure')
+                if inchi_str:
+                    smiles, formula, charge, mol_wt = self.inchi_to_smiles_and_props(
+                        inchi_str.get_value(), ph)
+                    model_species_type.structure.value = smiles
+                    model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
+                else:
+                    formula = kb_species_type.get_empirical_formula()
+                    charge = kb_species_type.get_charge()
+                    mol_wt = kb_species_type.get_mol_wt()
+                model_species_type.structure.empirical_formula = formula
+                model_species_type.structure.molecular_weight = mol_wt
+                model_species_type.structure.charge = charge
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo specie
-            formula = chem.EmpiricalFormula()
+            formula = EmpiricalFormula()
             charge = 0
             weight = 0
             for subunit in kb_species_type.subunits:
