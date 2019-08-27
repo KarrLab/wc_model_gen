@@ -350,7 +350,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(met1_model.name, 'metabolite1')
         self.assertEqual(met1_model.type, wc_ontology['WC:metabolite'])
-        self.assertEqual(met1_model.structure.value, 'O[C@@H]1[C@H](O)[C@H](O[C@H]1n1cnc2c1ncnc2N)COP(=O)([O-])[O-]')
+        self.assertEqual(met1_model.structure.value, 'NC1=C2N=CN([C@@H]3O[C@H](COP([O-])([O-])=O)[C@@H](O)[C@H]3O)C2=NC=N1')
         self.assertEqual(met1_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=met1_model)]), set(['n', 'e']))
         self.assertEqual(met1_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P'))

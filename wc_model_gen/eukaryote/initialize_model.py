@@ -6,7 +6,7 @@
 :License: MIT
 """
 
-from wc_utils.util.chem import EmpiricalFormula, OpenBabelUtils
+from wc_utils.util.chem import EmpiricalFormula, get_major_micro_species, OpenBabelUtils
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_utils.util import chem
@@ -99,7 +99,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         assert(isinstance(environment, dict))
         options['environment'] = environment
 
-        ph = options.get('ph', 7.95)
+        ph = options.get('ph', 7.4)
         assert(isinstance(ph, float))
         options['ph'] = ph        
 
@@ -669,18 +669,14 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             :obj:`float`: molecular weight    
         """
 
+        smiles = get_major_micro_species(inchi, 'inchi', 'smiles', ph=ph)        
         mol = openbabel.OBMol()
         conv = openbabel.OBConversion()
-        conv.SetInFormat('inchi')
-        conv.SetOutFormat('smi')
+        conv.SetInFormat('smi')
         conv.SetOptions('c', conv.OUTOPTIONS)
-        conv.ReadString(mol, inchi)
-        mol.CorrectForPH(ph)
-        smiles = conv.WriteString(mol, True)
-
+        conv.ReadString(mol, smiles)        
         empirical_formula = OpenBabelUtils.get_formula(mol)
         charge = mol.GetTotalCharge()
         mol_wt = empirical_formula.get_molecular_weight()
         
-        return smiles, empirical_formula, charge, mol_wt
-        
+        return smiles, empirical_formula, charge, mol_wt        
