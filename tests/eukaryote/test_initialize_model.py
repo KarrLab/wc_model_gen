@@ -129,6 +129,7 @@ class TestCase(unittest.TestCase):
         met1_spec2 = wc_kb.core.Species(species_type=met1, compartment=extra)
 
         electron = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='el', name='electron')
+        proton = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='h', name='proton')
 
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
         species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
@@ -367,6 +368,17 @@ class TestCase(unittest.TestCase):
         self.assertEqual(electron_model.structure.empirical_formula, chem.EmpiricalFormula())
         self.assertEqual(electron_model.structure.molecular_weight, 0.)
         self.assertEqual(electron_model.structure.charge, -1)
+
+        proton_model = model.species_types.get_one(id='h')
+
+        self.assertEqual(proton_model.name, 'proton')
+        self.assertEqual(proton_model.type, wc_ontology['WC:metabolite'])
+        self.assertEqual(proton_model.structure.value, '[1H+]')
+        self.assertEqual(proton_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
+        self.assertEqual(proton_model.structure.empirical_formula, chem.EmpiricalFormula('H'))
+        self.assertEqual(proton_model.structure.molecular_weight, 1.008)
+        self.assertEqual(proton_model.structure.charge, 1)
+
         
     def test_gen_complexes(self):
 

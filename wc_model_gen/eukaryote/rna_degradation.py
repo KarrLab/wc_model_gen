@@ -137,7 +137,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.id = rate_law.gen_id()
             rate_law_no += 1
 
-        print('{} rate laws for RNA degradation have been generated')    
+        print('{} rate laws for RNA degradation have been generated'.format(rate_law_no))    
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """

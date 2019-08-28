@@ -370,6 +370,12 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_species_type.structure.empirical_formula = EmpiricalFormula()
                 model_species_type.structure.molecular_weight = 0.
                 model_species_type.structure.charge = -1
+            elif kb_species_type.name == 'proton':
+                model_species_type.structure.value = '[1H+]'
+                model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
+                model_species_type.structure.empirical_formula = EmpiricalFormula('H')
+                model_species_type.structure.molecular_weight = 1.008
+                model_species_type.structure.charge = 1
             else:    
                 inchi_str = kb_species_type.properties.get_one(property='structure')
                 if inchi_str:
