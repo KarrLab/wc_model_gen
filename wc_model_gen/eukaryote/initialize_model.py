@@ -37,23 +37,23 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         if options['gen_dna']:
             self.gen_dna()
-            print('DNA species type and species have been initialized')    
+            print('All DNA species types and species have been initialized')    
 
         if options['gen_transcripts']:
             self.gen_transcripts()
-            print('Transcript species type and species have been initialized')    
+            print('All transcript species types and species have been initialized')    
 
         if options['gen_protein']:
             self.gen_protein()
-            print('Protein species type and species have been initialized')    
+            print('All protein species types and species have been initialized')    
 
         if options['gen_metabolites']:
             self.gen_metabolites()
-            print('Protein species type and species have been initialized')    
+            print('All metabolite species types and species have been initialized')    
 
         if options['gen_complexes']:
             self.gen_complexes()
-            print('Complex species type and species have been initialized')    
+            print('All complex species types and species have been initialized')    
 
         if options['gen_distribution_init_concentrations']:
             self.gen_distribution_init_concentrations()
@@ -283,8 +283,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb_species_types = kb.cell.species_types.get(
             __type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
 
+        count = 0
         for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
+            count += 1
+            if count % 100 == 0:
+                print('{}/{} of the transcripts have been initialized'.format(
+                    count, len(kb_species_types)))
 
     def gen_protein(self):
         """ Generate proteins for the model from knowledge base """
@@ -294,8 +299,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         kb_species_types = kb.cell.species_types.get(
             __type=wc_kb.eukaryote_schema.ProteinSpeciesType)
 
+        count = 0
         for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
+            count += 1
+            if count % 100 == 0:
+                print('{}/{} of the proteins have been initialized'.format(
+                    count, len(kb_species_types)))
 
     def gen_metabolites(self):
         """ Generate metabolites for the model from knowledge base """
