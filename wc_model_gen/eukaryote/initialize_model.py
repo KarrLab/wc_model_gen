@@ -281,7 +281,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         kb_species_types = kb.cell.species_types.get(
-            __type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+            __type=wc_kb.eukaryote.TranscriptSpeciesType)
 
         for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
@@ -292,7 +292,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model = self.model
 
         kb_species_types = kb.cell.species_types.get(
-            __type=wc_kb.eukaryote_schema.ProteinSpeciesType)
+            __type=wc_kb.eukaryote.ProteinSpeciesType)
 
         for kb_species_type in kb_species_types:
             self.gen_species_type(kb_species_type)
@@ -345,13 +345,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
             model_species_type.structure.charge = kb_species_type.get_charge()
 
-        elif isinstance(kb_species_type, wc_kb.eukaryote_schema.TranscriptSpeciesType):
+        elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
             model_species_type.structure.charge = kb_species_type.get_charge()
 
-        elif isinstance(kb_species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
+        elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
             cds = self.options['cds']            
@@ -397,7 +397,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             charge = 0
             weight = 0
             for subunit in kb_species_type.subunits:
-                if isinstance(subunit.species_type, wc_kb.eukaryote_schema.ProteinSpeciesType):
+                if isinstance(subunit.species_type, wc_kb.eukaryote.ProteinSpeciesType):
                     table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                     cds = self.options['cds']
                     for coeff in range(0, abs(int(subunit.coefficient))):

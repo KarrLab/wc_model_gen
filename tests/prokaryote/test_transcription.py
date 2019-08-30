@@ -55,7 +55,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='transcription')
 
-        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType):
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType):
             model_species = model.species_types.get_one(id=species.id)
             model_species_cytosol = model_species.species.get_one(compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
@@ -77,7 +77,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Check that number of RNAs = number of transcription reactions
         self.assertEqual(
-            len(kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)),
+            len(kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)),
             len(submodel.reactions))
 
         # Check that each reaction has the right number of participants
@@ -85,7 +85,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(len(rxn.participants), 8)
 
         # Check coeffs of reaction participants
-        rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         for rxn, rna in zip(submodel.reactions, rnas):
 
             self.assertEqual(

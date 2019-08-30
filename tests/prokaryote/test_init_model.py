@@ -45,7 +45,7 @@ class InitalizeModelTestCase(unittest.TestCase):
 
     def test_rna_species(self):
         cytosol = self.model.compartments.get_one(id='c')
-        for species in self.kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType):
+        for species in self.kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType):
             model_species_type = self.model.species_types.get_one(id=species.id)
             model_specie       = model_species_type.species.get_one(compartment=cytosol)
 
@@ -56,7 +56,7 @@ class InitalizeModelTestCase(unittest.TestCase):
 
     def test_protein_species(self):
         cytosol = self.model.compartments.get_one(id='c')
-        for species in self.kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
+        for species in self.kb.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType):
             model_species_type = self.model.species_types.get_one(id=species.id)
             model_specie       = model_species_type.species.get_one(compartment=cytosol)
 

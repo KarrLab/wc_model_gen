@@ -59,7 +59,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         print('Start generating RNA degradation submodel...')
         # Create reaction for each RNA and get exosome
         rna_exo_pair = self.options.get('rna_exo_pair')
-        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         self._degradation_modifier = {}
         deg_rxn_no = 0
         for rna_kb in rna_kbs:  
@@ -110,7 +110,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytoplasm = model.compartments.get_one(id='c')
 
         rate_law_no = 0
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
@@ -156,7 +156,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))       
 
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             init_species_counts = {}

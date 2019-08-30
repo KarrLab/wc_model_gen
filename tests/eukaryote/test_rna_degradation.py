@@ -37,9 +37,9 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
-        gene1 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=18)
-        exon1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=18)
-        transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans1', 
+        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=18)
+        exon1 = wc_kb.eukaryote.GenericLocus(start=4, end=18)
+        transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1', 
             name='transcript1', gene=gene1, exons=[exon1])
         transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
@@ -47,16 +47,16 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=self.sequence_path)
-        gene2 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=18)
-        exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=10)
-        transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans2', 
+        gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=18)
+        exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
+        transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
             name='transcript2', gene=gene2, exons=[exon2])
         transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript2, 
             value='15000.0', value_type=wc_ontology['WC:float'])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=mito)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=10.)
 
-        transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3', 
+        transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene2, exons=[exon2])
         transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript3, 
             value='36000.0', value_type=wc_ontology['WC:float'])
@@ -83,7 +83,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 })
             assert error is None, str(error)
 
-        for i in cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType):
+        for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type = model.species_types.create(id=i.id)
             model_compartment = model.compartments.get_one(id='m' if 'M' in i.gene.polymer.id else 'n')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)

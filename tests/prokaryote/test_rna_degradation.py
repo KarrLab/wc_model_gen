@@ -48,10 +48,10 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # check reactions generated
         self.assertEqual(len(submodel.reactions),
-                         len(cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)))
+                         len(cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)))
 
         # check species types and species generated
-        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType):
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType):
             model_species = model.species_types.get_one(id=species.id)
             model_species_cytosol = model_species.species.get_one(compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
@@ -66,7 +66,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
         # Check coeffs of reaction participants
-        rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas = kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         for rxn, rna in zip(submodel.reactions, rnas):
             self.assertEqual(
                 + rxn.participants.get_one(species=amp).coefficient

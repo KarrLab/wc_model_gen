@@ -51,7 +51,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         h = model.species_types.get_one(id='h').species.get_one(compartment=cytosol)
 
         # Create reaction for each RNA
-        rna_kbs = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         for rna_kb in rna_kbs:
 
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)
@@ -119,7 +119,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for species in modifier.expression.species:
             init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=cytosol)

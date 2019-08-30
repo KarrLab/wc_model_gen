@@ -210,7 +210,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         avg_H_per_transcription = self.calc_h_per_transcript()
 
         # Calculate avg # of transcription reactions over CC = # of initial RNAs + # of degrad rxns
-        rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         n_degrad_rxns = self.calc_rna_degrad_rxns()
         n_rnas = self.calc_rna_copy_num() * len(rnas_kb)
         n_transcription_rxns = n_rnas + n_degrad_rxns
@@ -230,7 +230,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         avg_tpp_per_rna = self.calc_tpp_per_rna()
         avg_rna_copy_num = self.calc_rna_copy_num()
 
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         tpp_in_cell = avg_tpp_per_rna*avg_rna_copy_num*len(rnas_kb)
 
         cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
@@ -245,7 +245,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         avg_aa_per_prot = self.calc_aa_per_prot()
         avg_prot_copy_num = self.calc_prot_copy_num()
 
-        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         aa_in_cell = avg_aa_per_prot*avg_prot_copy_num*len(prots_kb)
 
         cc_length = self.knowledge_base.cell.parameters.get_one(id='mean_doubling_time').value
@@ -276,7 +276,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
 
         n_tpp = 0
-        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         for rna_kb in rnas_kb:
             n_tpp += rna_kb.get_seq().count('A')
             n_tpp += rna_kb.get_seq().count('C')
@@ -292,7 +292,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         model = self.model
 
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         n_aa = 0
         for protein_kb in proteins_kb:
             n_aa += len(protein_kb.get_seq())
@@ -391,7 +391,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        rnas_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
 
         rna_copy_num = []
         for rna in rnas_kb:
@@ -408,7 +408,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         volume = self.knowledge_base.cell.parameters.get_one(id='mean_volume').value
         cytosol_kb = self.knowledge_base.cell.compartments.get_one(id='c')
-        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        prots_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
 
         prot_copy_num = []
         for prot in prots_kb:

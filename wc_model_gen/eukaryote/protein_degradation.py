@@ -56,7 +56,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Create reaction for each RNA and get exosome
         rna_exo_pair = self.options.get('rna_exo_pair')
-        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         self._degradation_modifier = {}
         for rna_kb in rna_kbs:  
 
@@ -177,7 +177,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))       
 
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             init_species_counts = {}
