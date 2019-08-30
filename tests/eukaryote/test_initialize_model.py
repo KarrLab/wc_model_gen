@@ -70,15 +70,15 @@ class TestCase(unittest.TestCase):
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', name='chromosome 1', ploidy=2,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene1 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=36)
-        exon1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)
-        transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans1',
+        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=36)
+        exon1 = wc_kb.eukaryote.GenericLocus(start=4, end=36)
+        transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1',
             name='transcript1', gene=gene1, exons=[exon1])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=0.02)
         transcript1_conc.id = transcript1_conc.serialize()
-        cds1 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=36)        
-        prot1 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', 
+        cds1 = wc_kb.eukaryote.GenericLocus(start=4, end=36)        
+        prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', 
             transcript=transcript1, coding_regions=[cds1])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         prot1_conc = wc_kb.core.Concentration(cell=cell, species=prot1_spec, value=0.03)
@@ -86,9 +86,9 @@ class TestCase(unittest.TestCase):
 
         chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', name='chromosome X', ploidy=1, 
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene2 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene2', polymer=chrX, start=1, end=4)
-        exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=4)
-        transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans2',
+        gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrX, start=1, end=4)
+        exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=4)
+        transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2',
             name='transcript2', gene=gene2, exons=[exon2])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)
@@ -96,15 +96,15 @@ class TestCase(unittest.TestCase):
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', name='mitochondrial chromosome', ploidy=150,
             sequence_path=self.sequence_path, circular=False, double_stranded=False)
-        gene3 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene3', polymer=chrM, start=1, end=33)
-        exon3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)
-        transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3',
+        gene3 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene3', polymer=chrM, start=1, end=33)
+        exon3 = wc_kb.eukaryote.GenericLocus(start=1, end=30)
+        transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans3',
             name='transcript3', gene=gene3, exons=[exon3])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=mito)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=0.05)
         transcript3_conc.id = transcript3_conc.serialize()
-        cds3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=30)        
-        prot3 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', 
+        cds3 = wc_kb.eukaryote.GenericLocus(start=1, end=30)        
+        prot3 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', 
             transcript=transcript3, coding_regions=[cds3])
         prot3_spec = wc_kb.core.Species(species_type=prot3, compartment=mito)
         prot3_conc = wc_kb.core.Concentration(cell=cell, species=prot3_spec, value=0.1)

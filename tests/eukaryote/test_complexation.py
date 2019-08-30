@@ -35,25 +35,25 @@ class TestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
-        gene1 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=12)
+        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=12)
         
-        locus1 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=6)
-        transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
-        prot1 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot1', transcript=transcript1, coding_regions=[locus1])
+        locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=6)
+        transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
+        prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', transcript=transcript1, coding_regions=[locus1])
         prot1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot1, 
             value='40000.0', value_type=wc_ontology['WC:float'])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         
-        locus2 = wc_kb.eukaryote_schema.GenericLocus(start=4, end=9)
-        transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus2])
-        prot2 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot2', transcript=transcript2, coding_regions=[locus2])
+        locus2 = wc_kb.eukaryote.GenericLocus(start=4, end=9)
+        transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus2])
+        prot2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot2', transcript=transcript2, coding_regions=[locus2])
         prot2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot2, 
             value='20000.0', value_type=wc_ontology['WC:float'])
         prot2_spec = wc_kb.core.Species(species_type=prot2, compartment=nucleus)
         
-        locus3 = wc_kb.eukaryote_schema.GenericLocus(start=7, end=12)
-        transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus3])
-        prot3 = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='prot3', transcript=transcript3, coding_regions=[locus3])
+        locus3 = wc_kb.eukaryote.GenericLocus(start=7, end=12)
+        transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus3])
+        prot3 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot3', transcript=transcript3, coding_regions=[locus3])
         prot3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot3, 
             value='25000.0', value_type=wc_ontology['WC:float'])
         prot3_spec1 = wc_kb.core.Species(species_type=prot3, compartment=nucleus)
@@ -85,7 +85,7 @@ class TestCase(unittest.TestCase):
                 })
             assert error is None, str(error)
 
-        for i in cell.species_types.get(__type=wc_kb.eukaryote_schema.ProteinSpeciesType):
+        for i in cell.species_types.get(__type=wc_kb.eukaryote.ProteinSpeciesType):
             model_species_type = model.species_types.get_or_create(id=i.id)
             model_compartment = model.compartments.get_one(id='n')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)

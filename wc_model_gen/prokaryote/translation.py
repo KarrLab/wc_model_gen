@@ -60,7 +60,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         bases = "TCAG"
         codons = [a + b + c for a in bases for b in bases for c in bases]
 
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         for idx, protein_kb in enumerate(proteins_kb):
 
             protein_model = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
@@ -181,7 +181,7 @@ class TranslationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for species in modifier.expression.species:
                 init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 
-        protein_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        protein_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         for protein_kb, reaction in zip(protein_kb, self.submodel.reactions):
 
             protein_product = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)

@@ -62,8 +62,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mitochondrion = model.compartments.get_one(id='m')
 
         # Get tRNAs
-        trna_kb = [i for i in cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType) \
-            if i.type==wc_kb.eukaryote_schema.TranscriptType.tRna]
+        trna_kb = [i for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType) \
+            if i.type==wc_kb.eukaryote.TranscriptType.tRna]
         trna_model = []
         for i in trna_kb:
             trna_model.append(model.species_types.get_one(id=i.id))        
@@ -80,8 +80,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 }            
         
         # Create reaction for each mRNA
-        mrna_kbs = [i for i in cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType) \
-            if i.type==wc_kb.eukaryote_schema.TranscriptType.mRna]
+        mrna_kbs = [i for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType) \
+            if i.type==wc_kb.eukaryote.TranscriptType.mRna]
         
         for mrna_kb in mrna_kbs:
             
@@ -210,7 +210,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         mean_doubling_time = model.parameters.get_one(id='mean_doubling_time').value       
         
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             init_species_counts = {}

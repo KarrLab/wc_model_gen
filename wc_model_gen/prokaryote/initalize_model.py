@@ -164,7 +164,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
-        kb_species_types = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.RnaSpeciesType)
+        kb_species_types = kb.cell.species_types.get(__type=wc_kb.prokaryote.RnaSpeciesType)
         avg_rna_half_life = self.calc_avg_half_life(kb_species_types=kb_species_types)
 
         # Create RNA species
@@ -184,7 +184,7 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
         kb = self.knowledge_base
         model = self.model
 
-        kb_species_types = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        kb_species_types = kb.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         avg_prot_half_life = self.calc_avg_half_life(kb_species_types=kb_species_types)
 
         # Create protein species
@@ -241,11 +241,11 @@ class InitalizeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:DNA'] # DNA
             model_species_type.structure = wc_lang.core.ChemicalStructure(value=kb_species_type.get_seq()) #kb_species_type.get_seq()
 
-        elif isinstance(kb_species_type, wc_kb.prokaryote_schema.RnaSpeciesType):
+        elif isinstance(kb_species_type, wc_kb.prokaryote.RnaSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
             model_species_type.structure =  wc_lang.core.ChemicalStructure(value=kb_species_type.get_seq())
 
-        elif isinstance(kb_species_type, wc_kb.prokaryote_schema.ProteinSpeciesType):
+        elif isinstance(kb_species_type, wc_kb.prokaryote.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             model_species_type.structure = wc_lang.core.ChemicalStructure(value=kb_species_type.get_seq())
 

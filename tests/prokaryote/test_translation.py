@@ -53,7 +53,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
         cytosol = model.compartments.get_one(id='c')
         submodel = model.submodels.get_one(id='translation')
 
-        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType):
+        for species in kb.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType):
             model_species = model.species_types.get_one(id=species.id)
             model_species_cytosol = model_species.species.get_one(compartment=cytosol)
             self.assertIsInstance(model_species, wc_lang.SpeciesType)
@@ -75,7 +75,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Check that number of RNAs = number of transcription reactions
         self.assertEqual(
-            len(kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)),
+            len(kb.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)),
             len(submodel.reactions))
 
         # Check that each reaction has the min or more number of participants
@@ -84,7 +84,7 @@ class TranslationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Check coeffs of reaction participants
         # TODO: add assertions about the number of participating tRNAs
-        prots_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        prots_kb = kb.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         for rxn, prot_kb in zip(submodel.reactions, prots_kb):
             prot_model = model.species_types.get_one(id=prot_kb.id)
             length = len(prot_kb.get_seq())

@@ -37,9 +37,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
-        gene1 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=19)
-        exon1 = wc_kb.eukaryote_schema.GenericLocus(start=5, end=19)
-        transcript1 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans1', 
+        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=19)
+        exon1 = wc_kb.eukaryote.GenericLocus(start=5, end=19)
+        transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1', 
             name='transcript1', gene=gene1, exons=[exon1])
         transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
@@ -47,41 +47,41 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=self.sequence_path)
-        gene2 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=18)
-        exon2 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=10)
-        transcript2 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans2', 
+        gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=18)
+        exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
+        transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
             name='transcript2', gene=gene2, exons=[exon2])
         transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript2, 
             value='15000.0', value_type=wc_ontology['WC:float'])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=mito)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=10.)
 
-        gene3 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene3', polymer=chr1, start=1, end=19)
-        exon3 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=15)
-        transcript3 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans3', 
+        gene3 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene3', polymer=chr1, start=1, end=19)
+        exon3 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
+        transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene3, exons=[exon3])
         transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript3, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=nucleus)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=10.)
 
-        gene4 = wc_kb.eukaryote_schema.GeneLocus(cell=cell, id='gene4', polymer=chr1, start=1, end=3)
-        exon4 = wc_kb.eukaryote_schema.GenericLocus(start=1, end=3)
-        transcript4 = wc_kb.eukaryote_schema.TranscriptSpeciesType(cell=cell, id='trans4', 
+        gene4 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene4', polymer=chr1, start=1, end=3)
+        exon4 = wc_kb.eukaryote.GenericLocus(start=1, end=3)
+        transcript4 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans4', 
             name='transcript4', gene=gene4, exons=[exon4])
         transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript4, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=nucleus)
         transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)
 
-        activator = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='activator')
-        repressor = wc_kb.eukaryote_schema.ProteinSpeciesType(cell=cell, id='repressor')
+        activator = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator')
+        repressor = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='repressor')
         gene2_reg1 = gene2.regulatory_modules.create(
-            transcription_factor_regulation=[wc_kb.eukaryote_schema.TranscriptionFactorRegulation(
-            transcription_factor=activator, direction=wc_kb.eukaryote_schema.RegulatoryDirection.activation)])
+            transcription_factor_regulation=[wc_kb.eukaryote.TranscriptionFactorRegulation(
+            transcription_factor=activator, direction=wc_kb.eukaryote.RegulatoryDirection.activation)])
         gene2_reg2 = gene2.regulatory_modules.create(
-            transcription_factor_regulation=[wc_kb.eukaryote_schema.TranscriptionFactorRegulation(
-            transcription_factor=repressor, direction=wc_kb.eukaryote_schema.RegulatoryDirection.repression)])                           
+            transcription_factor_regulation=[wc_kb.eukaryote.TranscriptionFactorRegulation(
+            transcription_factor=repressor, direction=wc_kb.eukaryote.RegulatoryDirection.repression)])                           
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -104,7 +104,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
                 })
             assert error is None, str(error)
 
-        for i in cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType):
+        for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type = model.species_types.create(id=i.id)
             model_compartment = model.compartments.get_one(id='m' if 'M' in i.gene.polymer.id else 'n')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)

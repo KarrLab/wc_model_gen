@@ -94,7 +94,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     # Generate reactions that lump complex dissociation and subunit degradation
                     for compl_subunit in compl.subunits:
 
-                        if type(compl_subunit.species_type) == wc_kb.eukaryote_schema.ProteinSpeciesType:                            
+                        if type(compl_subunit.species_type) == wc_kb.eukaryote.ProteinSpeciesType:                            
                             
                             model_rxn = model.reactions.create(
                                 submodel=self.submodel,

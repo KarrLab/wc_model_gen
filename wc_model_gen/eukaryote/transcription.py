@@ -207,7 +207,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
         # Create initiation and elongation reactions for each RNA
         init_el_rxn_no = 0
-        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         self._initiation_polr_species = {}
         self._elongation_modifier = {}
         self._allowable_queue_len = {}        
@@ -481,7 +481,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
         # Generate rate laws for initiation and elongation & termination
         rate_law_no = 0                    
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb in rnas_kb:
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
@@ -509,7 +509,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         species_type=model.species_types.get_one(id=tf.transcription_factor.id), 
                         compartment=rna_compartment)                   
                     
-                    if tf.direction == wc_kb.eukaryote_schema.RegulatoryDirection.activation:                        
+                    if tf.direction == wc_kb.eukaryote.RegulatoryDirection.activation:                        
                         F_act, species_act, param_act, func_act = utils.simple_activator(
                             model, reaction_id, tf_model)
                         F_regs.append(F_act)
@@ -517,7 +517,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         reg_parameters.update(param_act)
                         reg_functions.update(func_act)
                         
-                    elif tf.direction == wc_kb.eukaryote_schema.RegulatoryDirection.repression:
+                    elif tf.direction == wc_kb.eukaryote.RegulatoryDirection.repression:
                         F_rep, species_rep, param_rep, func_rep = utils.simple_repressor(
                             model, reaction_id, tf_model) 
                         F_regs.append(F_rep)
@@ -635,7 +635,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         average_rate = {}
         p_bound = {}
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote_schema.TranscriptSpeciesType)
+        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb in rnas_kb:            
         
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion 

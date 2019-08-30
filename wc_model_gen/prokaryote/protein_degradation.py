@@ -53,7 +53,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aas = ["A", "R", "N", "D", "C", "Q", "E", "G", "H", "I", "L", "K", "M", "F", "P",
                "S", "T", "W", "Y", "V"]
 
-        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        proteins_kb = cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
 
         for protein_kb in proteins_kb:
 
@@ -144,7 +144,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for species in modifier.expression.species:
             init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
 
-        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote_schema.ProteinSpeciesType)
+        proteins_kb = self.knowledge_base.cell.species_types.get(__type=wc_kb.prokaryote.ProteinSpeciesType)
         for protein_kb, reaction in zip(proteins_kb, self.submodel.reactions):
 
             protein_reactant = model.species_types.get_one(id=protein_kb.id).species.get_one(compartment=cytosol)
