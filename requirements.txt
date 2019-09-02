@@ -1,7 +1,2 @@
-de_sim
 setuptools
 six
-wc_kb
-wc_lang
-wc_onto
-wc_utils
