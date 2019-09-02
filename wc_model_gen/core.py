@@ -16,8 +16,8 @@ import wc_kb
 import wc_lang
 import wc_utils.util.string
 from wc_lang.util import get_model_summary
-from wc_sim.multialgorithm.simulation import Simulation
-from wc_sim.multialgorithm.run_results import RunResults
+from wc_sim.simulation import Simulation
+from wc_sim.run_results import RunResults
 from wc_onto import onto as wc_ontology
 
 

@@ -8,8 +8,8 @@
 
 from test.support import EnvironmentVarGuard
 from wc_model_gen import prokaryote
-from wc_sim.multialgorithm.run_results import RunResults
-from wc_sim.multialgorithm.simulation import Simulation
+from wc_sim.run_results import RunResults
+from wc_sim.simulation import Simulation
 from wc_lang.core import ChemicalStructure
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
