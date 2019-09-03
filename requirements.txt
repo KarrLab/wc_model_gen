@@ -3,4 +3,5 @@ six
 wc_kb
 wc_lang
 wc_onto
+wc_sim
 wc_utils
