@@ -232,7 +232,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             if param.references:
                 for ref in param.references:
-                    ref_model = wc_lang.Reference(model=model, id=ref.id, 
+                    ref_model = model.references.get_or_create(
+                        __type=wc_lang.Reference, 
+                        id=ref.id, 
                         author=ref.authors,
                         title=ref.title,
                         publication=ref.journal,
@@ -494,7 +496,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
             if conc.references:
                 for ref in conc.references:
-                    ref_model = wc_lang.Reference(model=model, id=ref.id, 
+                    ref_model = model.references.get_or_create(
+                        __type=wc_lang.Reference, 
+                        id=ref.id, 
                         author=ref.authors,
                         title=ref.title,
                         publication=ref.journal,
