@@ -130,6 +130,8 @@ class TestCase(unittest.TestCase):
 
         electron = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='el', name='electron')
         proton = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='h', name='proton')
+        pmf = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='PMF', name='proton motive force')
+        h2 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='h2', name='dihydrogen')
 
         species_type_coeff1 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=2)
         species_type_coeff2 = wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=3)
@@ -223,7 +225,7 @@ class TestCase(unittest.TestCase):
             model.functions.get_one(id='volume_n_m').expression), 'n_m / density_n_m')
         
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
-        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('s^-1'))
+        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('molecule^-1 s^-1'))
 
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').type, wc_ontology['WC:k_cat'])
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').identifiers[0].namespace, 'Sabio-RK')
@@ -379,6 +381,25 @@ class TestCase(unittest.TestCase):
         self.assertEqual(proton_model.structure.molecular_weight, 1.008)
         self.assertEqual(proton_model.structure.charge, 1)
 
+        pmf_model = model.species_types.get_one(id='PMF')
+
+        self.assertEqual(pmf_model.name, 'proton motive force')
+        self.assertEqual(pmf_model.type, wc_ontology['WC:metabolite'])
+        self.assertEqual(pmf_model.structure.value, '[1H+]')
+        self.assertEqual(pmf_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
+        self.assertEqual(pmf_model.structure.empirical_formula, chem.EmpiricalFormula('H'))
+        self.assertEqual(pmf_model.structure.molecular_weight, 1.008)
+        self.assertEqual(pmf_model.structure.charge, 1)
+
+        h2_model = model.species_types.get_one(id='h2')
+
+        self.assertEqual(h2_model.name, 'dihydrogen')
+        self.assertEqual(h2_model.type, wc_ontology['WC:metabolite'])
+        self.assertEqual(h2_model.structure.value, '[H][H]')
+        self.assertEqual(h2_model.structure.format, wc_lang.ChemicalStructureFormat.SMILES)
+        self.assertEqual(h2_model.structure.empirical_formula, chem.EmpiricalFormula('H2'))
+        self.assertEqual(h2_model.structure.molecular_weight, 2.016)
+        self.assertEqual(h2_model.structure.charge, 0)
         
     def test_gen_complexes(self):
 

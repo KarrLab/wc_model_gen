@@ -227,6 +227,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_param.type = wc_ontology['WC:K_m']
             elif 'k_cat' in param.id:
                 model_param.type = wc_ontology['WC:k_cat']
+                model_param.units = unit_registry.parse_units('molecule^-1 s^-1')
             else:
                 model_param.type = None
 
@@ -382,12 +383,18 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 model_species_type.structure.empirical_formula = EmpiricalFormula()
                 model_species_type.structure.molecular_weight = 0.
                 model_species_type.structure.charge = -1
-            elif kb_species_type.name == 'proton':
+            elif kb_species_type.name == 'proton' or kb_species_type.name == 'proton motive force':
                 model_species_type.structure.value = '[1H+]'
                 model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
                 model_species_type.structure.empirical_formula = EmpiricalFormula('H')
                 model_species_type.structure.molecular_weight = 1.008
                 model_species_type.structure.charge = 1
+            elif kb_species_type.name == 'dihydrogen':
+                model_species_type.structure.value = '[H][H]'
+                model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
+                model_species_type.structure.empirical_formula = EmpiricalFormula('H2')
+                model_species_type.structure.molecular_weight = 2.016
+                model_species_type.structure.charge = 0    
             else:    
                 inchi_str = kb_species_type.properties.get_one(property='structure')
                 if inchi_str:
