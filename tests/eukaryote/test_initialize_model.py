@@ -537,7 +537,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r2_kb').participants), '[n]: (3) h ==> met2')            
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r3_kb').participants), '[n]: met2 ==> (3) h')
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r4_kb').participants), '[n]: met2 ==> (3) h')
-        self.assertEqual(attr.serialize(model.reactions.get_one(id='r5_kb').participants), '[n]: ==> met1')
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r5_kb').participants), '[n]:  ==> met1')
         
     def test_gen_kb_rate_laws(self):
         
