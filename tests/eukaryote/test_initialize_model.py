@@ -162,6 +162,26 @@ class TestCase(unittest.TestCase):
         reaction1 = wc_kb.core.Reaction(cell=cell, id='r1', name='reaction1',
             participants=[participant1, participant2], reversible=True)
 
+        met2 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met2', name='metabolite2')
+        met2_formula = wc_kb.core.SpeciesTypeProperty(property='empirical_formula', species_type=met2, 
+            value='H3', value_type=wc_ontology['WC:string'])
+        met2_formula.id = met2_formula.gen_id()
+        met2_charge = wc_kb.core.SpeciesTypeProperty(property='charge', species_type=met2, 
+            value=3, value_type=wc_ontology['WC:integer'])
+        met2_charge.id = met2_charge.gen_id()
+        proton_species = wc_kb.core.Species(species_type=proton, compartment=nucleus)
+        met2_species = wc_kb.core.Species(species_type=met2, compartment=nucleus)
+        proton_substrate = wc_kb.core.SpeciesCoefficient(species=proton_species, coefficient=-1)
+        proton_product = wc_kb.core.SpeciesCoefficient(species=proton_species, coefficient=1)
+        met2_substrate = wc_kb.core.SpeciesCoefficient(species=met2_species, coefficient=-1)
+        met2_product = wc_kb.core.SpeciesCoefficient(species=met2_species, coefficient=1)        
+        reaction2 = wc_kb.core.Reaction(cell=cell, id='r2', name='reaction2',
+            participants=[proton_substrate, met2_product], reversible=True)
+        reaction3 = wc_kb.core.Reaction(cell=cell, id='r3', name='reaction3',
+            participants=[met2_substrate, proton_product], reversible=True)
+        reaction4 = wc_kb.core.Reaction(cell=cell, id='r4', name='reaction4',
+            participants=[met2_substrate], reversible=True)                
+
         identifier = wc_kb.core.Identifier(namespace='Sabio-RK', id='1234')
         kcat_r1_forward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_forward', value=0.2, 
             units=unit_registry.parse_units('s^-1'), identifiers=[identifier])
@@ -492,12 +512,15 @@ class TestCase(unittest.TestCase):
 
     def test_gen_kb_reactions(self):
 
-        model = core.EukaryoteModelGenerator(self.kb,
+        kb = self.kb
+        cell = kb.cell
+
+        model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([
                 'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()
 
-        self.assertEqual(len(model.reactions), 1)
+        self.assertEqual(len(model.reactions), 4)
         self.assertEqual(len(model.submodels), 1)
 
         self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
@@ -506,8 +529,12 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.dfba_obj.id, 'dfba-obj-metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
-        self.assertEqual([(i.species.id, i.coefficient) for i in model.reactions.get_one(id='r1_kb').participants],
-            [('met1[n]', 1), ('met1[e]', -1)])
+
+        attr = wc_lang.core.ReactionParticipantAttribute()
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r1_kb').participants), 'met1[e] ==> met1[n]')            
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r2_kb').participants), '[n]: (3) h ==> met2')            
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r3_kb').participants), '[n]: met2 ==> (3) h')
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r4_kb').participants), '[n]: met2 ==> (3) h')
         
     def test_gen_kb_rate_laws(self):
         
