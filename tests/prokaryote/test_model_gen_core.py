@@ -8,7 +8,7 @@
 from test.support import EnvironmentVarGuard
 from wc_kb_gen import random
 from wc_model_gen import prokaryote
-import obj_model
+import obj_tables
 import unittest
 import wc_kb
 import wc_lang
@@ -42,6 +42,6 @@ class ModelGeneratorTestCase(unittest.TestCase):
         extracellular_space = self.model.compartments.get_one(id='e')
         mean_doubling_time = self.model.parameters.get_one(id='mean_doubling_time')
 
-        errors = obj_model.Validator().run(self.model, get_related=True)
+        errors = obj_tables.Validator().run(self.model, get_related=True)
         self.assertEqual(errors, None, msg=wc_utils.util.string.indent_forest(errors))
         self.assertEqual(5, len(self.model.submodels))
