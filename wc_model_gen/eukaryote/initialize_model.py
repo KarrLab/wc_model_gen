@@ -609,7 +609,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 delta_charge += model_species_type.structure.charge * participant.coefficient
 
             # Correct proton and charge balance at the pH at which metabolite properties are determined
-            if delta_charge and delta_charge == delta_formula['H']:
+            if delta_charge and len(delta_formula)==1 and delta_charge==delta_formula['H']:
                 proton_species_type = model.species_types.get_one(name='proton')
                 if proton_participant:
                     proton_coef = [i for i in model_rxn.participants if i.species.species_type==proton_species_type][0]

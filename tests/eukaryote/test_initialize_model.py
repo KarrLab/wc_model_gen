@@ -180,7 +180,9 @@ class TestCase(unittest.TestCase):
         reaction3 = wc_kb.core.Reaction(cell=cell, id='r3', name='reaction3',
             participants=[met2_substrate, proton_product], reversible=True)
         reaction4 = wc_kb.core.Reaction(cell=cell, id='r4', name='reaction4',
-            participants=[met2_substrate], reversible=True)                
+            participants=[met2_substrate], reversible=True) 
+        reaction5 = wc_kb.core.Reaction(cell=cell, id='r5', name='reaction5',
+            participants=[participant1], reversible=True)                   
 
         identifier = wc_kb.core.Identifier(namespace='Sabio-RK', id='1234')
         kcat_r1_forward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_forward', value=0.2, 
@@ -520,7 +522,7 @@ class TestCase(unittest.TestCase):
             options={'component': {'InitializeModel': self.set_options([
                 'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()
 
-        self.assertEqual(len(model.reactions), 4)
+        self.assertEqual(len(model.reactions), 5)
         self.assertEqual(len(model.submodels), 1)
 
         self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
@@ -535,6 +537,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r2_kb').participants), '[n]: (3) h ==> met2')            
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r3_kb').participants), '[n]: met2 ==> (3) h')
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r4_kb').participants), '[n]: met2 ==> (3) h')
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='r5_kb').participants), '[n]: ==> met1')
         
     def test_gen_kb_rate_laws(self):
         
