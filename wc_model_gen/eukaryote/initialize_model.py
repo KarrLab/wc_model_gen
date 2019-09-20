@@ -21,9 +21,38 @@ import wc_model_gen
 
 
 class InitializeModel(wc_model_gen.ModelComponentGenerator):
-    """ Generate compartments """
+    """ Initialize model from knowledge base 
+    
+    Options:
+
+    * culture_volume (:obj:`float`): volume of cell culture; default is 1.0 liter
+    * cell_density(:obj:`float`): cell density; default is 1040 g/liter
+    * membrane_density (:obj:`float`): membrane density; default is 1160 g/liter
+    * cds (:obj:`bool`): True indicates mRNA sequence is a complete CDS; default is True
+    * environment (:obj:`dict`): dictionary with details for generating cell environment in the model 
+    * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
+    * check_reaction (:obj:`bool`): if True, reactions will be checked and corrected for proton and charge balance;
+        default is True
+    * gen_dna (:obj:`bool`): if True, DNA species types and species will be generated; 
+        default is True
+    * gen_transcripts (:obj:`bool`): if True, transcript species types and species will be generated; 
+        default is True
+    * gen_protein (:obj:`bool`): if True, protein species types and species will be generated; 
+        default is True
+    * gen_metabolites (:obj:`bool`): if True, metabolite species types and species will be generated; 
+        default is True
+    * gen_complexes (:obj:`bool`): if True, macromolecular complex species types and species will be generated; 
+        default is True
+    * gen_distribution_init_concentration (:obj:`bool`): if True, initial concentration of species will be generated; 
+        default is True                    
+    * gen_observables (:obj:`bool`): if True, observables will be generated; default is True    
+    * gen_kb_reactions (:obj:`bool`): if True, reactions will be generated; default is True
+    * gen_kb_rate_laws (:obj:`bool`): if True, rate laws will be generated; default is True
+    * gen_environment (:obj:`bool`): if True, cell environment will be generated; default is True    
+    """
 
     def run(self):
+        """ Run all the components for initializing model from knowledge base """
         self.clean_and_validate_options()
         options = self.options
 
@@ -77,6 +106,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         print('Model generator has been initialized')        
 
     def clean_and_validate_options(self):
+        """ Apply default options and validate options """
         options = self.options
 
         culture_volume = options.get('culture_volume', 1.)
@@ -101,7 +131,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         ph = options.get('ph', 7.4)
         assert(isinstance(ph, float))
-        options['ph'] = ph        
+        options['ph'] = ph
+
+        check_reaction = options.get('check_reaction', True)
+        assert(isinstance(check_reaction, bool))
+        options['check_reaction'] = check_reaction        
 
         gen_dna = options.get('gen_dna', True)
         assert(isinstance(gen_dna, bool))
@@ -144,7 +178,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         options['gen_environment'] = gen_environment
 
     def gen_taxon(self):
-
+        """ Generate taxon for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
 
@@ -155,7 +189,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             rank=wc_lang.core.TaxonRank[taxon_rank]) 
 
     def gen_compartments(self):
-
+        """ Generate compartments for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
 
@@ -208,6 +242,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 assert error is None, str(error)           
 
     def gen_parameters(self):
+        """ Generate parameters for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
 
@@ -266,6 +301,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_doubling_time.units = unit_registry.parse_units('s')                 
 
     def gen_dna(self):
+        """ Generate DNAs for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
 
@@ -609,18 +645,21 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 delta_charge += model_species_type.structure.charge * participant.coefficient
 
             # Correct proton and charge balance at the pH at which metabolite properties are determined
-            if delta_charge and len(delta_formula)==1 and delta_charge==delta_formula['H']:
-                proton_species_type = model.species_types.get_one(name='proton')
-                if proton_participant:
-                    proton_coef = [i for i in model_rxn.participants if i.species.species_type==proton_species_type][0]
-                    proton_coef.coefficient -= delta_charge
-                else:
-                    comp_id = set([i.species.compartment.id for i in model_rxn.participants]).pop()
-                    proton_compartment = model.compartments.get_one(id=comp_id)
-                    proton_species = model.species.get_or_create(species_type=proton_species_type, compartment=proton_compartment)
-                    proton_species.id = proton_species.gen_id()
-                    model_rxn.participants.add(
-                        proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
+            if self.options['check_reaction']:
+                if delta_charge and len(delta_formula)==1 and delta_charge==delta_formula['H']:
+                    proton_species_type = model.species_types.get_one(name='proton')
+                    if proton_participant:
+                        proton_coef = [i for i in model_rxn.participants if i.species.species_type==proton_species_type][0]
+                        model_rxn.participants.discard(proton_coef)
+                        model_rxn.participants.add(
+                            proton_coef.species.species_coefficients.get_or_create(coefficient=proton_coef.coefficient-delta_charge))
+                    else:
+                        comp_id = set([i.species.compartment.id for i in model_rxn.participants]).pop()
+                        proton_compartment = model.compartments.get_one(id=comp_id)
+                        proton_species = model.species.get_or_create(species_type=proton_species_type, compartment=proton_compartment)
+                        proton_species.id = proton_species.gen_id()
+                        model_rxn.participants.add(
+                            proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
 
         # Temporary code to be moved to metabolism model gen later
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
