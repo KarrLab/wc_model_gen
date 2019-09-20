@@ -123,7 +123,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                     else:
                                         codon_id = codon_table[subunit.species_type.id]    
                                     
-                                    protein_seq = subunit.species_type.get_seq(table=codon_id, cds=cds)
+                                    protein_seq = subunit.species_type.get_seq(table=codon_id, cds=cds).strip('*')
                                     aa_content = {}
                                     for aa in protein_seq:
                                         aa_id = amino_acid_id_conversion[aa]
