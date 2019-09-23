@@ -562,8 +562,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     conc_model.identifiers.append(identifier_model)
 
         for chromosome in kb.cell.species_types.get(__type=wc_kb.core.DnaSpeciesType):
-            model_species_type = model.species_types.get_one(id=chromosome.id)
-            model_species = model.species.get(species_type=model_species_type)[0]
+            model_species_type = model.species_types.get_or_create(id=chromosome.id)
+            model_species = model.species.get_or_create(species_type=model_species_type)
             conc_model = model.distribution_init_concentrations.create(
                 species=model_species,
                 mean=chromosome.ploidy, 
