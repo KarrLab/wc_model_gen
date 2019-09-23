@@ -132,15 +132,19 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                         else:
                                             aa_content[aa_id] += 1
 
+                                    if compl_compartment.id == 'm':
+                                        degradation_comp = model.compartments.get_one(id='m')
+                                    else:
+                                        degradation_comp = model.compartments.get_one(id='l')
                                     for aa_id, aa_count in aa_content.items():
                                         model_aa = model.species_types.get_one(id=aa_id).species.get_one(
-                                            compartment=compl_compartment)
+                                            compartment=degradation_comp)
                                         model_rxn.participants.add(
                                             model_aa.species_coefficients.get_or_create(
                                             coefficient=aa_count))        
 
                                     h2o = model.species_types.get_one(id='h2o').species.get_one(
-                                        compartment=compl_compartment)
+                                        compartment=degradation_comp)
                                     model_rxn.participants.add(
                                         h2o.species_coefficients.get_or_create(
                                         coefficient=-(sum(aa_content.values())-1)))                                   

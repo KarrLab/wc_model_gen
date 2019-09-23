@@ -489,12 +489,14 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         if isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
                 for sub in kb_species_type.subunits]
-
-            shared_compartments = set([])
-            for i in range(len(subunit_compartments)):
-                shared_compartments = (set(subunit_compartments[i])
-                    if i==0 else shared_compartments).intersection(
-                    set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)
+            if len(subunit_compartments) == 1:
+                shared_compartments = set(subunit_compartments[0])
+            else:
+                shared_compartments = set([])
+                for i in range(len(subunit_compartments)):
+                    shared_compartments = (set(subunit_compartments[i])
+                        if i==0 else shared_compartments).intersection(
+                        set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)
             # Combine compartments where all the subunits exist, where catalyzed reactions occur and the additionally defined extra
             compartment_ids = set(list(shared_compartments) + [s.compartment.id for s in kb_species_type.species] +
                               (extra_compartment_ids or []))

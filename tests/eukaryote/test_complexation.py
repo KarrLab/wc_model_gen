@@ -33,6 +33,7 @@ class TestCase(unittest.TestCase):
 
         nucleus = cell.compartments.create(id='n')
         mito = cell.compartments.create(id='m')
+        lysosome = cell.compartments.create(id='l')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
         gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=12)
@@ -63,7 +64,11 @@ class TestCase(unittest.TestCase):
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=1),
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot2, coefficient=2),
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot3, coefficient=0),
-            ])        
+            ])
+
+        complex2 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex2', subunits=[
+            wc_kb.core.SpeciesTypeCoefficient(species_type=prot3, coefficient=2),
+            ])            
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -71,7 +76,7 @@ class TestCase(unittest.TestCase):
         model.parameters.create(id='Avogadro', value = scipy.constants.Avogadro,
                                 units = unit_registry.parse_units('molecule mol^-1'))
 
-        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14)}
+        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14), 'l': ('lysosome', 2.5E-14)}
         for k, v in compartments.items():
             init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=v[1], std=0)
@@ -102,26 +107,32 @@ class TestCase(unittest.TestCase):
             mean=20, units=unit_registry.parse_units('molecule'))
         conc_model.id = conc_model.gen_id()
 
-        model_species_type = model.species_types.create(id=complex1.id)
-        subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
-            for sub in complex1.subunits]
-        shared_compartments = set([])
-        for i in range(len(subunit_compartments)):
-            shared_compartments = (set(subunit_compartments[i])
-                if i==0 else shared_compartments).intersection(
-                set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)            
-        compartment_ids = set(list(shared_compartments))
-        for compartment_id in compartment_ids:
-            model_compartment = model.compartments.get_one(id=compartment_id)
-            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
-            model_species.id = model_species.gen_id()
+        for compl in [complex1, complex2]:
+            model_species_type = model.species_types.create(id=compl.id)
+            subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
+                for sub in compl.subunits]
+            if len(subunit_compartments) == 1:
+                shared_compartments = set(subunit_compartments[0])
+            else:    
+                shared_compartments = set([])
+                for i in range(len(subunit_compartments)):
+                    shared_compartments = (set(subunit_compartments[i])
+                        if i==0 else shared_compartments).intersection(
+                        set(subunit_compartments[i+1]) if i<(len(subunit_compartments)-1) else shared_compartments)            
+            compartment_ids = set(list(shared_compartments))
+            for compartment_id in compartment_ids:
+                model_compartment = model.compartments.get_one(id=compartment_id)
+                model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+                model_species.id = model_species.gen_id()
 
         metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'h2o']
+        metabolic_compartments = ['l', 'm']
         for i in metabolic_participants:
-            model_species_type = model.species_types.create(id=i)            
-            model_compartment = model.compartments.get_one(id='n')
-            model_species = model.species.create(species_type=model_species_type, compartment=model_compartment)
-            model_species.id = model_species.gen_id()
+            for c in metabolic_compartments:
+                model_species_type = model.species_types.get_or_create(id=i)            
+                model_compartment = model.compartments.get_one(id=c)
+                model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+                model_species.id = model_species.gen_id()
             
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)                     
@@ -141,15 +152,15 @@ class TestCase(unittest.TestCase):
             })
         gen.run()   
 
-        self.assertEqual(len(model.reactions), 4)
+        self.assertEqual(len(model.reactions), 8)
         self.assertEqual([i.id for i in model.submodels], ['complexation'])
 
         # Test gen_reaction
-        complex_assembly = model.reactions.get_one(id='complex_association_complex1_n')
-        self.assertEqual(complex_assembly.name, 'Complexation of complex1 in nucleus')
-        self.assertEqual(complex_assembly.reversible, False)
-        self.assertEqual(complex_assembly.comments, '')
-        self.assertEqual([(i.species.id, i.coefficient) for i in complex_assembly.participants],
+        complex1_assembly = model.reactions.get_one(id='complex_association_complex1_n')
+        self.assertEqual(complex1_assembly.name, 'Complexation of complex1 in nucleus')
+        self.assertEqual(complex1_assembly.reversible, False)
+        self.assertEqual(complex1_assembly.comments, '')
+        self.assertEqual([(i.species.id, i.coefficient) for i in complex1_assembly.participants],
             [('prot1[n]', -1), ('prot2[n]', -2), ('prot3[n]', -1), ('complex1[n]', 1)])
         
         dissociate_prot1 = model.reactions.get_one(id='complex1_n_dissociation_prot1_degradation')
@@ -157,24 +168,34 @@ class TestCase(unittest.TestCase):
         self.assertEqual(dissociate_prot1.reversible, False)
         self.assertEqual(dissociate_prot1.comments, '')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot1.participants]),
-            sorted([('complex1[n]', -1), ('h2o[n]', -1), ('Ala[n]', 1), ('Cys[n]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
+            sorted([('complex1[n]', -1), ('h2o[l]', -1), ('Ala[l]', 1), ('Cys[l]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
         
         dissociate_prot2 = model.reactions.get_one(id='complex1_n_dissociation_prot2_degradation')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot2.participants]),
-            sorted([('complex1[n]', -1), ('h2o[n]', -1), ('Cys[n]', 1), ('Asp[n]', 1), ('prot1[n]', 1), ('prot2[n]', 1), ('prot3[n]', 1)]))
+            sorted([('complex1[n]', -1), ('h2o[l]', -1), ('Cys[l]', 1), ('Asp[l]', 1), ('prot1[n]', 1), ('prot2[n]', 1), ('prot3[n]', 1)]))
 
         dissociate_prot3 = model.reactions.get_one(id='complex1_n_dissociation_prot3_degradation')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot3.participants]),
-            sorted([('complex1[n]', -1), ('h2o[n]', -1), ('Asp[n]', 2), ('prot1[n]', 1), ('prot2[n]', 2)]))
+            sorted([('complex1[n]', -1), ('h2o[l]', -1), ('Asp[l]', 2), ('prot1[n]', 1), ('prot2[n]', 2)]))
 
+        complex2_assembly = model.reactions.get_one(id='complex_association_complex2_m')
+        self.assertEqual(complex2_assembly.name, 'Complexation of complex2 in mitochondria')
+        self.assertEqual(complex2_assembly.reversible, False)
+        self.assertEqual(complex2_assembly.comments, '')
+        self.assertEqual([(i.species.id, i.coefficient) for i in complex2_assembly.participants],
+            [('prot3[m]', -2), ('complex2[m]', 1)])
+
+        c2_dissociate_prot3 = model.reactions.get_one(id='complex2_m_dissociation_prot3_degradation')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3.participants]),
+            sorted([('complex2[m]', -1), ('h2o[m]', -1), ('Asp[m]', 2),  ('prot3[m]', 1)]))
 
         # Test gen_rate_laws
-        self.assertEqual(complex_assembly.rate_laws[0].expression.expression, 
+        self.assertEqual(complex1_assembly.rate_laws[0].expression.expression, 
             'k_cat_complex_association_complex1_n * '
             '(prot1[n] / (prot1[n] + K_m_complex_association_complex1_n_prot1 * Avogadro * volume_n)) * '
             '(prot2[n] / (prot2[n] + K_m_complex_association_complex1_n_prot2 * Avogadro * volume_n)) * '
             '(prot3[n] / (prot3[n] + K_m_complex_association_complex1_n_prot3 * Avogadro * volume_n))')
-        self.assertEqual(complex_assembly.rate_laws[0].direction, wc_lang.RateLawDirection.forward)
+        self.assertEqual(complex1_assembly.rate_laws[0].direction, wc_lang.RateLawDirection.forward)
         self.assertEqual(dissociate_prot1.rate_laws[0].expression.expression, 
             'k_cat_complex1_n_dissociation_prot1_degradation * complex1[n]')
         self.assertEqual(dissociate_prot3.rate_laws[0].expression.expression, 
