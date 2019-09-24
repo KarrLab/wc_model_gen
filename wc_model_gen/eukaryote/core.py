@@ -23,7 +23,9 @@ class EukaryoteModelGenerator(wc_model_gen.ModelGenerator):
     * component
 
         * InitializeModel
-        * TranscriptionSubmodelGenerator
+        * ComplexationSubmodelGenerator,
+        * TranscriptionSubmodelGenerator,
+        * RnaDegradationSubmodelGenerator
     """
 
     DEFAULT_COMPONENT_GENERATORS = (
