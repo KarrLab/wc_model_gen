@@ -434,7 +434,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             else:    
                 inchi_str = kb_species_type.properties.get_one(property='structure')
                 if inchi_str:
-                    smiles, formula, charge, mol_wt = self.inchi_to_smiles_and_props(
+                    smiles, formula, charge, mol_wt = self.structure_to_smiles_and_props(
                         inchi_str.get_value(), ph)
                     model_species_type.structure.value = smiles
                     model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
@@ -465,7 +465,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
-                        _, sub_formula, sub_charge, sub_mol_wt = self.inchi_to_smiles_and_props(
+                        _, sub_formula, sub_charge, sub_mol_wt = self.structure_to_smiles_and_props(
                             inchi_str.get_value(), ph)
                     else:
                         sub_formula = subunit.species_type.get_empirical_formula()
@@ -746,12 +746,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 temp=environment['temperature'],
                 comments=environment['comments'])
 
-    def inchi_to_smiles_and_props(self, inchi, ph):
-        """ Convert an InChI string to a SMILES string and calculate properties such
+    def structure_to_smiles_and_props(self, structure, ph):
+        """ Convert InChI or SMILES string in the knowledge base 
+            to a SMILES string at specific pH and calculate properties such
             as empirical formula, charge and molecular weight 
 
         Args:
-            inchi (:obj:`str`): InChI string
+            structure (:obj:`str`): InChI or SMILES string
             ph (:obj:`float`): pH at which the properties should be determined
 
         Returns:
@@ -760,8 +761,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             :obj:`int`: charge
             :obj:`float`: molecular weight    
         """
-
-        smiles = get_major_micro_species(inchi, 'inchi', 'smiles', ph=ph)        
+        structure_type = 'inchi' if 'InChI=' in structure else 'smiles'
+        smiles = get_major_micro_species(structure, structure_type, 'smiles', ph=ph)        
         mol = openbabel.OBMol()
         conv = openbabel.OBConversion()
         conv.SetInFormat('smi')

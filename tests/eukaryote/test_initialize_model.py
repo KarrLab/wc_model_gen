@@ -598,6 +598,33 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.env.temp_units, unit_registry.parse_units('celsius'))
         self.assertEqual(model.env.comments, '')
 
+    def test_structure_to_smiles_and_props(self):
+
+        model = wc_lang.Model()
+        test_instance = initialize_model.InitializeModel(self.kb, model)
+        ph = 7.4        
+        structure = 'InChI=1S/C10H14N5O7P/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20' +\
+                    '/h2-4,6-7,10,16-17H,1H2,(H2,11,12,13)(H2,18,19,20)/p-2/t4-,6-,7-,10-/m1/s1'
+        smiles, formula, charge, mol_wt = test_instance.structure_to_smiles_and_props(structure, ph)
+        self.assertEqual(smiles, 'NC1=C2N=CN([C@@H]3O[C@H](COP([O-])([O-])=O)[C@@H](O)[C@H]3O)C2=NC=N1')
+        self.assertEqual(formula, chem.EmpiricalFormula('C10H12N5O7P'))
+        self.assertEqual(charge, -2)
+        self.assertAlmostEqual(mol_wt, 345.20776199799997, places=4)
+
+        structure = '[H]OC([H])([H])[C@@]1([H])O[C@]([H])(n2c([H])[nH]c3c([H])c(c(c([H])c23)C([H])([H])' +\
+                    '[H])C([H])([H])[H])[C@]([H])(O[H])[C@]1([H])OP([O-])(=O)O[C@]([H])(C([H])([H])[H])C([H])' +\
+                    '([H])N([H])C(=O)C([H])([H])C([H])([H])[C@]1(\C2=C(\C3=N\C(=C([H])/C4=NC(=C(C5=N[C@@](C([H])' +\
+                    '([H])[H])([C@]([H])(N2[Co+][O+]([H])[H])[C@]1([H])C([H])([H])C(=O)N([H])[H])[C@@](C([H])([H])' +\
+                    '[H])(C([H])([H])C(=O)N([H])[H])[C@]5([H])C([H])([H])C([H])([H])C(=O)N([H])[H])C([H])([H])[H])' +\
+                    '[C@@](C([H])([H])[H])(C([H])([H])C(=O)N([H])[H])[C@]4([H])C([H])([H])C([H])([H])C(=O)N([H])[H])\C' +\
+                    '(C([H])([H])[H])(C([H])([H])[H])[C@]3([H])C([H])([H])C([H])([H])C(=O)N([H])[H])C([H])([H])[H])C([H])([H])[H]'
+        smiles, formula, charge, mol_wt = test_instance.structure_to_smiles_and_props(structure, ph)
+        self.assertEqual(smiles, 'C[C@H](CNC(=O)CC[C@]1(C)[C@@H](CC(N)=O)[C@H]2N([Co+]O)\\C1=C(C)/C1=[NH+]/C(=C\\C3=[NH+]C'
+            '(=C(C)C4=N[C@]2(C)[C@@](C)(CC(N)=O)[C@@H]4CCC(N)=O)[C@@](C)(CC(N)=O)[C@@H]3CCC(N)=O)/C(C)(C)[C@@H]1CCC(N)=O)OP'
+            '([O-])(=O)O[C@@H]1[C@@H](CO)O[C@@H]([C@@H]1O)n1c[nH]c2cc(C)c(C)cc12')
+        self.assertEqual(formula, chem.EmpiricalFormula('C62H99CoN13O15P'))
+        self.assertEqual(charge, 2)
+        self.assertAlmostEqual(mol_wt, 1356.456955998, places=4)            
 
     def test_unchanged_kb(self):    
         
