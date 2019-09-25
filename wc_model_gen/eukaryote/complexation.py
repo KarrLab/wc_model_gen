@@ -178,8 +178,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     type=wc_ontology['WC:k_cat'],
                     units=unit_registry.parse_units('s^-1'))
                 
-                complex_species = model.species_types.get_one(id=reaction.id.split('_')[0]).species.get_one(
-                    compartment=model.compartments.get_one(id=reaction.id.split('_')[1]))
+                reaction_details = reaction.id.split('_')
+                complex_species = model.species_types.get_one(id='_'.join(reaction_details[:-4])).species.get_one(
+                    compartment=model.compartments.get_one(id=reaction_details[-4]))
                 
                 expression = '{} * {}'.format(diss_k_cat.id, complex_species.id)
 
@@ -215,9 +216,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         for reaction in self.submodel.reactions:            
             
+            reaction_details = reaction.id.split('_')
+            
             if 'complex_association_' in reaction.id:
 
-                compl_compartment = model.compartments.get_one(id=reaction.id.split('_')[-1])
+                compl_compartment = model.compartments.get_one(id=reaction_details[-1])
 
                 for param in reaction.rate_laws[0].expression.parameters:
                     if 'K_m_' in param.id:
@@ -243,19 +246,45 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             else:
 
-                compl_compartment = model.compartments.get_one(id=reaction.id.split('_')[1])
+                compl_compartment = model.compartments.get_one(id=reaction_details[-4])
 
                 degraded_subunit_hlife = cell.species_types.get_one(
-                    id=reaction.id.split('_')[3]).properties.get_one(
+                    id=reaction_details[-2]).properties.get_one(
                     property='half_life').get_value()
 
                 degraded_subunit_species = model.species_types.get_one(
-                    id=reaction.id.split('_')[3]).species.get_one(compartment=compl_compartment)
+                    id=reaction_details[-2]).species.get_one(compartment=compl_compartment)
                 degraded_subunit_stoic = model.reactions.get_one(id='complex_association_{}_{}'.format(
-                    reaction.id.split('_')[0], compl_compartment.id)).participants.get_one(
+                    '_'.join(reaction_details[:-4]), compl_compartment.id)).participants.get_one(
                     species=degraded_subunit_species).coefficient                           
 
                 diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
                 diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
 
-        print('Complexation submodel has been generated')                                
+        print('Complexation submodel has been generated')
+
+    def determine_initial_concentration(self, complex_id):
+        """ Estimate the initial concentration of complex_species at assuming steady-state. 
+            The initial concentration of protein subunits will also be updated accordingly.
+
+        Args:
+            complex_id (:obj:`str`): ID of complex whose concentration is to be determined
+        """   
+        model = self.model        
+        cell = self.knowledge_base.cell
+
+        model_complex_species_type = model.species_types.get_one(complex_id)
+        for model_compl_species in model_compl_species_type.species:
+            compl_compartment = model_compl_species.compartment
+
+        for subunit in cell.species_types.get_one(id=complex_id).subunits:
+
+            conc_free_polr = model.distribution_init_concentrations.get_or_create(
+                species=polr_complex_species,
+                mean=0,
+                units=unit_registry.parse_units('molecule'),
+                comments='Set by ',
+                )
+            conc_free_polr.id = conc_free_polr.gen_id()
+                
+                                    
