@@ -7,6 +7,8 @@
 
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import Bio.Alphabet
+import Bio.Seq
 import wc_model_gen.utils as utils
 import scipy.constants
 import wc_kb
@@ -123,7 +125,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                     else:
                                         codon_id = codon_table[subunit.species_type.id]    
                                     
-                                    protein_seq = subunit.species_type.get_seq(table=codon_id, cds=cds).strip('*')
+                                    protein_seq = ''.join(i for i in subunit.species_type.get_seq(table=codon_id, cds=cds) if i!='*')                                    
                                     aa_content = {}
                                     for aa in protein_seq:
                                         aa_id = amino_acid_id_conversion[aa]
@@ -132,15 +134,19 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                         else:
                                             aa_content[aa_id] += 1
 
+                                    if compl_compartment.id == 'm':
+                                        degradation_comp = model.compartments.get_one(id='m')
+                                    else:
+                                        degradation_comp = model.compartments.get_one(id='l')
                                     for aa_id, aa_count in aa_content.items():
-                                        model_aa = model.species_types.get_one(id=aa_id).species.get_one(
-                                            compartment=compl_compartment)
+                                        model_aa = model.species_types.get_one(id=aa_id).species.get_or_create(
+                                            compartment=degradation_comp)
                                         model_rxn.participants.add(
                                             model_aa.species_coefficients.get_or_create(
                                             coefficient=aa_count))        
 
                                     h2o = model.species_types.get_one(id='h2o').species.get_one(
-                                        compartment=compl_compartment)
+                                        compartment=degradation_comp)
                                     model_rxn.participants.add(
                                         h2o.species_coefficients.get_or_create(
                                         coefficient=-(sum(aa_content.values())-1)))                                   
