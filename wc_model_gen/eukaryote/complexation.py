@@ -9,6 +9,8 @@ from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import Bio.Alphabet
 import Bio.Seq
+import collections
+import conv_opt
 import wc_model_gen.utils as utils
 import scipy.constants
 import wc_kb
@@ -29,7 +31,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the default if True    
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
-            Km values, the default value is 1      
+            Km values, the default value is 1
+        * estimate_steady_state (:obj:`bool`): if True, the initial concentrations of complexes 
+            and free-pool subunits will be estimated by assuming they are at steady state,
+            the default if True          
     """
 
     def clean_and_validate_options(self):
@@ -50,6 +55,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = options.get('beta', 1.)
         options['beta'] = beta
 
+        estimate_steady_state = options.get('estimate_steady_state', True)
+        options['estimate_steady_state'] = estimate_steady_state
+
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
@@ -62,6 +70,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         print('Start generating complexation submodel...')
         assembly_rxn_no = 0
         disassembly_rxn_no = 0
+        self._subunit_participation = collections.defaultdict(dict)
         for compl in cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
             
             model_compl_species_type = model.species_types.get_one(id=compl.id)            
@@ -87,6 +96,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_rxn.participants.add(
                             model_subunit_species.species_coefficients.get_or_create(
                             coefficient=-subunit_coefficient))
+                        self._subunit_participation[model_subunit_species][model_compl_species] = subunit_coefficient
 
                     model_rxn.participants.add(
                         model_compl_species.species_coefficients.get_or_create(coefficient=1))
@@ -199,7 +209,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law.id = rate_law.gen_id() 
             rate_law_no += 1
         
-        print('{} rate laws for complex assembly and dissociation have been generated'.format(rate_law_no))
+        print('{} rate laws for complex assembly and dissociation have been generated'.format(
+            rate_law_no))
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """        
@@ -214,6 +225,27 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
 
+        # Calibrate dissociation constants
+        for reaction in self.submodel.reactions:
+            reaction_details = reaction.id.split('_')
+            if 'dissociation' in reaction.id:                
+                compl_compartment = model.compartments.get_one(id=reaction_details[-4])
+                degraded_subunit_hlife = cell.species_types.get_one(
+                    id=reaction_details[-2]).properties.get_one(
+                    property='half_life').get_value()
+                degraded_subunit_species = model.species_types.get_one(
+                    id=reaction_details[-2]).species.get_one(compartment=compl_compartment)
+                degraded_subunit_stoic = model.reactions.get_one(id='complex_association_{}_{}'.format(
+                    '_'.join(reaction_details[:-4]), compl_compartment.id)).participants.get_one(
+                    species=degraded_subunit_species).coefficient                         
+                diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+                diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
+
+        # Calibrate the steady-state ('initial') concentrations of complex species by solving a system of linear equations
+        if self.options['estimate_steady_state']:
+            self.determine_steady_state_concentration(self._subunit_participation)    
+                
+        # Calibrate the parameter values for the rate laws of complex association reactions 
         for reaction in self.submodel.reactions:            
             
             reaction_details = reaction.id.split('_')
@@ -227,8 +259,16 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         species = model.species_types.get_one(
                             id=param.id.split('_')[-1]).species.get_one(
                             compartment=compl_compartment)
-                        param.value = beta * species.distribution_init_concentration.mean \
-                            / Avogadro.value / species.compartment.init_volume.mean
+                        if species.distribution_init_concentration:
+                            if species.distribution_init_concentration.mean:    
+                                param.value = beta * species.distribution_init_concentration.mean \
+                                    / Avogadro.value / species.compartment.init_volume.mean
+                                param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                                    beta, species.species_type.name, compl_compartment.name)    
+                            else:
+                                param.value = 1e-05
+                                param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was zero'.format(
+                                    species.species_type.name, compl_compartment.name)        
                     elif 'k_cat_' in param.id:
                         param.value = 2e06
                         param.comments = 'The rate constant for bimolecular protein-protein association was used '\
@@ -243,48 +283,99 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             volume='89',
                             issue='8',
                             pages='3338-3342'))        
-            
-            else:
-
-                compl_compartment = model.compartments.get_one(id=reaction_details[-4])
-
-                degraded_subunit_hlife = cell.species_types.get_one(
-                    id=reaction_details[-2]).properties.get_one(
-                    property='half_life').get_value()
-
-                degraded_subunit_species = model.species_types.get_one(
-                    id=reaction_details[-2]).species.get_one(compartment=compl_compartment)
-                degraded_subunit_stoic = model.reactions.get_one(id='complex_association_{}_{}'.format(
-                    '_'.join(reaction_details[:-4]), compl_compartment.id)).participants.get_one(
-                    species=degraded_subunit_species).coefficient                           
-
-                diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
-                diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
 
         print('Complexation submodel has been generated')
 
-    def determine_initial_concentration(self, complex_id):
-        """ Estimate the initial concentration of complex_species at assuming steady-state. 
+    def determine_steady_state_concentration(self, subunit_participation):
+        """ Use linear optimization to estimate the initial concentrations of complex species
+            by assuming the system is at steady state and maximizing the total amount of complex spexies. 
             The initial concentration of protein subunits will also be updated accordingly.
 
-        Args:
-            complex_id (:obj:`str`): ID of complex whose concentration is to be determined
-        """   
-        model = self.model        
-        cell = self.knowledge_base.cell
+            Args:
+                subunit_participation (:obj:`dict`): A nested dictionary with protein species as
+                    keys, and dictionaries with key/value pairs of participated complex species and 
+                    subunit coefficient as values
+        """
 
-        model_complex_species_type = model.species_types.get_one(complex_id)
-        for model_compl_species in model_compl_species_type.species:
-            compl_compartment = model_compl_species.compartment
+        model = self.model
 
-        for subunit in cell.species_types.get_one(id=complex_id).subunits:
-
-            conc_free_polr = model.distribution_init_concentrations.get_or_create(
-                species=polr_complex_species,
-                mean=0,
-                units=unit_registry.parse_units('molecule'),
-                comments='Set by ',
-                )
-            conc_free_polr.id = conc_free_polr.gen_id()
+        all_variables = list(set([i.id for i in subunit_participation.keys()] + 
+            [i.id for k,v in subunit_participation.items() for i in v.keys()]))
+        
+        opt_model = conv_opt.Model()
+        
+        variable_objs = {}
+        for variable in all_variables:
+            variable_objs[variable] = conv_opt.Variable(
+                name=variable, type=conv_opt.VariableType.continuous, lower_bound=0)
+            opt_model.variables.append(variable_objs[variable])
+            if model.species.get_one(id=variable).species_type.type == wc_ontology['WC:pseudo_species']: 
+                opt_model.objective_terms.append(
+                    conv_opt.LinearTerm(variable_objs[variable], 1.))       
+        opt_model.objective_direction = conv_opt.ObjectiveDirection.maximize      
+        
+        for subunit, participation in subunit_participation.items():            
+            # Populate equation for subunit mass conservation
+            constraint_coefs = [conv_opt.LinearTerm(variable_objs[subunit.id], 1)]                  
+            for compl, coeff in participation.items():
+                constraint_coefs.append(conv_opt.LinearTerm(variable_objs[compl.id], coeff))            
+            if subunit.distribution_init_concentration: 
+                total_mass = subunit.distribution_init_concentration.mean
+            else:
+                total_mass = 0.    
+            constraint = conv_opt.Constraint(constraint_coefs, upper_bound=total_mass, lower_bound=total_mass)
+            opt_model.constraints.append(constraint)
+            
+            # Populate inequation for steady-state of subunit concentration
+            total_assoc_rate = 0
+            constraint_coefs = []
+            for compl, coeff in participation.items():
                 
-                                    
+                total_diss_constant = 0
+                
+                dissociation_reactions = [i for i in model.reactions if '{}_{}_dissociation'.format(
+                    compl.species_type.id, compl.compartment.id) in i.id]
+                
+                for reaction in dissociation_reactions:
+                    if any(i.species==subunit for i in reaction.participants):
+                        total_diss_constant += reaction.participants.get_one(species=subunit).coefficient * \
+                            model.parameters.get_one(id='k_cat_{}'.format(reaction.id)).value
+                
+                constraint_coefs.append(conv_opt.LinearTerm(variable_objs[compl.id], total_diss_constant))   
+                
+                association_reaction = model.reactions.get_one(id='complex_association_{}_{}'.format(
+                    compl.species_type.id, compl.compartment.id))
+                if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants()):
+                    total_assoc_rate += 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
+
+            constraint = conv_opt.Constraint(constraint_coefs, upper_bound=2e06 * total_assoc_rate, lower_bound=0)
+            opt_model.constraints.append(constraint)       
+            
+        # Solve the model and assign the results to species concentrations
+        options = conv_opt.SolveOptions(solver=conv_opt.Solver.cplex, 
+            presolve=conv_opt.Presolve.off)
+        result = opt_model.solve(options)
+        
+        if result.status_code != conv_opt.StatusCode.optimal:
+            raise Exception(result.status_message)
+        
+        primals = result.primals
+        
+        for ind, sol in enumerate(primals):               
+            model_species = model.species.get_one(id=all_variables[ind])
+            species_init_conc = model.distribution_init_concentrations.get_one(species=model_species)
+
+            if species_init_conc:
+                species_init_conc.mean = sol if sol > 0. else 0.
+                species_init_conc.comments += '; Initial value was adjusted assuming the free pool ' + \
+                        'is at steady state with its amount in macromolecular complexes'            
+
+            else:
+                conc_model = model.distribution_init_concentrations.create(
+                    species=model_species,
+                    mean=sol if sol > 0. else 0.,
+                    units=unit_registry.parse_units('molecule'),
+                    comments='Initial value was determined assuming the free pool ' + \
+                        'is at steady state with its amount in macromolecular complexes'
+                    )
+                conc_model.id = conc_model.gen_id()

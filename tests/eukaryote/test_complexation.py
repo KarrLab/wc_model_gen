@@ -9,13 +9,15 @@
 from wc_model_gen.eukaryote import complexation
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import collections
 import os
 import scipy.constants
 import shutil
 import tempfile
 import unittest
-import wc_lang
 import wc_kb
+import wc_lang
+import wc_model_gen.utils as utils
 
 
 class TestCase(unittest.TestCase):
@@ -40,21 +42,21 @@ class TestCase(unittest.TestCase):
         
         locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=6)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
-        prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', transcript=transcript1, coding_regions=[locus1])
+        prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', transcript=transcript1, coding_regions=[locus1])
         prot1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot1, 
             value='40000.0', value_type=wc_ontology['WC:float'])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         
         locus2 = wc_kb.eukaryote.GenericLocus(start=4, end=9)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus2])
-        prot2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot2', transcript=transcript2, coding_regions=[locus2])
+        prot2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot2', name='protein2', transcript=transcript2, coding_regions=[locus2])
         prot2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot2, 
             value='20000.0', value_type=wc_ontology['WC:float'])
         prot2_spec = wc_kb.core.Species(species_type=prot2, compartment=nucleus)
         
         locus3 = wc_kb.eukaryote.GenericLocus(start=7, end=12)
         transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus3])
-        prot3 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot3', transcript=transcript3, coding_regions=[locus3])
+        prot3 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', transcript=transcript3, coding_regions=[locus3])
         prot3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot3, 
             value='25000.0', value_type=wc_ontology['WC:float'])
         prot3_spec1 = wc_kb.core.Species(species_type=prot3, compartment=nucleus)
@@ -91,7 +93,7 @@ class TestCase(unittest.TestCase):
             assert error is None, str(error)
 
         for i in cell.species_types.get(__type=wc_kb.eukaryote.ProteinSpeciesType):
-            model_species_type = model.species_types.get_or_create(id=i.id)
+            model_species_type = model.species_types.get_or_create(id=i.id, name=i.name)
             model_compartment = model.compartments.get_one(id='n')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
@@ -99,7 +101,7 @@ class TestCase(unittest.TestCase):
                 mean=10, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
 
-        model_species_type = model.species_types.get_or_create(id='prot3')
+        model_species_type = model.species_types.get_or_create(id='prot3', name='protein3')
         model_mito = model.compartments.get_one(id='m')
         model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_mito)
         model_species.id = model_species.gen_id()
@@ -148,7 +150,8 @@ class TestCase(unittest.TestCase):
             }
         gen = complexation.ComplexationSubmodelGenerator(self.kb, self.model, options={
             'amino_acid_id_conversion': amino_acid_id_conversion,
-            'cds': False,                
+            'cds': False,
+            'estimate_steady_state': False,                
             })
         gen.run()   
 
@@ -204,6 +207,8 @@ class TestCase(unittest.TestCase):
         # Test calibrate_submodels
         self.assertEqual(model.parameters.get_one(id='K_m_complex_association_complex_1_n_prot1').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_association_complex_1_n_prot3').value, 10/scipy.constants.Avogadro/5E-14)
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_association_complex_1_n_prot3').comments, 
+            'The value was assumed to be 1.0 times the concentration of protein3 in nucleus')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_association_complex_1_n').value, 2e06)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_association_complex_1_n').comments, 
             'The rate constant for bimolecular protein-protein association was used '
@@ -213,3 +218,100 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_n_dissociation_prot1_degradation').value, 1/40000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_n_dissociation_prot2_degradation').value, 2/20000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_n_dissociation_prot3_degradation').value, 1/25000.)
+        self.assertEqual({k.id:{x.id:y for x,y in v.items()} for k,v in gen._subunit_participation.items()}, 
+            {'prot1[n]': {'complex_1[n]':1}, 'prot2[n]': {'complex_1[n]':2}, 'prot3[n]': {'complex_1[n]': 1, 'complex_2[n]': 2}, 'prot3[m]': {'complex_2[m]': 2}})
+
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-prot1[n]').mean = 0.
+        gen.calibrate_submodel()
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_association_complex_1_n_prot1').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_association_complex_1_n_prot1').comments, 
+            'The value was assigned to 1e-05 because the concentration of protein1 in nucleus was zero')
+
+    def test_estimate_steady_state(self):
+
+        kb = wc_kb.KnowledgeBase()
+        model = wc_lang.Model()
+        
+        cytosol = model.compartments.create(id='c', name='cytosol')
+        cytosol.init_density = model.parameters.create(
+                id='density_' + cytosol.id,
+                value=1.0,
+                units=unit_registry.parse_units('g l^-1'))
+        volume = model.functions.create(id='volume_' + cytosol.id, units=unit_registry.parse_units('l'))                    
+        volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{cytosol.id} / {cytosol.init_density.id}', {
+            wc_lang.Compartment: {cytosol.id: cytosol},
+            wc_lang.Parameter: {cytosol.init_density.id: cytosol.init_density},
+            })
+        assert error is None, str(error)
+        
+        complex_composition = {'C1': {'P1': 1, 'P2': 1}, 'C2': {'P2': 2, 'P3': 2}}
+        subunit_concentration = {'P1': 0., 'P2': 10., 'P3': 20.}
+        for k, v in subunit_concentration.items():
+            p_species_type = model.species_types.create(id=k, name=k, type=wc_ontology['WC:protein'])
+            p_species = model.species.create(species_type=p_species_type, compartment=cytosol)
+            p_species.id = p_species.gen_id()            
+            conc_model = model.distribution_init_concentrations.create(
+                species=p_species,
+                mean=v,
+                units=unit_registry.parse_units('molecule'),
+                comments='Random comments.')
+            conc_model.id = conc_model.gen_id()
+
+        subunit_participation = collections.defaultdict(dict)
+        for k, v in complex_composition.items():
+            c_species_type = model.species_types.create(id=k, name=k, type=wc_ontology['WC:pseudo_species'])
+            c_species = model.species.create(species_type=c_species_type, compartment=cytosol)
+            c_species.id = c_species.gen_id()
+
+            model_rxn = model.reactions.create(id='complex_association_{}_{}'.format(k, cytosol.id))
+            model_rxn.participants.add(c_species.species_coefficients.get_or_create(coefficient=1))
+            for subunit, coeff in v.items():                        
+                model_subunit_species = model.species_types.get_one(id=subunit).species.get_one(compartment=cytosol)
+                model_rxn.participants.add(model_subunit_species.species_coefficients.get_or_create(coefficient=-coeff))
+                subunit_participation[model_subunit_species][c_species] = coeff
+            rate_law_exp, _ = utils.gen_michaelis_menten_like_rate_law(model, model_rxn)
+            rate_law = model.rate_laws.create(expression=rate_law_exp, reaction=model_rxn)
+
+            for subunit, coeff in v.items():
+                model_rxn = model.reactions.create(id='{}_{}_dissociation_{}_degradation'.format(k, cytosol.id, subunit))
+                model_rxn.participants.add(c_species.species_coefficients.get_or_create(coefficient=-1))
+                for subunit2, coeff2 in v.items():
+                    if subunit2==subunit:
+                        if coeff2 > 1:
+                            model_subunit_species = model.species_types.get_one(id=subunit2).species.get_one(compartment=cytosol)
+                            model_rxn.participants.add(model_subunit_species.species_coefficients.get_or_create(coefficient=coeff2-1))
+                    else:
+                        model_subunit_species = model.species_types.get_one(id=subunit2).species.get_one(compartment=cytosol)
+                        model_rxn.participants.add(model_subunit_species.species_coefficients.get_or_create(coefficient=coeff2))        
+                diss_k_cat = model.parameters.create(id='k_cat_{}'.format(model_rxn.id), value=1.)                
+                expression = '{} * {}'.format(diss_k_cat.id, c_species.id)
+                rate_law_exp, error = wc_lang.RateLawExpression.deserialize(expression, {
+                    wc_lang.Parameter: {diss_k_cat.id: diss_k_cat},
+                    wc_lang.Species: {c_species.id: c_species},
+                })
+                assert error is None, str(error)
+                rate_law = model.rate_laws.create(expression=rate_law_exp, reaction=model_rxn)
+                
+        amino_acid_id_conversion = {
+            'A': 'Ala',
+            'C': 'Cys',
+            'D': 'Asp',
+            }
+        test_instance = complexation.ComplexationSubmodelGenerator(kb, model, options={
+            'amino_acid_id_conversion': amino_acid_id_conversion,
+            'cds': False})
+        test_instance.determine_steady_state_concentration(subunit_participation)        
+                
+        self.assertEqual({k.id:{x.id:y for x,y in v.items()} for k,v in subunit_participation.items()}, 
+            {'P1[c]':{'C1[c]':1}, 'P2[c]':{'C1[c]':1, 'C2[c]':2}, 'P3[c]':{'C2[c]':2}})
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-P1[c]').mean, 0.)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-P2[c]').mean, 0.)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-P3[c]').mean, 10.)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C1[c]').mean, 0.)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C2[c]').mean, 5.)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-P2[c]').comments, 
+            'Random comments.; Initial value was adjusted assuming the free pool is at steady state with its amount in macromolecular complexes')
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C1[c]').comments,
+            'Initial value was determined assuming the free pool is at steady state with its amount in macromolecular complexes')
+        self.assertEqual(all(i.units==unit_registry.parse_units('molecule') for i in model.distribution_init_concentrations), True)     
+        
