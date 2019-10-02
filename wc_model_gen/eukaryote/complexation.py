@@ -85,7 +85,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     # Generate complexation reactions
                     model_rxn = model.reactions.create(
                         submodel=self.submodel,
-                        id='complex_association_{}_{}'.format(compl.id, compl_compartment.id),
+                        id='{}_association_in_{}'.format(compl.id, compl_compartment.id),
                         name='Complexation of {} in {}'.format(compl.id, compl_compartment.name),
                         reversible=False)
 
@@ -110,10 +110,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             
                             model_rxn = model.reactions.create(
                                 submodel=self.submodel,
-                                id='{}_{}_dissociation_{}_degradation'.format(
+                                id='{}_dissociation_in_{}_degradation_{}'.format(
                                     compl.id, compl_compartment.id, compl_subunit.species_type.id),
-                                name='Dissociation of {} and degradation of {} in {}'.format(
-                                    compl.id, compl_subunit.species_type.id, compl_compartment.name),
+                                name='Dissociation of {} in {} and degradation of {}'.format(
+                                    compl.id, compl_compartment.name, compl_subunit.species_type.id),
                                 reversible=False)
 
                             model_rxn.participants.add(
@@ -179,7 +179,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rate_law_no = 0
         for reaction in self.submodel.reactions:
 
-            if 'complex_association_' in reaction.id:
+            if 'association' in reaction.id:
                 rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
                     model, reaction)               
 
@@ -188,9 +188,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     type=wc_ontology['WC:k_cat'],
                     units=unit_registry.parse_units('s^-1'))
                 
-                reaction_details = reaction.id.split('_')
-                complex_species = model.species_types.get_one(id='_'.join(reaction_details[:-4])).species.get_one(
-                    compartment=model.compartments.get_one(id=reaction_details[-4]))
+                complex_st_id = reaction.id[:reaction.id.index('_dissociation')]
+                compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4 : 
+                    reaction.id.index('_degradation')]
+                complex_species = model.species_types.get_one(id=complex_st_id).species.get_one(
+                    compartment=model.compartments.get_one(id=compl_compartment_id))
                 
                 expression = '{} * {}'.format(diss_k_cat.id, complex_species.id)
 
@@ -227,16 +229,22 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Calibrate dissociation constants
         for reaction in self.submodel.reactions:
-            reaction_details = reaction.id.split('_')
-            if 'dissociation' in reaction.id:                
-                compl_compartment = model.compartments.get_one(id=reaction_details[-4])
+            
+            if 'dissociation' in reaction.id:
+                complex_st_id = reaction.id[:reaction.id.index('_dissociation')]
+                compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4 : 
+                    reaction.id.index('_degradation')]
+                compl_compartment = model.compartments.get_one(id=compl_compartment_id)
+                
+                degraded_subunit_st_id = reaction.id[reaction.id.index('degradation_') + 12:]
+                    
                 degraded_subunit_hlife = cell.species_types.get_one(
-                    id=reaction_details[-2]).properties.get_one(
+                    id=degraded_subunit_st_id).properties.get_one(
                     property='half_life').get_value()
                 degraded_subunit_species = model.species_types.get_one(
-                    id=reaction_details[-2]).species.get_one(compartment=compl_compartment)
-                degraded_subunit_stoic = model.reactions.get_one(id='complex_association_{}_{}'.format(
-                    '_'.join(reaction_details[:-4]), compl_compartment.id)).participants.get_one(
+                    id=degraded_subunit_st_id).species.get_one(compartment=compl_compartment)
+                degraded_subunit_stoic = model.reactions.get_one(id='{}_association_in_{}'.format(
+                    complex_st_id, compl_compartment_id)).participants.get_one(
                     species=degraded_subunit_species).coefficient                         
                 diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
                 diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
@@ -247,12 +255,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
         # Calibrate the parameter values for the rate laws of complex association reactions 
         for reaction in self.submodel.reactions:            
-            
-            reaction_details = reaction.id.split('_')
-            
-            if 'complex_association_' in reaction.id:
-
-                compl_compartment = model.compartments.get_one(id=reaction_details[-1])
+                        
+            if 'association' in reaction.id:
+                complex_st_id = reaction.id[:reaction.id.index('_association')]
+                compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4:]
+                compl_compartment = model.compartments.get_one(id=compl_compartment_id)
 
                 for param in reaction.rate_laws[0].expression.parameters:
                     if 'K_m_' in param.id:
@@ -288,7 +295,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
     def determine_steady_state_concentration(self, subunit_participation):
         """ Use linear optimization to estimate the initial concentrations of complex species
-            by assuming the system is at steady state and maximizing the total amount of complex spexies. 
+            by assuming the system is at a state where the total amount of complex spexies is maximal. 
             The initial concentration of protein subunits will also be updated accordingly.
 
             Args:
@@ -333,7 +340,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
                 total_diss_constant = 0
                 
-                dissociation_reactions = [i for i in model.reactions if '{}_{}_dissociation'.format(
+                dissociation_reactions = [i for i in model.reactions if '{}_dissociation_in_{}'.format(
                     compl.species_type.id, compl.compartment.id) in i.id]
                 
                 for reaction in dissociation_reactions:
@@ -343,7 +350,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
                 constraint_coefs.append(conv_opt.LinearTerm(variable_objs[compl.id], total_diss_constant))   
                 
-                association_reaction = model.reactions.get_one(id='complex_association_{}_{}'.format(
+                association_reaction = model.reactions.get_one(id='{}_association_in_{}'.format(
                     compl.species_type.id, compl.compartment.id))
                 if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants()):
                     total_assoc_rate += 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
