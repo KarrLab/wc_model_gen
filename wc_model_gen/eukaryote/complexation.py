@@ -352,7 +352,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
                 association_reaction = model.reactions.get_one(id='{}_association_in_{}'.format(
                     compl.species_type.id, compl.compartment.id))
-                if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants()):
+                if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants() if i.distribution_init_concentration):
                     total_assoc_rate += 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
 
             constraint = conv_opt.Constraint(constraint_coefs, upper_bound=2e06 * total_assoc_rate, lower_bound=0)
