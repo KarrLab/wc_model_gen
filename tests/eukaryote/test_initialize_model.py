@@ -235,6 +235,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.compartments.get_one(id='n').biological_type, wc_ontology['WC:cellular_compartment'])
         self.assertAlmostEqual(model.compartments.get_one(id='n').init_volume.mean, 5199.999998548484)
         self.assertAlmostEqual(model.compartments.get_one(id='n_m').init_volume.mean, 1.4515160909356243e-06)
+        self.assertEqual(model.compartments.get_one(id='n_m').biological_type, wc_ontology['WC:membrane_compartment'])
         self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
         self.assertEqual(model.compartments.get_one(id='e').biological_type, wc_ontology['WC:extracellular_compartment'])
 
@@ -248,6 +249,8 @@ class TestCase(unittest.TestCase):
             model.functions.get_one(id='volume_n').expression), 'n / density_n')
         self.assertEqual(wc_lang.Function.expression.serialize(
             model.functions.get_one(id='volume_n_m').expression), 'n_m / density_n_m')
+        self.assertEqual(wc_lang.Function.expression.serialize(
+            model.functions.get_one(id='volume_e').expression), 'e / density_e')
         
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('molecule^-1 s^-1'))

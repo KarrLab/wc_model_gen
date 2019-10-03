@@ -218,28 +218,24 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     mean=culture_volume, std=0)                
                 
             elif '_m' in comp.id:
+                c.biological_type = wc_ontology['WC:membrane_compartment']
                 c.init_density.value = membrane_density
                 organelle_fraction = kb.cell.compartments.get_one(id=comp.id[:comp.id.index('_')]).volumetric_fraction              
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
-                    mean=4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
-                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))                    
-                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
-                    wc_lang.Compartment: {c.id: c},
-                    wc_lang.Parameter: {c.init_density.id: c.init_density},
-                    })
-                assert error is None, str(error)
+                    mean=4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)                
 
             else:
                 c.init_density.value = cell_density
                 organelle_fraction = kb.cell.compartments.get_one(id=comp.id).volumetric_fraction
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=mean_cell_volume*organelle_fraction - 4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
-                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
-                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
-                    wc_lang.Compartment: {c.id: c},
-                    wc_lang.Parameter: {c.init_density.id: c.init_density},
-                    })
-                assert error is None, str(error)           
+
+            volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
+            volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+            assert error is None, str(error)           
 
     def gen_parameters(self):
         """ Generate parameters for the model from knowledge base """
