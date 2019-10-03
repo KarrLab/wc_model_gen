@@ -150,7 +150,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                         degradation_comp = model.compartments.get_one(id='l')
                                     for aa_id, aa_count in aa_content.items():
                                         model_aa = model.species_types.get_one(id=aa_id).species.get_or_create(
-                                            compartment=degradation_comp)
+                                            model=model, compartment=degradation_comp)
                                         model_rxn.participants.add(
                                             model_aa.species_coefficients.get_or_create(
                                             coefficient=aa_count))        
