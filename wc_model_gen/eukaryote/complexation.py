@@ -240,7 +240,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     
                 degraded_subunit_hlife = cell.species_types.get_one(
                     id=degraded_subunit_st_id).properties.get_one(
-                    property='half_life').get_value()
+                    property='half-life').get_value()
                 degraded_subunit_species = model.species_types.get_one(
                     id=degraded_subunit_st_id).species.get_one(compartment=compl_compartment)
                 degraded_subunit_stoic = model.reactions.get_one(id='{}_association_in_{}'.format(

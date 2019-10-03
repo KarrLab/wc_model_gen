@@ -44,21 +44,21 @@ class TestCase(unittest.TestCase):
         locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=6)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
         prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', transcript=transcript1, coding_regions=[locus1])
-        prot1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot1, 
+        prot1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot1, 
             value='40000.0', value_type=wc_ontology['WC:float'])
         prot1_spec = wc_kb.core.Species(species_type=prot1, compartment=nucleus)
         
         locus2 = wc_kb.eukaryote.GenericLocus(start=4, end=9)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus2])
         prot2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot2', name='protein2', transcript=transcript2, coding_regions=[locus2])
-        prot2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot2, 
+        prot2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot2, 
             value='20000.0', value_type=wc_ontology['WC:float'])
         prot2_spec = wc_kb.core.Species(species_type=prot2, compartment=nucleus)
         
         locus3 = wc_kb.eukaryote.GenericLocus(start=7, end=12)
         transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus3])
         prot3 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot3', name='protein3', transcript=transcript3, coding_regions=[locus3])
-        prot3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=prot3, 
+        prot3_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot3, 
             value='25000.0', value_type=wc_ontology['WC:float'])
         prot3_spec1 = wc_kb.core.Species(species_type=prot3, compartment=nucleus)
         prot3_spec2 = wc_kb.core.Species(species_type=prot3, compartment=mito)
