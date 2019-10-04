@@ -218,7 +218,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     mean=culture_volume, std=0)                
                 
             elif '_m' in comp.id:
-                c.biological_type = wc_ontology['WC:membrane_compartment']
+                c.physical_type = wc_ontology['WC:membrane_compartment']
                 c.init_density.value = membrane_density
                 organelle_fraction = kb.cell.compartments.get_one(id=comp.id[:comp.id.index('_')]).volumetric_fraction              
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 

@@ -235,7 +235,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.compartments.get_one(id='n').biological_type, wc_ontology['WC:cellular_compartment'])
         self.assertAlmostEqual(model.compartments.get_one(id='n').init_volume.mean, 5199.999998548484)
         self.assertAlmostEqual(model.compartments.get_one(id='n_m').init_volume.mean, 1.4515160909356243e-06)
-        self.assertEqual(model.compartments.get_one(id='n_m').biological_type, wc_ontology['WC:membrane_compartment'])
+        self.assertEqual(model.compartments.get_one(id='n_m').physical_type, wc_ontology['WC:membrane_compartment'])
         self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
         self.assertEqual(model.compartments.get_one(id='e').biological_type, wc_ontology['WC:extracellular_compartment'])
 
