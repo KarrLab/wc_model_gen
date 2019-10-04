@@ -85,8 +85,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
-                'n': met_species_type.species.get_or_create(compartment=nucleus),
-                'm': met_species_type.species.get_or_create(compartment=mitochondrion)
+                'n': met_species_type.species.get_or_create(compartment=nucleus, model=model),
+                'm': met_species_type.species.get_or_create(compartment=mitochondrion, model=model)
                 }
 
         ref_polr_width = wc_lang.Reference(
