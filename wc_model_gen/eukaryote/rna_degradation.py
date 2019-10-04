@@ -52,8 +52,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
-                'c': met_species_type.species.get_one(compartment=cytoplasm),
-                'm': met_species_type.species.get_one(compartment=mitochondrion)
+                'c': met_species_type.species.get_or_create(compartment=cytoplasm),
+                'm': met_species_type.species.get_or_create(compartment=mitochondrion)
                 }
 
         print('Start generating RNA degradation submodel...')
