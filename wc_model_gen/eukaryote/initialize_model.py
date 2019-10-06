@@ -392,20 +392,25 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
-            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
-            model_species_type.structure.charge = kb_species_type.get_charge()
+            sequence = kb_species_type.get_seq()
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
+                seq_input=sequence)
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
+                seq_input=sequence)
+            model_species_type.structure.charge = kb_species_type.get_charge(
+                seq_input=sequence)
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
-            cds = self.options['cds']            
+            cds = self.options['cds']
+            sequence = kb_species_type.get_seq(table=table, cds=cds)            
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                table=table, cds=cds)
+                seq_input=sequence)
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                table=table, cds=cds)
+                seq_input=sequence)
             model_species_type.structure.charge = kb_species_type.get_charge(
-                table=table, cds=cds)
+                seq_input=sequence)
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
@@ -451,13 +456,14 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 if isinstance(subunit.species_type, wc_kb.eukaryote.ProteinSpeciesType):
                     table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                     cds = self.options['cds']
+                    sequence = subunit.species_type.get_seq(table=table, cds=cds)
                     for coeff in range(0, abs(int(subunit.coefficient))):
                         formula += subunit.species_type.get_empirical_formula(
-                            table=table, cds=cds)
+                            seq_input=sequence)
                     charge += abs(subunit.coefficient)*subunit.species_type.get_charge(
-                        table=table, cds=cds)
+                        seq_input=sequence)
                     weight += abs(subunit.coefficient)*subunit.species_type.get_mol_wt(
-                        table=table, cds=cds)
+                        seq_input=sequence)
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
