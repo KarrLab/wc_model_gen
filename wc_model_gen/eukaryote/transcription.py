@@ -8,6 +8,7 @@
 
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
 import collections
 import math
@@ -313,7 +314,17 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 pre_rna_seq = gene_seq.reverse_complement().transcribe()  
             
-            seq = rna_kb.get_seq()
+            if rna_kb.id in gvar.transcript_ntp_usage:
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
+            else:
+                seq = rna_kb.get_seq()
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
+                    'A': seq.count('A'),
+                    'C': seq.count('C'),
+                    'G': seq.count('G'),
+                    'U': seq.count('U'),
+                    'len': len(seq)
+                    }
 
             # Adding participants to LHS
             reaction.participants.append(
@@ -333,7 +344,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-pre_rna_seq.count('U')))
             reaction.participants.append(metabolites['h2o'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-(len(pre_rna_seq)-len(seq)-1)))
+                coefficient=-(len(pre_rna_seq)-ntp_count['len']-1)))
             
             # Adding participants to RHS
             reaction.participants.append(
@@ -344,19 +355,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=len(pre_rna_seq)-1))
             reaction.participants.append(metabolites['amp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('A')-seq.count('A')))
+                coefficient=pre_rna_seq.count('A')-ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('C')-seq.count('C')))
+                coefficient=pre_rna_seq.count('C')-ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('G')-seq.count('G')))
+                coefficient=pre_rna_seq.count('G')-ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('U')-seq.count('U')))
+                coefficient=pre_rna_seq.count('U')-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-len(seq)-1))
+                coefficient=len(pre_rna_seq)-ntp_count['len']-1))
             reaction.participants.append(
                 polr_complex_species.species_coefficients.get_or_create(
                 coefficient=1))

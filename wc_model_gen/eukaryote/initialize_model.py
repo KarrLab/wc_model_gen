@@ -10,6 +10,7 @@ from wc_utils.util.chem import EmpiricalFormula, get_major_micro_species, OpenBa
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_utils.util import chem
+import wc_model_gen.global_vars as gvar
 import ete3
 import math
 import numpy
@@ -392,13 +393,20 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            sequence = kb_species_type.get_seq()
+            seq = kb_species_type.get_seq()
+            gvar.transcript_ntp_usage[kb_species_type.id] = {
+                'A': seq.count('A'),
+                'C': seq.count('C'),
+                'G': seq.count('G'),
+                'U': seq.count('U'),
+                'len': len(seq)
+                }
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                seq_input=sequence)
+                seq_input=seq)
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                seq_input=sequence)
+                seq_input=seq)
             model_species_type.structure.charge = kb_species_type.get_charge(
-                seq_input=sequence)
+                seq_input=seq)
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein

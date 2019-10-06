@@ -8,6 +8,7 @@
 from wc_model_gen.eukaryote import rna_degradation
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import math
 import os
 import scipy.constants
@@ -119,12 +120,14 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         shutil.rmtree(self.tmp_dirname)            
 
     def test_methods(self):
-
+        gvar.transcript_ntp_usage = {}
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
             'trans3': 'Mitochondrial Exosome'}
             })
         gen.run()
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['rna_degradation'])
@@ -156,3 +159,19 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             'The value was assumed to be 1.0 times the concentration of transcript2 in mitochondria')
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5*100))
+
+    def test_global_vars(self):
+        gvar.transcript_ntp_usage = {'trans2': {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15}}
+        gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
+            'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
+            'trans3': 'Mitochondrial Exosome'}
+            })
+        gen.run()
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
+
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
+            {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[n]': -1})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
+            {'amp[m]': 4, 'cmp[m]': 2, 'gmp[m]': 2, 'ump[m]': 7, 'h[m]': 14, 'h2o[m]': -14, 'trans2[m]': -1})
+        

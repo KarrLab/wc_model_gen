@@ -6,6 +6,7 @@
 """
 
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
 import math
 import numpy
@@ -75,24 +76,35 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
             reaction = model.reactions.get_or_create(submodel=self.submodel, id='degradation_' + rna_kb.id)
             reaction.name = 'degradation of ' + rna_kb.name
-            seq = rna_kb.get_seq()
-
+            
+            if rna_kb.id in gvar.transcript_ntp_usage:
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
+            else:
+                seq = rna_kb.get_seq()
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
+                    'A': seq.count('A'),
+                    'C': seq.count('C'),
+                    'G': seq.count('G'),
+                    'U': seq.count('U'),
+                    'len': len(seq)
+                    }
+            
             # Adding participants to LHS
             reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=-1))
             reaction.participants.append(metabolites['h2o'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(ntp_count['len']-1)))
 
             # Adding participants to RHS
             reaction.participants.append(metabolites['amp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['U']))
             reaction.participants.append(metabolites['h'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['len']-1))
                              
             # Assign modifier
             self._degradation_modifier[reaction.name] = model.species_types.get_one(

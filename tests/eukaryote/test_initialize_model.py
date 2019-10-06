@@ -12,6 +12,7 @@ from wc_utils.util import chem
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_lang.core import ChemicalStructure
+import wc_model_gen.global_vars as gvar
 import Bio.SeqUtils
 import mendeleev
 import os
@@ -328,6 +329,8 @@ class TestCase(unittest.TestCase):
         transcript1_model = model.species_types.get_one(id='trans1')
         transcript2_model = model.species_types.get_one(id='trans2')
         transcript3_model = model.species_types.get_one(id='trans3')
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 1, 'U': 1, 'G': 1, 'C': 1, 'len': 4})
 
         self.assertEqual(transcript1_model.name, 'transcript1')
         self.assertEqual(transcript3_model.type, wc_ontology['WC:RNA'])
