@@ -319,10 +319,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 seq = rna_kb.get_seq()
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
-                    'A': seq.count('A'),
-                    'C': seq.count('C'),
-                    'G': seq.count('G'),
-                    'U': seq.count('U'),
+                    'A': seq.upper().count('A'),
+                    'C': seq.upper().count('C'),
+                    'G': seq.upper().count('G'),
+                    'U': seq.upper().count('U'),
                     'len': len(seq)
                     }
 
@@ -332,16 +332,16 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-1))
             reaction.participants.append(metabolites['atp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('A')))
+                coefficient=-pre_rna_seq.upper().count('A')))
             reaction.participants.append(metabolites['ctp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('C')))
+                coefficient=-pre_rna_seq.upper().count('C')))
             reaction.participants.append(metabolites['gtp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('G')))
+                coefficient=-pre_rna_seq.upper().count('G')))
             reaction.participants.append(metabolites['utp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('U')))
+                coefficient=-pre_rna_seq.upper().count('U')))
             reaction.participants.append(metabolites['h2o'][
                 rna_compartment.id].species_coefficients.get_or_create(
                 coefficient=-(len(pre_rna_seq)-ntp_count['len']-1)))
@@ -355,16 +355,16 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=len(pre_rna_seq)-1))
             reaction.participants.append(metabolites['amp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('A')-ntp_count['A']))
+                coefficient=pre_rna_seq.upper().count('A')-ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('C')-ntp_count['C']))
+                coefficient=pre_rna_seq.upper().count('C')-ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('G')-ntp_count['G']))
+                coefficient=pre_rna_seq.upper().count('G')-ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('U')-ntp_count['U']))
+                coefficient=pre_rna_seq.upper().count('U')-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
                 rna_compartment.id].species_coefficients.get_or_create(
                 coefficient=len(pre_rna_seq)-ntp_count['len']-1))

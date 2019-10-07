@@ -51,7 +51,7 @@ class TestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nTTTATGAARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
+            f.write('>chr1\nTTTatgaARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
                     '>chrX\nATGCGTCA\n'
                     '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
     

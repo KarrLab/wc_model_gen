@@ -82,10 +82,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 seq = rna_kb.get_seq()
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
-                    'A': seq.count('A'),
-                    'C': seq.count('C'),
-                    'G': seq.count('G'),
-                    'U': seq.count('U'),
+                    'A': seq.upper().count('A'),
+                    'C': seq.upper().count('C'),
+                    'G': seq.upper().count('G'),
+                    'U': seq.upper().count('U'),
                     'len': len(seq)
                     }
             

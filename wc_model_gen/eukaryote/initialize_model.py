@@ -395,10 +395,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
             seq = kb_species_type.get_seq()
             gvar.transcript_ntp_usage[kb_species_type.id] = {
-                'A': seq.count('A'),
-                'C': seq.count('C'),
-                'G': seq.count('G'),
-                'U': seq.count('U'),
+                'A': seq.upper().count('A'),
+                'C': seq.upper().count('C'),
+                'G': seq.upper().count('G'),
+                'U': seq.upper().count('U'),
                 'len': len(seq)
                 }
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(

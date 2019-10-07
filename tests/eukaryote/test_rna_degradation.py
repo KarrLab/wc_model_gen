@@ -29,7 +29,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nTTTATGACTCTAGTTTAT\n'
-                    '>chrM\nTTTATGACTC TAGTTTAT\n')
+                    '>chrM\nTTTatgaCTCTAGTTTAT\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
