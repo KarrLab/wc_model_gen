@@ -412,13 +412,37 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
             cds = self.options['cds']
-            sequence = kb_species_type.get_seq(table=table, cds=cds)            
+            seq = kb_species_type.get_seq(table=table, cds=cds)
+            gvar.protein_aa_usage[kb_species_type.id] = {
+                'len': len(seq) - seq.count('*'),
+                '*': seq.count('*'), # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': seq.count('A'),  # Ala: Alanine (C3 H7 N O2)
+                'R': seq.count('R'),  # Arg: Arginine (C6 H14 N4 O2)
+                'N': seq.count('N'),  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': seq.count('D'),  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': seq.count('C'),  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': seq.count('Q'),  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': seq.count('E'),  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': seq.count('G'),  # Gly: Glycine (C2 H5 N O2)
+                'H': seq.count('H'),  # His: Histidine (C6 H9 N3 O2)
+                'I': seq.count('I'),  # Ile: Isoleucine (C6 H13 N O2)
+                'L': seq.count('L'),  # Leu: Leucine (C6 H13 N O2)
+                'K': seq.count('K'),  # Lys: Lysine (C6 H14 N2 O2)
+                'M': seq.count('M'),  # Met: Methionine (C5 H11 N O2 S)
+                'F': seq.count('F'),  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': seq.count('P'),  # Pro: Proline (C5 H9 N O2)
+                'S': seq.count('S'),  # Ser: Serine (C3 H7 N O3)
+                'T': seq.count('T'),  # Thr: Threonine (C4 H9 N O3)
+                'W': seq.count('W'),  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
+            }            
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                seq_input=sequence)
+                seq_input=seq)
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                seq_input=sequence)
+                seq_input=seq)
             model_species_type.structure.charge = kb_species_type.get_charge(
-                seq_input=sequence)
+                seq_input=seq)
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite

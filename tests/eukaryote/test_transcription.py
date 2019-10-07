@@ -146,11 +146,11 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             conc_model.id = conc_model.gen_id()        
 
     def tearDown(self):
-        shutil.rmtree(self.tmp_dirname)            
+        shutil.rmtree(self.tmp_dirname)
+        gvar.transcript_ntp_usage = {}            
 
-    def test_methods(self):            
+    def test_methods(self):           
 
-        gvar.transcript_ntp_usage = {}
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II'},

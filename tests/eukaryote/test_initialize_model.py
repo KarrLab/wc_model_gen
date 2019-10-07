@@ -216,7 +216,8 @@ class TestCase(unittest.TestCase):
         backward_rate_law.id = backward_rate_law.gen_id()            
         
     def tearDown(self):    
-        shutil.rmtree(self.tmp_dirname)  
+        shutil.rmtree(self.tmp_dirname) 
+        gvar.protein_aa_usage = {} 
 
     def test_gen_taxon_compartments_parameters(self):
 
@@ -321,7 +322,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(chrX_model.comments, '')
 
     def test_gen_transcripts(self):
-
+        gvar.transcript_ntp_usage = {}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options(['gen_transcripts'])}}).run()
@@ -356,13 +357,38 @@ class TestCase(unittest.TestCase):
     def test_gen_protein(self):
 
         self.kb.cell.species_types.get_one(id='prot3').comments = 'Testing'
-
+        
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options(['gen_protein'])}}).run()
 
         prot1_model = model.species_types.get_one(id='prot1')
         prot3_model = model.species_types.get_one(id='prot3')
+
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {
+                'len': 10,
+                '*': 0, # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': 0,  # Ala: Alanine (C3 H7 N O2)
+                'R': 0,  # Arg: Arginine (C6 H14 N4 O2)
+                'N': 2,  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': 0,  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': 0,  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': 0,  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': 1,  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': 0,  # Gly: Glycine (C2 H5 N O2)
+                'H': 0,  # His: Histidine (C6 H9 N3 O2)
+                'I': 1,  # Ile: Isoleucine (C6 H13 N O2)
+                'L': 2,  # Leu: Leucine (C6 H13 N O2)
+                'K': 2,  # Lys: Lysine (C6 H14 N2 O2)
+                'M': 1,  # Met: Methionine (C5 H11 N O2 S)
+                'F': 0,  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': 0,  # Pro: Proline (C5 H9 N O2)
+                'S': 0,  # Ser: Serine (C3 H7 N O3)
+                'T': 0,  # Thr: Threonine (C4 H9 N O3)
+                'W': 0,  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': 1,  # Val: Valine (C5 H11 N O2)
+            })
 
         self.assertEqual(prot1_model.name, 'protein1')
         self.assertEqual(prot3_model.type, wc_ontology['WC:protein'])

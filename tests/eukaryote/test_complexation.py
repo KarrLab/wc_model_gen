@@ -9,6 +9,7 @@
 from wc_model_gen.eukaryote import complexation
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import collections
 import os
 import scipy.constants
@@ -146,7 +147,8 @@ class TestCase(unittest.TestCase):
                 model_species.id = model_species.gen_id()
             
     def tearDown(self):
-        shutil.rmtree(self.tmp_dirname)                     
+        shutil.rmtree(self.tmp_dirname)
+        gvar.protein_aa_usage = {}                     
 
     def test_methods(self):
 
@@ -162,7 +164,9 @@ class TestCase(unittest.TestCase):
             'cds': False,
             'estimate_steady_state': False,                
             })
-        gen.run()   
+        gen.run()
+
+        self.assertEqual(gvar.protein_aa_usage, {})   
 
         self.assertEqual(len(model.reactions), 10)
         self.assertEqual([i.id for i in model.submodels], ['complexation'])
@@ -326,5 +330,23 @@ class TestCase(unittest.TestCase):
             'Random comments.; Initial value was adjusted assuming the free pool is at steady state with its amount in macromolecular complexes')
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C1[c]').comments,
             'Initial value was determined assuming the free pool is at steady state with its amount in macromolecular complexes')
-        self.assertEqual(all(i.units==unit_registry.parse_units('molecule') for i in model.distribution_init_concentrations), True)     
+        self.assertEqual(all(i.units==unit_registry.parse_units('molecule') for i in model.distribution_init_concentrations), True)
+
+    def test_global_vars(self):
+        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1}}
+        amino_acid_id_conversion = {
+            'A': 'Ala',
+            'C': 'Cys',
+            'D': 'Asp',
+            }
+        gen = complexation.ComplexationSubmodelGenerator(self.kb, self.model, options={
+            'amino_acid_id_conversion': amino_acid_id_conversion,
+            'cds': False,
+            'estimate_steady_state': False,                
+            })
+        gen.run()   
+
+        dissociate_prot1 = self.model.reactions.get_one(id='complex_1_dissociation_in_n_degradation_prot1')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot1.participants]),
+            sorted([('complex_1[n]', -1), ('h2o[l]', -6), ('Ala[l]', 4), ('Cys[l]', 2), ('Asp[l]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
         

@@ -7,6 +7,7 @@
 
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import Bio.Alphabet
 import Bio.Seq
 import collections
@@ -129,20 +130,25 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 subunit_coefficient = subunit.coefficient if subunit.coefficient else 1
                                 
                                 if subunit.species_type==compl_subunit.species_type:
-
-                                    if codon_table == 1:
-                                        codon_id = 1
-                                    else:
-                                        codon_id = codon_table[subunit.species_type.id]    
                                     
-                                    protein_seq = ''.join(i for i in subunit.species_type.get_seq(table=codon_id, cds=cds) if i!='*')                                    
                                     aa_content = {}
-                                    for aa in protein_seq:
-                                        aa_id = amino_acid_id_conversion[aa]
-                                        if aa_id not in aa_content:
-                                            aa_content[aa_id] = 1
+
+                                    if subunit.species_type.id in gvar.protein_aa_usage:                                        
+                                        for aa, aa_id in amino_acid_id_conversion.items():
+                                            if gvar.protein_aa_usage[subunit.species_type.id][aa]:
+                                                aa_content[aa_id] = gvar.protein_aa_usage[subunit.species_type.id][aa]
+                                    else:
+                                        if codon_table == 1:
+                                            codon_id = 1
                                         else:
-                                            aa_content[aa_id] += 1
+                                            codon_id = codon_table[subunit.species_type.id]                                        
+                                        protein_seq = ''.join(i for i in subunit.species_type.get_seq(table=codon_id, cds=cds) if i!='*')                                   
+                                        for aa in protein_seq:
+                                            aa_id = amino_acid_id_conversion[aa]
+                                            if aa_id not in aa_content:
+                                                aa_content[aa_id] = 1
+                                            else:
+                                                aa_content[aa_id] += 1
 
                                     if compl_compartment.id == 'm':
                                         degradation_comp = model.compartments.get_one(id='m')

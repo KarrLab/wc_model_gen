@@ -117,10 +117,11 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 conc_model.id = conc_model.gen_id()
 
     def tearDown(self):
-        shutil.rmtree(self.tmp_dirname)            
+        shutil.rmtree(self.tmp_dirname)
+        gvar.transcript_ntp_usage = {}            
 
     def test_methods(self):
-        gvar.transcript_ntp_usage = {}
+        
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
             'trans3': 'Mitochondrial Exosome'}
