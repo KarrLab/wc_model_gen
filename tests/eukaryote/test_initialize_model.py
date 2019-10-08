@@ -367,7 +367,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(gvar.protein_aa_usage['prot1'], {
                 'len': 10,
-                '*': 0, # Symbol used in Bio.Seq.Seq when cds is set to False  
+                '*': 0,  # Symbol used in Bio.Seq.Seq when cds is set to False  
                 'A': 0,  # Ala: Alanine (C3 H7 N O2)
                 'R': 0,  # Arg: Arginine (C6 H14 N4 O2)
                 'N': 2,  # Asn: Asparagine (C4 H8 N2 O3)
@@ -388,6 +388,7 @@ class TestCase(unittest.TestCase):
                 'W': 0,  # Trp: Tryptophan (C11 H12 N2 O2)
                 'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
                 'V': 1,  # Val: Valine (C5 H11 N O2)
+                'U': 0,  # Selcys: Selenocysteine (C3 H7 N O2 Se)
             })
 
         self.assertEqual(prot1_model.name, 'protein1')

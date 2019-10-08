@@ -415,7 +415,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             seq = kb_species_type.get_seq(table=table, cds=cds)
             gvar.protein_aa_usage[kb_species_type.id] = {
                 'len': len(seq) - seq.count('*'),
-                '*': seq.count('*'), # Symbol used in Bio.Seq.Seq when cds is set to False  
+                '*': seq.count('*'),  # Symbol used in Bio.Seq.Seq when cds is set to False  
                 'A': seq.count('A'),  # Ala: Alanine (C3 H7 N O2)
                 'R': seq.count('R'),  # Arg: Arginine (C6 H14 N4 O2)
                 'N': seq.count('N'),  # Asn: Asparagine (C4 H8 N2 O3)
@@ -436,6 +436,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 'W': seq.count('W'),  # Trp: Tryptophan (C11 H12 N2 O2)
                 'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
                 'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
+                'U': seq.count('U'),  # Selcys: Selenocysteine (C3 H7 N O2 Se)
             }            
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
                 seq_input=seq)
