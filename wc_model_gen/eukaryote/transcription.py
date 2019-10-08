@@ -655,7 +655,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(
                 compartment=rna_compartment)           
             
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
+            half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_product.distribution_init_concentration.mean         
 
             average_rate[rna_kb.id] = utils.calc_avg_syn_rate(

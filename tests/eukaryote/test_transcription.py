@@ -42,7 +42,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         exon1 = wc_kb.eukaryote.GenericLocus(start=5, end=19)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1', 
             name='transcript1', gene=gene1, exons=[exon1])
-        transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript1, 
+        transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
@@ -52,7 +52,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
             name='transcript2', gene=gene2, exons=[exon2])
-        transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript2, 
+        transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript2, 
             value='15000.0', value_type=wc_ontology['WC:float'])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=mito)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=10.)
@@ -61,7 +61,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         exon3 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
         transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene3, exons=[exon3])
-        transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript3, 
+        transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript3, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=nucleus)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=10.)
@@ -70,7 +70,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         exon4 = wc_kb.eukaryote.GenericLocus(start=1, end=3)
         transcript4 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans4', 
             name='transcript4', gene=gene4, exons=[exon4])
-        transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript4, 
+        transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript4, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=nucleus)
         transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)

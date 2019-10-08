@@ -186,7 +186,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
 
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
+            half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_reactant.distribution_init_concentration.mean
 
             average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
