@@ -8,6 +8,7 @@
 from wc_model_gen.eukaryote import rna_degradation
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import math
 import os
 import scipy.constants
@@ -28,7 +29,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nTTTATGACTCTAGTTTAT\n'
-                    '>chrM\nTTTATGACTC TAGTTTAT\n')
+                    '>chrM\nTTTatgaCTCTAGTTTAT\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -41,7 +42,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         exon1 = wc_kb.eukaryote.GenericLocus(start=4, end=18)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1', 
             name='transcript1', gene=gene1, exons=[exon1])
-        transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript1, 
+        transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
@@ -51,14 +52,14 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
             name='transcript2', gene=gene2, exons=[exon2])
-        transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript2, 
+        transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript2, 
             value='15000.0', value_type=wc_ontology['WC:float'])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=mito)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=10.)
 
         transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans3', 
             name='transcript3', gene=gene2, exons=[exon2])
-        transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half_life', species_type=transcript3, 
+        transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript3, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=mito)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=10.)                   
@@ -84,7 +85,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             assert error is None, str(error)
 
         for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
-            model_species_type = model.species_types.create(id=i.id)
+            model_species_type = model.species_types.create(id=i.id, name=i.name)
             model_compartment = model.compartments.get_one(id='m' if 'M' in i.gene.polymer.id else 'n')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
@@ -116,15 +117,18 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 conc_model.id = conc_model.gen_id()
 
     def tearDown(self):
-        shutil.rmtree(self.tmp_dirname)            
+        shutil.rmtree(self.tmp_dirname)
+        gvar.transcript_ntp_usage = {}            
 
     def test_methods(self):
-
+        
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
             'trans3': 'Mitochondrial Exosome'}
             })
         gen.run()
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['rna_degradation'])
@@ -152,5 +156,23 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         
         # Test calibrate_submodel
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').value, 10/scipy.constants.Avogadro/2.5E-14)
+        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').comments, 
+            'The value was assumed to be 1.0 times the concentration of transcript2 in mitochondria')
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5*100))
+
+    def test_global_vars(self):
+        gvar.transcript_ntp_usage = {'trans2': {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15}}
+        gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
+            'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
+            'trans3': 'Mitochondrial Exosome'}
+            })
+        gen.run()
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
+
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
+            {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[n]': -1})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
+            {'amp[m]': 4, 'cmp[m]': 2, 'gmp[m]': 2, 'ump[m]': 7, 'h[m]': 14, 'h2o[m]': -14, 'trans2[m]': -1})
+        

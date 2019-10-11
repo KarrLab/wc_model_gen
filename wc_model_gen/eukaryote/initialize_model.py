@@ -10,6 +10,7 @@ from wc_utils.util.chem import EmpiricalFormula, get_major_micro_species, OpenBa
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_utils.util import chem
+import wc_model_gen.global_vars as gvar
 import ete3
 import math
 import numpy
@@ -218,28 +219,24 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     mean=culture_volume, std=0)                
                 
             elif '_m' in comp.id:
+                c.physical_type = wc_ontology['WC:membrane_compartment']
                 c.init_density.value = membrane_density
                 organelle_fraction = kb.cell.compartments.get_one(id=comp.id[:comp.id.index('_')]).volumetric_fraction              
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
-                    mean=4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
-                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))                    
-                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
-                    wc_lang.Compartment: {c.id: c},
-                    wc_lang.Parameter: {c.init_density.id: c.init_density},
-                    })
-                assert error is None, str(error)
+                    mean=4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)                
 
             else:
                 c.init_density.value = cell_density
                 organelle_fraction = kb.cell.compartments.get_one(id=comp.id).volumetric_fraction
                 c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=mean_cell_volume*organelle_fraction - 4.836E-09*(mean_cell_volume*organelle_fraction)**(2/3), std=0)
-                volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
-                volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
-                    wc_lang.Compartment: {c.id: c},
-                    wc_lang.Parameter: {c.init_density.id: c.init_density},
-                    })
-                assert error is None, str(error)           
+
+            volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
+            volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+            assert error is None, str(error)           
 
     def gen_parameters(self):
         """ Generate parameters for the model from knowledge base """
@@ -396,20 +393,57 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
-            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
-            model_species_type.structure.charge = kb_species_type.get_charge()
+            seq = kb_species_type.get_seq()
+            gvar.transcript_ntp_usage[kb_species_type.id] = {
+                'A': seq.upper().count('A'),
+                'C': seq.upper().count('C'),
+                'G': seq.upper().count('G'),
+                'U': seq.upper().count('U'),
+                'len': len(seq)
+                }
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
+                seq_input=seq)
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
+                seq_input=seq)
+            model_species_type.structure.charge = kb_species_type.get_charge(
+                seq_input=seq)
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
-            cds = self.options['cds']            
+            cds = self.options['cds']
+            seq = kb_species_type.get_seq(table=table, cds=cds)
+            gvar.protein_aa_usage[kb_species_type.id] = {
+                'len': len(seq) - seq.count('*'),
+                '*': seq.count('*'),  # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': seq.count('A'),  # Ala: Alanine (C3 H7 N O2)
+                'R': seq.count('R'),  # Arg: Arginine (C6 H14 N4 O2)
+                'N': seq.count('N'),  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': seq.count('D'),  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': seq.count('C'),  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': seq.count('Q'),  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': seq.count('E'),  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': seq.count('G'),  # Gly: Glycine (C2 H5 N O2)
+                'H': seq.count('H'),  # His: Histidine (C6 H9 N3 O2)
+                'I': seq.count('I'),  # Ile: Isoleucine (C6 H13 N O2)
+                'L': seq.count('L'),  # Leu: Leucine (C6 H13 N O2)
+                'K': seq.count('K'),  # Lys: Lysine (C6 H14 N2 O2)
+                'M': seq.count('M'),  # Met: Methionine (C5 H11 N O2 S)
+                'F': seq.count('F'),  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': seq.count('P'),  # Pro: Proline (C5 H9 N O2)
+                'S': seq.count('S'),  # Ser: Serine (C3 H7 N O3)
+                'T': seq.count('T'),  # Thr: Threonine (C4 H9 N O3)
+                'W': seq.count('W'),  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
+                'U': seq.count('U'),  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+            }            
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                table=table, cds=cds)
+                seq_input=seq)
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                table=table, cds=cds)
+                seq_input=seq)
             model_species_type.structure.charge = kb_species_type.get_charge(
-                table=table, cds=cds)
+                seq_input=seq)
 
         elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
@@ -434,7 +468,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             else:    
                 inchi_str = kb_species_type.properties.get_one(property='structure')
                 if inchi_str:
-                    smiles, formula, charge, mol_wt = self.inchi_to_smiles_and_props(
+                    smiles, formula, charge, mol_wt = self.structure_to_smiles_and_props(
                         inchi_str.get_value(), ph)
                     model_species_type.structure.value = smiles
                     model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
@@ -455,17 +489,18 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 if isinstance(subunit.species_type, wc_kb.eukaryote.ProteinSpeciesType):
                     table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                     cds = self.options['cds']
+                    sequence = subunit.species_type.get_seq(table=table, cds=cds)
                     for coeff in range(0, abs(int(subunit.coefficient))):
                         formula += subunit.species_type.get_empirical_formula(
-                            table=table, cds=cds)
+                            seq_input=sequence)
                     charge += abs(subunit.coefficient)*subunit.species_type.get_charge(
-                        table=table, cds=cds)
+                        seq_input=sequence)
                     weight += abs(subunit.coefficient)*subunit.species_type.get_mol_wt(
-                        table=table, cds=cds)
+                        seq_input=sequence)
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
-                        _, sub_formula, sub_charge, sub_mol_wt = self.inchi_to_smiles_and_props(
+                        _, sub_formula, sub_charge, sub_mol_wt = self.structure_to_smiles_and_props(
                             inchi_str.get_value(), ph)
                     else:
                         sub_formula = subunit.species_type.get_empirical_formula()
@@ -746,12 +781,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 temp=environment['temperature'],
                 comments=environment['comments'])
 
-    def inchi_to_smiles_and_props(self, inchi, ph):
-        """ Convert an InChI string to a SMILES string and calculate properties such
+    def structure_to_smiles_and_props(self, structure, ph):
+        """ Convert InChI or SMILES string in the knowledge base 
+            to a SMILES string at specific pH and calculate properties such
             as empirical formula, charge and molecular weight 
 
         Args:
-            inchi (:obj:`str`): InChI string
+            structure (:obj:`str`): InChI or SMILES string
             ph (:obj:`float`): pH at which the properties should be determined
 
         Returns:
@@ -760,8 +796,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             :obj:`int`: charge
             :obj:`float`: molecular weight    
         """
-
-        smiles = get_major_micro_species(inchi, 'inchi', 'smiles', ph=ph)        
+        structure_type = 'inchi' if 'InChI=' in structure else 'smiles'
+        smiles = get_major_micro_species(structure, structure_type, 'smiles', ph=ph)        
         mol = openbabel.OBMol()
         conv = openbabel.OBConversion()
         conv.SetInFormat('smi')

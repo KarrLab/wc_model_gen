@@ -6,6 +6,7 @@
 """
 
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
 import math
 import numpy
@@ -52,8 +53,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
-                'c': met_species_type.species.get_one(compartment=cytoplasm),
-                'm': met_species_type.species.get_one(compartment=mitochondrion)
+                'c': met_species_type.species.get_or_create(compartment=cytoplasm, model=model),
+                'm': met_species_type.species.get_or_create(compartment=mitochondrion, model=model)
                 }
 
         print('Start generating RNA degradation submodel...')
@@ -75,24 +76,35 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
             reaction = model.reactions.get_or_create(submodel=self.submodel, id='degradation_' + rna_kb.id)
             reaction.name = 'degradation of ' + rna_kb.name
-            seq = rna_kb.get_seq()
-
+            
+            if rna_kb.id in gvar.transcript_ntp_usage:
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
+            else:
+                seq = rna_kb.get_seq()
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
+                    'A': seq.upper().count('A'),
+                    'C': seq.upper().count('C'),
+                    'G': seq.upper().count('G'),
+                    'U': seq.upper().count('U'),
+                    'len': len(seq)
+                    }
+            
             # Adding participants to LHS
             reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=-1))
             reaction.participants.append(metabolites['h2o'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(ntp_count['len']-1)))
 
             # Adding participants to RHS
             reaction.participants.append(metabolites['amp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['U']))
             reaction.participants.append(metabolites['h'][
-                degradation_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
+                degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['len']-1))
                              
             # Assign modifier
             self._degradation_modifier[reaction.name] = model.species_types.get_one(
@@ -174,7 +186,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
 
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
+            half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_reactant.distribution_init_concentration.mean
 
             average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
@@ -188,6 +200,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.init_volume.mean
+                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, species.species_type.name, species.compartment.name)
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.

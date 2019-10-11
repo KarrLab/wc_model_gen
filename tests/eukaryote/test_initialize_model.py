@@ -12,6 +12,7 @@ from wc_utils.util import chem
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_lang.core import ChemicalStructure
+import wc_model_gen.global_vars as gvar
 import Bio.SeqUtils
 import mendeleev
 import os
@@ -50,7 +51,7 @@ class TestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nTTTATGAARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
+            f.write('>chr1\nTTTatgaARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
                     '>chrX\nATGCGTCA\n'
                     '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
     
@@ -215,7 +216,8 @@ class TestCase(unittest.TestCase):
         backward_rate_law.id = backward_rate_law.gen_id()            
         
     def tearDown(self):    
-        shutil.rmtree(self.tmp_dirname)  
+        shutil.rmtree(self.tmp_dirname) 
+        gvar.protein_aa_usage = {} 
 
     def test_gen_taxon_compartments_parameters(self):
 
@@ -235,6 +237,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.compartments.get_one(id='n').biological_type, wc_ontology['WC:cellular_compartment'])
         self.assertAlmostEqual(model.compartments.get_one(id='n').init_volume.mean, 5199.999998548484)
         self.assertAlmostEqual(model.compartments.get_one(id='n_m').init_volume.mean, 1.4515160909356243e-06)
+        self.assertEqual(model.compartments.get_one(id='n_m').physical_type, wc_ontology['WC:membrane_compartment'])
         self.assertEqual(model.compartments.get_one(id='e').init_volume.mean, 1.0)
         self.assertEqual(model.compartments.get_one(id='e').biological_type, wc_ontology['WC:extracellular_compartment'])
 
@@ -248,6 +251,8 @@ class TestCase(unittest.TestCase):
             model.functions.get_one(id='volume_n').expression), 'n / density_n')
         self.assertEqual(wc_lang.Function.expression.serialize(
             model.functions.get_one(id='volume_n_m').expression), 'n_m / density_n_m')
+        self.assertEqual(wc_lang.Function.expression.serialize(
+            model.functions.get_one(id='volume_e').expression), 'e / density_e')
         
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').value, 0.2)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward').units, unit_registry.parse_units('molecule^-1 s^-1'))
@@ -317,7 +322,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(chrX_model.comments, '')
 
     def test_gen_transcripts(self):
-
+        gvar.transcript_ntp_usage = {}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options(['gen_transcripts'])}}).run()
@@ -325,6 +330,8 @@ class TestCase(unittest.TestCase):
         transcript1_model = model.species_types.get_one(id='trans1')
         transcript2_model = model.species_types.get_one(id='trans2')
         transcript3_model = model.species_types.get_one(id='trans3')
+
+        self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 1, 'U': 1, 'G': 1, 'C': 1, 'len': 4})
 
         self.assertEqual(transcript1_model.name, 'transcript1')
         self.assertEqual(transcript3_model.type, wc_ontology['WC:RNA'])
@@ -350,13 +357,39 @@ class TestCase(unittest.TestCase):
     def test_gen_protein(self):
 
         self.kb.cell.species_types.get_one(id='prot3').comments = 'Testing'
-
+        
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options(['gen_protein'])}}).run()
 
         prot1_model = model.species_types.get_one(id='prot1')
         prot3_model = model.species_types.get_one(id='prot3')
+
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {
+                'len': 10,
+                '*': 0,  # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': 0,  # Ala: Alanine (C3 H7 N O2)
+                'R': 0,  # Arg: Arginine (C6 H14 N4 O2)
+                'N': 2,  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': 0,  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': 0,  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': 0,  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': 1,  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': 0,  # Gly: Glycine (C2 H5 N O2)
+                'H': 0,  # His: Histidine (C6 H9 N3 O2)
+                'I': 1,  # Ile: Isoleucine (C6 H13 N O2)
+                'L': 2,  # Leu: Leucine (C6 H13 N O2)
+                'K': 2,  # Lys: Lysine (C6 H14 N2 O2)
+                'M': 1,  # Met: Methionine (C5 H11 N O2 S)
+                'F': 0,  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': 0,  # Pro: Proline (C5 H9 N O2)
+                'S': 0,  # Ser: Serine (C3 H7 N O3)
+                'T': 0,  # Thr: Threonine (C4 H9 N O3)
+                'W': 0,  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': 1,  # Val: Valine (C5 H11 N O2)
+                'U': 0,  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+            })
 
         self.assertEqual(prot1_model.name, 'protein1')
         self.assertEqual(prot3_model.type, wc_ontology['WC:protein'])
@@ -598,6 +631,33 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.env.temp_units, unit_registry.parse_units('celsius'))
         self.assertEqual(model.env.comments, '')
 
+    def test_structure_to_smiles_and_props(self):
+
+        model = wc_lang.Model()
+        test_instance = initialize_model.InitializeModel(self.kb, model)
+        ph = 7.4        
+        structure = 'InChI=1S/C10H14N5O7P/c11-8-5-9(13-2-12-8)15(3-14-5)10-7(17)6(16)4(22-10)1-21-23(18,19)20' +\
+                    '/h2-4,6-7,10,16-17H,1H2,(H2,11,12,13)(H2,18,19,20)/p-2/t4-,6-,7-,10-/m1/s1'
+        smiles, formula, charge, mol_wt = test_instance.structure_to_smiles_and_props(structure, ph)
+        self.assertEqual(smiles, 'NC1=C2N=CN([C@@H]3O[C@H](COP([O-])([O-])=O)[C@@H](O)[C@H]3O)C2=NC=N1')
+        self.assertEqual(formula, chem.EmpiricalFormula('C10H12N5O7P'))
+        self.assertEqual(charge, -2)
+        self.assertAlmostEqual(mol_wt, 345.20776199799997, places=4)
+
+        structure = '[H]OC([H])([H])[C@@]1([H])O[C@]([H])(n2c([H])[nH]c3c([H])c(c(c([H])c23)C([H])([H])' +\
+                    '[H])C([H])([H])[H])[C@]([H])(O[H])[C@]1([H])OP([O-])(=O)O[C@]([H])(C([H])([H])[H])C([H])' +\
+                    '([H])N([H])C(=O)C([H])([H])C([H])([H])[C@]1(\C2=C(\C3=N\C(=C([H])/C4=NC(=C(C5=N[C@@](C([H])' +\
+                    '([H])[H])([C@]([H])(N2[Co+][O+]([H])[H])[C@]1([H])C([H])([H])C(=O)N([H])[H])[C@@](C([H])([H])' +\
+                    '[H])(C([H])([H])C(=O)N([H])[H])[C@]5([H])C([H])([H])C([H])([H])C(=O)N([H])[H])C([H])([H])[H])' +\
+                    '[C@@](C([H])([H])[H])(C([H])([H])C(=O)N([H])[H])[C@]4([H])C([H])([H])C([H])([H])C(=O)N([H])[H])\C' +\
+                    '(C([H])([H])[H])(C([H])([H])[H])[C@]3([H])C([H])([H])C([H])([H])C(=O)N([H])[H])C([H])([H])[H])C([H])([H])[H]'
+        smiles, formula, charge, mol_wt = test_instance.structure_to_smiles_and_props(structure, ph)
+        self.assertEqual(smiles, 'C[C@H](CNC(=O)CC[C@]1(C)[C@@H](CC(N)=O)[C@H]2N([Co+]O)\\C1=C(C)/C1=[NH+]/C(=C\\C3=[NH+]C'
+            '(=C(C)C4=N[C@]2(C)[C@@](C)(CC(N)=O)[C@@H]4CCC(N)=O)[C@@](C)(CC(N)=O)[C@@H]3CCC(N)=O)/C(C)(C)[C@@H]1CCC(N)=O)OP'
+            '([O-])(=O)O[C@@H]1[C@@H](CO)O[C@@H]([C@@H]1O)n1c[nH]c2cc(C)c(C)cc12')
+        self.assertEqual(formula, chem.EmpiricalFormula('C62H99CoN13O15P'))
+        self.assertEqual(charge, 2)
+        self.assertAlmostEqual(mol_wt, 1356.456955998, places=4)            
 
     def test_unchanged_kb(self):    
         

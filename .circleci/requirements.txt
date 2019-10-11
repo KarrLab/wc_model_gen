@@ -1,4 +1,5 @@
 # Karr Lab
+git+https://github.com/KarrLab/conv_opt.git#egg=conv_opt
 git+https://github.com/KarrLab/bpforms.git#egg=bpforms
 git+https://github.com/KarrLab/bcforms.git#egg=bcforms
 git+https://github.com/KarrLab/wc_utils.git#egg=wc_utils

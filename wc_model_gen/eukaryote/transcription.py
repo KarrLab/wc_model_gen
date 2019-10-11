@@ -8,6 +8,7 @@
 
 from wc_onto import onto
 from wc_utils.util.units import unit_registry
+import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
 import collections
 import math
@@ -85,8 +86,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met in metabolic_participants:
             met_species_type = model.species_types.get_one(id=met)
             metabolites[met] = {
-                'n': met_species_type.species.get_one(compartment=nucleus),
-                'm': met_species_type.species.get_one(compartment=mitochondrion)
+                'n': met_species_type.species.get_or_create(compartment=nucleus, model=model),
+                'm': met_species_type.species.get_or_create(compartment=mitochondrion, model=model)
                 }
 
         ref_polr_width = wc_lang.Reference(
@@ -313,7 +314,17 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 pre_rna_seq = gene_seq.reverse_complement().transcribe()  
             
-            seq = rna_kb.get_seq()
+            if rna_kb.id in gvar.transcript_ntp_usage:
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
+            else:
+                seq = rna_kb.get_seq()
+                ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
+                    'A': seq.upper().count('A'),
+                    'C': seq.upper().count('C'),
+                    'G': seq.upper().count('G'),
+                    'U': seq.upper().count('U'),
+                    'len': len(seq)
+                    }
 
             # Adding participants to LHS
             reaction.participants.append(
@@ -321,19 +332,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-1))
             reaction.participants.append(metabolites['atp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('A')))
+                coefficient=-pre_rna_seq.upper().count('A')))
             reaction.participants.append(metabolites['ctp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('C')))
+                coefficient=-pre_rna_seq.upper().count('C')))
             reaction.participants.append(metabolites['gtp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('G')))
+                coefficient=-pre_rna_seq.upper().count('G')))
             reaction.participants.append(metabolites['utp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.count('U')))
+                coefficient=-pre_rna_seq.upper().count('U')))
             reaction.participants.append(metabolites['h2o'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-(len(pre_rna_seq)-len(seq)-1)))
+                coefficient=-(len(pre_rna_seq)-ntp_count['len']-1)))
             
             # Adding participants to RHS
             reaction.participants.append(
@@ -344,19 +355,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=len(pre_rna_seq)-1))
             reaction.participants.append(metabolites['amp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('A')-seq.count('A')))
+                coefficient=pre_rna_seq.upper().count('A')-ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('C')-seq.count('C')))
+                coefficient=pre_rna_seq.upper().count('C')-ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('G')-seq.count('G')))
+                coefficient=pre_rna_seq.upper().count('G')-ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.count('U')-seq.count('U')))
+                coefficient=pre_rna_seq.upper().count('U')-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-len(seq)-1))
+                coefficient=len(pre_rna_seq)-ntp_count['len']-1))
             reaction.participants.append(
                 polr_complex_species.species_coefficients.get_or_create(
                 coefficient=1))
@@ -644,7 +655,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(
                 compartment=rna_compartment)           
             
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
+            half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_product.distribution_init_concentration.mean         
 
             average_rate[rna_kb.id] = utils.calc_avg_syn_rate(
@@ -661,6 +672,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         repressor_species.distribution_init_concentration.mean
                     param.value = beta_repressor * repressor_species.distribution_init_concentration.mean \
                         / Avogadro.value / repressor_species.compartment.init_volume.mean
+                    param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta_repressor, repressor_species.species_type.name, repressor_species.compartment.name)    
                 elif 'Ka_' in param.id:
                     activator_species = model.species.get_one(
                         id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
@@ -668,6 +681,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         activator_species.distribution_init_concentration.mean
                     param.value = beta_activator * activator_species.distribution_init_concentration.mean \
                         / Avogadro.value / activator_species.compartment.init_volume.mean
+                    param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta_activator, activator_species.species_type.name, activator_species.compartment.name)    
                 elif 'f_' in param.id:
                     param.value = activator_effect
 
@@ -751,6 +766,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.init_volume.mean
+                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, species.species_type.name, species.compartment.name)    
             
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
             model_kcat.value = 1.
