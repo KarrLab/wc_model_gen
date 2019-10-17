@@ -743,6 +743,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 (polr_ns_bound_conc * total_p_bound[polr])
             
         # Calibrate the reaction constant of lumped elongation and termination                         
+        undetermined_model_kcat = []
+        determined_kcat = []
         for rna_kb in rnas_kb: 
 
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
@@ -770,12 +772,22 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         beta, species.species_type.name, species.compartment.name)    
             
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
-            model_kcat.value = 1.
-            model_kcat.value = average_rate[rna_kb.id] / \
-                reaction.rate_laws[0].expression._parsed_expression.eval({
-                    wc_lang.Species: init_species_counts,
-                    wc_lang.Compartment: {
-                        rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
-                })
+
+            if polr_gene_bound_conc and average_rate[rna_kb.id]:
+                model_kcat.value = 1.
+                model_kcat.value = average_rate[rna_kb.id] / \
+                    reaction.rate_laws[0].expression._parsed_expression.eval({
+                        wc_lang.Species: init_species_counts,
+                        wc_lang.Compartment: {
+                            rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
+                    })
+                determined_kcat.append(model_kcat.value)
+            else:
+                undetermined_model_kcat.append(model_kcat)
+        
+        median_kcat = numpy.median(determined_kcat)
+        for model_kcat in undetermined_model_kcat:
+            model_kcat.value = median_kcat
+            model_kcat.comments = 'Set to the median value because it could not be determined from data'
 
         print('Transcription submodel has been generated')        

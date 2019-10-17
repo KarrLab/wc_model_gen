@@ -75,6 +75,15 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=nucleus)
         transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)
 
+        gene5 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene5', polymer=chr1, start=1, end=3)
+        exon5 = wc_kb.eukaryote.GenericLocus(start=1, end=3)
+        transcript5 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans5', 
+            name='transcript5', gene=gene5, exons=[exon5])
+        transcript5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript5, 
+            value='36000.0', value_type=wc_ontology['WC:float'])
+        transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=nucleus)
+        transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=0.)
+
         activator = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator')
         repressor = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='repressor')
         gene2_reg1 = gene2.regulatory_modules.create(
@@ -113,9 +122,10 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=10, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-trans5[n]').mean = 0.
 
         complexes = {'complex1': ('RNA Polymerase I','n'), 'complex2': ('RNA Polymerase II', 'n'), 
-            'complex3': ('RNA Polymerase mitochondria', 'm')}
+            'complex3': ('RNA Polymerase mitochondria', 'm'), 'complex4': ('RNA Polymerase III', 'n')}
         for k, v in complexes.items():
             model_species_type = model.species_types.create(id=k, name=v[0])
             model_compartment = model.compartments.get_one(id=v[1])
@@ -153,7 +163,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
-                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II'},
+                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 'trans5': 'RNA Polymerase III'},
             'polr_occupancy_width': 2,                
             })
         gen.run()
@@ -217,7 +227,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 11)
+        self.assertEqual(len(model.rate_laws), 14)
 
         # binding to non-specific site
         self.assertEqual(model.rate_laws.get_one(id='non_specific_binding_complex1-forward').expression.expression,
@@ -283,13 +293,16 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*2))
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.003465735902799727, places=16)
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
+            'Set to the median value because it could not be determined from data')
 
     def test_global_vars(self):
         
         gvar.transcript_ntp_usage = {'trans1': {'A': 2, 'U': 2, 'G': 2, 'C': 2, 'len': 8}}
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
-                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II'},
+                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 'trans5': 'RNA Polymerase III'},
             'polr_occupancy_width': 2,                
             })
         gen.run()
