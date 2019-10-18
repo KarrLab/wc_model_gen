@@ -213,7 +213,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 
-            if average_rate:            
+            if average_rate and modifier_species.distribution_init_concentration.mean:            
                 model_kcat.value = 1.
                 model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: init_species_counts,
