@@ -305,7 +305,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             The initial concentration of protein subunits will also be updated accordingly.
 
             Args:
-                subunit_participation (:obj:`dict`): A nested dictionary with protein species as
+                subunit_participation (:obj:`dict`): A nested dictionary with subunit species as
                     keys, and dictionaries with key/value pairs of participated complex species and 
                     subunit coefficient as values
         """
@@ -375,20 +375,23 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         primals = result.primals
         
         for ind, sol in enumerate(primals):               
+            
             model_species = model.species.get_one(id=all_variables[ind])
-            species_init_conc = model.distribution_init_concentrations.get_one(species=model_species)
+            
+            if model_species.species_type.type != wc_ontology['WC:metabolite']:
+                species_init_conc = model.distribution_init_concentrations.get_one(species=model_species)
 
-            if species_init_conc:
-                species_init_conc.mean = sol if sol > 0. else 0.
-                species_init_conc.comments += '; Initial value was adjusted assuming the free pool ' + \
-                        'is at steady state with its amount in macromolecular complexes'            
+                if species_init_conc:
+                    species_init_conc.mean = sol if sol > 0. else 0.
+                    species_init_conc.comments += '; Initial value was adjusted assuming the free pool ' + \
+                            'is at steady state with its amount in macromolecular complexes'            
 
-            else:
-                conc_model = model.distribution_init_concentrations.create(
-                    species=model_species,
-                    mean=sol if sol > 0. else 0.,
-                    units=unit_registry.parse_units('molecule'),
-                    comments='Initial value was determined assuming the free pool ' + \
-                        'is at steady state with its amount in macromolecular complexes'
-                    )
-                conc_model.id = conc_model.gen_id()
+                else:
+                    conc_model = model.distribution_init_concentrations.create(
+                        species=model_species,
+                        mean=sol if sol > 0. else 0.,
+                        units=unit_registry.parse_units('molecule'),
+                        comments='Initial value was determined assuming the free pool ' + \
+                            'is at steady state with its amount in macromolecular complexes'
+                        )
+                    conc_model.id = conc_model.gen_id()
