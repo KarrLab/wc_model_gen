@@ -277,11 +277,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 param.value = beta * species.distribution_init_concentration.mean \
                                     / Avogadro.value / species.compartment.init_volume.mean
                                 param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                                    beta, species.species_type.name, compl_compartment.name)    
+                                    beta, species.species_type.id, compl_compartment.name)    
                             else:
                                 param.value = 1e-05
                                 param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was zero'.format(
-                                    species.species_type.name, compl_compartment.name)        
+                                    species.species_type.id, compl_compartment.name)        
                     elif 'k_cat_' in param.id:
                         param.value = 2e06
                         param.comments = 'The rate constant for bimolecular protein-protein association was used '\

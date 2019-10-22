@@ -225,7 +225,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').comments, 
-            'The value was assumed to be 1.0 times the concentration of protein3 in nucleus')
+            'The value was assumed to be 1.0 times the concentration of prot3 in nucleus')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, 2e06)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').comments, 
             'The rate constant for bimolecular protein-protein association was used '
@@ -242,7 +242,7 @@ class TestCase(unittest.TestCase):
         gen.calibrate_submodel()
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 1e-05)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').comments, 
-            'The value was assigned to 1e-05 because the concentration of protein1 in nucleus was zero')
+            'The value was assigned to 1e-05 because the concentration of prot1 in nucleus was zero')
 
     def test_estimate_steady_state(self):
 

@@ -271,14 +271,14 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         # Test calibrate_submodel
         self.assertEqual(model.parameters.get_one(id='K_m_transcription_elongation_trans1_utp').value, 1500/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_transcription_elongation_trans1_utp').comments, 
-            'The value was assumed to be 1.0 times the concentration of UTP in nucleus')
+            'The value was assumed to be 1.0 times the concentration of utp in nucleus')
         self.assertEqual(model.parameters.get_one(id='K_m_transcription_elongation_trans2_utp').value, 1500/scipy.constants.Avogadro/2.5E-14)
         self.assertEqual(model.parameters.get_one(id='Kr_transcription_initiation_trans2_repressor').value, 3/scipy.constants.Avogadro/2.5E-14)
         self.assertEqual(model.parameters.get_one(id='Kr_transcription_initiation_trans2_repressor').comments, 
-            'The value was assumed to be 1.0 times the concentration of REPRESSOR in mitochondria')
+            'The value was assumed to be 1.0 times the concentration of repressor in mitochondria')
         self.assertEqual(model.parameters.get_one(id='Ka_transcription_initiation_trans2_activator').value, 3/scipy.constants.Avogadro/2.5E-14)
         self.assertEqual(model.parameters.get_one(id='Ka_transcription_initiation_trans2_activator').comments, 
-            'The value was assumed to be 1.0 times the concentration of ACTIVATOR in mitochondria')
+            'The value was assumed to be 1.0 times the concentration of activator in mitochondria')
         self.assertEqual(model.parameters.get_one(id='f_transcription_initiation_trans2_activator').value, 1.2)
 
         self.assertEqual(model.parameters.get_one(id='k_non_specific_binding_complex1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/75)

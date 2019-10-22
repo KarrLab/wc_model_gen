@@ -165,7 +165,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         # Test calibrate_submodel
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').value, 10/scipy.constants.Avogadro/2.5E-14)
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').comments, 
-            'The value was assumed to be 1.0 times the concentration of transcript2 in mitochondria')
+            'The value was assumed to be 1.0 times the concentration of trans2 in mitochondria')
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5*100))
 

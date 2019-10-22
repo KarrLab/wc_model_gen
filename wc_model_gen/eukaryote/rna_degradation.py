@@ -206,7 +206,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_Km.value = beta * species.distribution_init_concentration.mean \
                             / Avogadro.value / species.compartment.init_volume.mean
                         model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                            beta, species.species_type.name, species.compartment.name)
+                            beta, species.species_type.id, species.compartment.name)
                         determined_km.append(model_Km.value)
                     else:
                         undetermined_model_km.append(model_Km)    

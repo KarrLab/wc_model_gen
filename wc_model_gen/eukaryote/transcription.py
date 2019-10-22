@@ -673,7 +673,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     param.value = beta_repressor * repressor_species.distribution_init_concentration.mean \
                         / Avogadro.value / repressor_species.compartment.init_volume.mean
                     param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta_repressor, repressor_species.species_type.name, repressor_species.compartment.name)    
+                        beta_repressor, repressor_species.species_type.id, repressor_species.compartment.name)    
                 elif 'Ka_' in param.id:
                     activator_species = model.species.get_one(
                         id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
@@ -682,7 +682,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     param.value = beta_activator * activator_species.distribution_init_concentration.mean \
                         / Avogadro.value / activator_species.compartment.init_volume.mean
                     param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta_activator, activator_species.species_type.name, activator_species.compartment.name)    
+                        beta_activator, activator_species.species_type.id, activator_species.compartment.name)    
                 elif 'f_' in param.id:
                     param.value = activator_effect
 
@@ -769,7 +769,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.init_volume.mean
                     model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, species.species_type.name, species.compartment.name)    
+                        beta, species.species_type.id, species.compartment.name)    
             
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 
