@@ -490,12 +490,12 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                     cds = self.options['cds']
                     sequence = subunit.species_type.get_seq(table=table, cds=cds)
-                    for coeff in range(0, abs(int(subunit.coefficient))):
+                    for coeff in range(0, abs(int(max(1, subunit.coefficient)))):
                         formula += subunit.species_type.get_empirical_formula(
                             seq_input=sequence)
-                    charge += abs(subunit.coefficient)*subunit.species_type.get_charge(
+                    charge += abs(max(1, subunit.coefficient))*subunit.species_type.get_charge(
                         seq_input=sequence)
-                    weight += abs(subunit.coefficient)*subunit.species_type.get_mol_wt(
+                    weight += abs(max(1, subunit.coefficient))*subunit.species_type.get_mol_wt(
                         seq_input=sequence)
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
@@ -507,10 +507,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         sub_charge = subunit.species_type.get_charge()
                         sub_mol_wt = subunit.species_type.get_mol_wt()    
                     
-                    for coeff in range(0, abs(int(subunit.coefficient))):                         
+                    for coeff in range(0, abs(int(max(1, subunit.coefficient)))):                         
                         formula += sub_formula
-                    charge += abs(subunit.coefficient)*sub_charge
-                    weight += abs(subunit.coefficient)*sub_mol_wt        
+                    charge += abs(max(1, subunit.coefficient))*sub_charge
+                    weight += abs(max(1, subunit.coefficient))*sub_mol_wt        
             
             model_species_type.structure.empirical_formula = formula
             model_species_type.structure.molecular_weight = weight

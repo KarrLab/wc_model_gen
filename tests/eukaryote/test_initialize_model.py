@@ -150,8 +150,9 @@ class TestCase(unittest.TestCase):
         complex2_conc2 = wc_kb.core.Concentration(cell=cell, species=complex2_spec2, value=0.)
         complex2_conc2.id = complex2_conc2.serialize()
 
+        species_type_coeff5 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=0)
         complex3 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp3', name='complex3',
-            subunits=[species_type_coeff1])
+            subunits=[species_type_coeff5])
 
         expr1 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] + 1.3 * prot3[m]',
             species = [prot1_spec, prot3_spec])
@@ -480,6 +481,9 @@ class TestCase(unittest.TestCase):
 
         comp3_model = model.species_types.get_one(id='comp3')
         self.assertEqual(set([i.compartment.id for i in model.species.get(species_type=comp3_model)]), set(['n']))
+        self.assertEqual(comp3_model.structure.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
+        self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1201.49, delta=0.3)
+        self.assertEqual(comp3_model.structure.charge, 1)
 
     def test_gen_distribution_init_concentrations(self):
 
