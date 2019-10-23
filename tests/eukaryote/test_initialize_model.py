@@ -265,7 +265,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').units, unit_registry.parse_units('M'))
         self.assertEqual(model.parameters.get_one(id='K_m_r1_backward_met1_n').type, wc_ontology['WC:K_m'])
 
-        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].id, 'ref')
+        self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].id, 'ref_1')
         self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].author, 'John Smith')
         self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].year, 2018)
         self.assertEqual(model.parameters.get_one(id='cell_volume').references[0].comments, 'No comment')
@@ -489,7 +489,7 @@ class TestCase(unittest.TestCase):
 
         test_conc = self.kb.cell.concentrations.get_one(value=0.5)
         test_conc.comments = 'Testing'
-        test_conc.references.append(wc_kb.core.Reference(id='ref1', title='Title1', authors='Author1', 
+        test_conc.references.append(wc_kb.core.Reference(id='ref10', title='Title1', authors='Author1', 
             journal='Journal1', volume='1', issue='1', pages='20', year=1999, comments='xyz'))
         test_conc.identifiers.append(wc_kb.core.Identifier(namespace='ECMDB', id='12345'))
 
@@ -504,7 +504,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.mean, 0.5*scipy.constants.Avogadro*(0.5*10400.-4.836E-09*(0.5*10400.)**(2/3)))
         self.assertEqual(met1_nucleus.units, unit_registry.parse_units('molecule'))
         self.assertEqual(met1_nucleus.comments, 'Testing')
-        self.assertEqual(met1_nucleus.references[0].id, 'ref1')
+        self.assertEqual(met1_nucleus.references[0].id, 'ref_2')
         self.assertEqual(met1_nucleus.references[0].title, 'Title1')
         self.assertEqual(met1_nucleus.references[0].author, 'Author1')
         self.assertEqual(met1_nucleus.references[0].publication, 'Journal1')

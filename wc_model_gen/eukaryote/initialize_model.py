@@ -266,8 +266,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             if param.references:
                 for ref in param.references:
                     ref_model = model.references.get_or_create(
-                        __type=wc_lang.Reference, 
-                        id=ref.id, 
+                        __type=wc_lang.Reference,
                         author=ref.authors,
                         title=ref.title,
                         publication=ref.journal,
@@ -277,6 +276,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         year=ref.year,
                         comments=ref.comments, 
                         type=wc_ontology['WC:article'])
+                    ref_model.id = 'ref_'+str(len(model.references))
                     model_param.references.append(ref_model)
 
             if param.identifiers:
@@ -577,8 +577,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             if conc.references:
                 for ref in conc.references:
                     ref_model = model.references.get_or_create(
-                        __type=wc_lang.Reference, 
-                        id=ref.id, 
+                        __type=wc_lang.Reference,
                         author=ref.authors,
                         title=ref.title,
                         publication=ref.journal,
@@ -588,6 +587,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         year=ref.year,
                         comments=ref.comments, 
                         type=wc_ontology['WC:article'])
+                    ref_model.id = 'ref_'+str(len(model.references))
                     conc_model.references.append(ref_model)
 
             if conc.identifiers:

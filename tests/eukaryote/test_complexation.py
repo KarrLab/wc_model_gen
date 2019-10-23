@@ -232,6 +232,7 @@ class TestCase(unittest.TestCase):
             'so that the simulated rate of complex assembly will be within the higher range')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].title, 
             'Kinetics of protein-protein association explained by Brownian dynamics computer simulation')
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].id, 'ref_1')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot1').value, 1/40000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot2').value, 2/20000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot3').value, 1/25000.)

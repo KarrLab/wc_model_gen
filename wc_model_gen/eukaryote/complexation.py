@@ -260,6 +260,17 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             self.determine_steady_state_concentration(self._subunit_participation)    
                 
         # Calibrate the parameter values for the rate laws of complex association reactions 
+        ref_kcat = wc_lang.Reference(
+            model=model,
+            title='Kinetics of protein-protein association explained by Brownian dynamics computer simulation',
+            author='Scott H Northrup, HP Erickson',        
+            year=1992,
+            type=wc_ontology['WC:article'],
+            publication='PNAS',        
+            volume='89',
+            issue='8',
+            pages='3338-3342')
+        ref_kcat.id = 'ref_'+str(len(model.references))
         for reaction in self.submodel.reactions:            
                         
             if 'association' in reaction.id:
@@ -286,16 +297,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         param.value = 2e06
                         param.comments = 'The rate constant for bimolecular protein-protein association was used '\
                             'so that the simulated rate of complex assembly will be within the higher range'
-                        param.references.append(wc_lang.Reference(
-                            model=model,
-                            title='Kinetics of protein-protein association explained by Brownian dynamics computer simulation',
-                            author='Scott H Northrup, HP Erickson',        
-                            year=1992,
-                            type=wc_ontology['WC:article'],
-                            publication='PNAS',        
-                            volume='89',
-                            issue='8',
-                            pages='3338-3342'))        
+                        param.references.append(ref_kcat)        
 
         print('Complexation submodel has been generated')
 
