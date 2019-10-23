@@ -433,6 +433,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
         # Generate rate law for binding of RNA polymerase to non-specific site       
         rna_pol_pair = self.options.get('rna_pol_pair')
+        self._polr_pool = {}
         for polr in set(rna_pol_pair.values()):            
             rna_compartment = mitochondrion if 'mito' in polr else nucleus
             ns_binding_reaction = model.reactions.get_one(
@@ -469,15 +470,32 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     id='{}_bound_non_specific_site'.format(polr_complex.id)), 
                 compartment=rna_compartment)
             
-            gene_bound_polr = {i.id: i for i in self._gene_bound_polr[polr]}
-            gene_bound_polr[polr_complex_species.id] = polr_complex_species        
-            gene_bound_polr[polr_bound_non_specific_species.id] = polr_bound_non_specific_species 
+            self._polr_pool[polr] = {i.id: i for i in self._gene_bound_polr[polr]}
+            self._polr_pool[polr][polr_complex_species.id] = polr_complex_species        
+            self._polr_pool[polr][polr_bound_non_specific_species.id] = polr_bound_non_specific_species 
             
+            chunked_data = [[k, v] for k, v in self._polr_pool[polr].items()]
+            size = 800
+            chunked_data = [chunked_data[i * size:(i + 1) * size] for i in range((len(chunked_data) + size - 1) // size )]
+            
+            all_subtotal_obs = {}
+            for chunk in chunked_data:
+                chunked_dict = {k:v for k,v in chunk}              
+                polr_subtotal_exp, error = wc_lang.ObservableExpression.deserialize(
+                    ' + '.join(chunked_dict.keys()),
+                    {wc_lang.Species: chunked_dict})            
+                assert error is None, str(error)                
+                polr_subtotal_obs = model.observables.create(
+                    id='subtotal_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id), 
+                    name='subtotal of {} in {}'.format(polr, rna_compartment.name), 
+                    units=unit_registry.parse_units('molecule'), 
+                    expression=polr_subtotal_exp)
+                all_subtotal_obs[polr_subtotal_obs.id] = polr_subtotal_obs
+                    
             polr_obs_exp, error = wc_lang.ObservableExpression.deserialize(
-                ' + '.join(gene_bound_polr.keys()),
-                {wc_lang.Species: gene_bound_polr})            
+                ' + '.join(all_subtotal_obs.keys()),
+                {wc_lang.Observable: all_subtotal_obs})            
             assert error is None, str(error)
-            
             polr_obs = model.observables.create(
                 id='total_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id), 
                 name='total {} in {}'.format(polr, rna_compartment.name), 
@@ -686,12 +704,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 elif 'f_' in param.id:
                     param.value = activator_effect
 
-            polr_obs = model.observables.get_one(
-                name='total {} in {}'.format(rna_pol_pair[rna_kb.id], rna_compartment.name))
             total_polr = self._total_polr[rna_pol_pair[rna_kb.id]]
-            no_of_polr_pool = len(polr_obs.expression.species)
-            for i in polr_obs.expression.species:
-                init_reg_species_count[i.id] = total_polr / no_of_polr_pool            
+            no_of_polr_pool = len(self._polr_pool[rna_pol_pair[rna_kb.id]])
+            for i in self._polr_pool[rna_pol_pair[rna_kb.id]]:
+                init_reg_species_count[i] = total_polr / no_of_polr_pool            
             
             p_bound_function = model.functions.get_one(id='p_bound_{}'.format(rna_kb.gene.id))
             p_bound_value = p_bound_function.expression._parsed_expression.eval({
@@ -750,8 +766,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
 
             polr_gene_bound_conc = min(self._allowable_queue_len[rna_kb.id][1], 
-                round(p_bound[rna_kb.id] / total_p_bound[rna_pol_pair[rna_kb.id]] * \
-                total_gene_bound[rna_pol_pair[rna_kb.id]]))
+                p_bound[rna_kb.id] / total_p_bound[rna_pol_pair[rna_kb.id]] * \
+                total_gene_bound[rna_pol_pair[rna_kb.id]])
             
             polr_gene_bound_species = self._elongation_modifier[rna_kb.id]            
             model.distribution_init_concentrations.get_one(

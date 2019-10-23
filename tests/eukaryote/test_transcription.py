@@ -238,8 +238,10 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'k_non_specific_binding_complex3 * complex3[m]')
 
         # initiation
-        self.assertEqual(model.observables.get_one(id='total_complex1_n').expression.expression,
+        self.assertEqual(model.observables.get_one(id='subtotal_complex1_n').expression.expression,
             'complex1_bound_gene1[n] + complex1[n] + complex1_bound_non_specific_site[n]')
+        self.assertEqual(model.observables.get_one(id='total_complex1_n').expression.expression,
+            'subtotal_complex1_n')
         self.assertEqual(model.functions.get_one(id='p_bound_gene1').expression.expression,
             '1 / (1 + 9 / (total_complex1_n * 1) * exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.functions.get_one(id='p_bound_gene2').expression.expression,
