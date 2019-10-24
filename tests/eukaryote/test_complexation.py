@@ -179,18 +179,18 @@ class TestCase(unittest.TestCase):
         self.assertEqual([(i.species.id, i.coefficient) for i in complex1_assembly.participants],
             [('prot1[n]', -1), ('prot2[n]', -2), ('prot3[n]', -1), ('complex_1[n]', 1)])
         
-        dissociate_prot1 = model.reactions.get_one(id='complex_1_dissociation_in_n_degradation_prot1')
+        dissociate_prot1 = model.reactions.get_one(id='complex_1_dissociation_in_n_degrade_prot1')
         self.assertEqual(dissociate_prot1.name, 'Dissociation of complex_1 in nucleus and degradation of prot1')
         self.assertEqual(dissociate_prot1.reversible, False)
         self.assertEqual(dissociate_prot1.comments, '')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot1.participants]),
             sorted([('complex_1[n]', -1), ('h2o[l]', -1), ('Ala[l]', 1), ('Cys[l]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
         
-        dissociate_prot2 = model.reactions.get_one(id='complex_1_dissociation_in_n_degradation_prot2')
+        dissociate_prot2 = model.reactions.get_one(id='complex_1_dissociation_in_n_degrade_prot2')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot2.participants]),
             sorted([('complex_1[n]', -1), ('h2o[l]', -1), ('Cys[l]', 1), ('Asp[l]', 1), ('prot1[n]', 1), ('prot2[n]', 1), ('prot3[n]', 1)]))
 
-        dissociate_prot3 = model.reactions.get_one(id='complex_1_dissociation_in_n_degradation_prot3')
+        dissociate_prot3 = model.reactions.get_one(id='complex_1_dissociation_in_n_degrade_prot3')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot3.participants]),
             sorted([('complex_1[n]', -1), ('h2o[l]', -1), ('Asp[l]', 2), ('prot1[n]', 1), ('prot2[n]', 2)]))
 
@@ -201,11 +201,11 @@ class TestCase(unittest.TestCase):
         self.assertEqual([(i.species.id, i.coefficient) for i in complex2_assembly.participants],
             [('prot3[m]', -2), ('complex_2[m]', 1)])
 
-        c2_dissociate_prot3_m = model.reactions.get_one(id='complex_2_dissociation_in_m_degradation_prot3')
+        c2_dissociate_prot3_m = model.reactions.get_one(id='complex_2_dissociation_in_m_degrade_prot3')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3_m.participants]),
             sorted([('complex_2[m]', -1), ('h2o[m]', -1), ('Asp[m]', 2),  ('prot3[m]', 1)]))
 
-        c2_dissociate_prot3_c_m = model.reactions.get_one(id='complex_2_dissociation_in_c_m_degradation_prot3')
+        c2_dissociate_prot3_c_m = model.reactions.get_one(id='complex_2_dissociation_in_c_m_degrade_prot3')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3_c_m.participants]),
             sorted([('complex_2[c_m]', -1), ('h2o[l]', -1), ('Asp[l]', 2),  ('prot3[c_m]', 1)]))
 
@@ -217,9 +217,9 @@ class TestCase(unittest.TestCase):
             '(prot3[n] / (prot3[n] + K_m_complex_1_association_in_n_prot3 * Avogadro * volume_n))')
         self.assertEqual(complex1_assembly.rate_laws[0].direction, wc_lang.RateLawDirection.forward)
         self.assertEqual(dissociate_prot1.rate_laws[0].expression.expression, 
-            'k_cat_complex_1_dissociation_in_n_degradation_prot1 * complex_1[n]')
+            'k_cat_complex_1_dissociation_in_n_degrade_prot1 * complex_1[n]')
         self.assertEqual(dissociate_prot3.rate_laws[0].expression.expression, 
-            'k_cat_complex_1_dissociation_in_n_degradation_prot3 * complex_1[n]')
+            'k_cat_complex_1_dissociation_in_n_degrade_prot3 * complex_1[n]')
 
         # Test calibrate_submodels
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 10/scipy.constants.Avogadro/5E-14)
@@ -233,9 +233,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].title, 
             'Kinetics of protein-protein association explained by Brownian dynamics computer simulation')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].id, 'ref_1')
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot1').value, 1/40000.)
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot2').value, 2/20000.)
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degradation_prot3').value, 1/25000.)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot1').value, 1/40000.)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot2').value, 2/20000.)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot3').value, 1/25000.)
         self.assertEqual({k.id:{x.id:y for x,y in v.items()} for k,v in gen._subunit_participation.items()}, 
             {'prot1[n]': {'complex_1[n]':1}, 'prot2[n]': {'complex_1[n]':2}, 'prot3[n]': {'complex_1[n]': 1, 'complex_2[n]': 2}, 'prot3[m]': {'complex_2[m]': 2}, 'prot3[c_m]': {'complex_2[c_m]': 2}})
 
@@ -302,7 +302,7 @@ class TestCase(unittest.TestCase):
 
             for subunit, coeff in v.items():
                 if model.species_types.get_one(id=subunit).type != wc_ontology['WC:metabolite']:
-                    model_rxn = model.reactions.create(id='{}_dissociation_in_{}_degradation_{}'.format(k, cytosol.id, subunit))
+                    model_rxn = model.reactions.create(id='{}_dissociation_in_{}_degrade_{}'.format(k, cytosol.id, subunit))
                     model_rxn.participants.add(c_species.species_coefficients.get_or_create(coefficient=-1))
                     for subunit2, coeff2 in v.items():
                         if subunit2==subunit:
@@ -339,7 +339,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C1[c]').mean, 0.)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C2[c]').mean, 5.)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-P2[c]').comments, 
-            'Random comments.; Initial value was adjusted assuming the free pool is at steady state with its amount in macromolecular complexes')
+            'Random comments.Initial value was adjusted assuming the free pool is at steady state with its amount in macromolecular complexes')
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-C1[c]').comments,
             'Initial value was determined assuming the free pool is at steady state with its amount in macromolecular complexes')
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-M1[c]').mean, 100.)
@@ -359,7 +359,7 @@ class TestCase(unittest.TestCase):
             })
         gen.run()   
 
-        dissociate_prot1 = self.model.reactions.get_one(id='complex_1_dissociation_in_n_degradation_prot1')
+        dissociate_prot1 = self.model.reactions.get_one(id='complex_1_dissociation_in_n_degrade_prot1')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot1.participants]),
             sorted([('complex_1[n]', -1), ('h2o[l]', -6), ('Ala[l]', 4), ('Cys[l]', 2), ('Asp[l]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
         

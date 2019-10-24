@@ -8,6 +8,7 @@
 
 from wc_model_gen.eukaryote import transcription
 from wc_onto import onto as wc_ontology
+from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
 import math
@@ -127,7 +128,11 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         complexes = {'complex1': ('RNA Polymerase I','n'), 'complex2': ('RNA Polymerase II', 'n'), 
             'complex3': ('RNA Polymerase mitochondria', 'm'), 'complex4': ('RNA Polymerase III', 'n')}
         for k, v in complexes.items():
-            model_species_type = model.species_types.create(id=k, name=v[0])
+            model_species_type = model.species_types.create(id=k, name=v[0], 
+                structure = wc_lang.ChemicalStructure(
+                    empirical_formula = EmpiricalFormula('H'),
+                    molecular_weight = 1.018,
+                    charge = 1))
             model_compartment = model.compartments.get_one(id=v[1])
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
@@ -180,6 +185,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             id='dist-init-conc-polr_non_specific_binding_site[n]')
         mito_genome_binding_site_conc = model.distribution_init_concentrations.get_one(
             id='dist-init-conc-polr_non_specific_binding_site[m]')
+        self.assertEqual(model.species_types.get_one(id='polr_non_specific_binding_site').structure.empirical_formula, EmpiricalFormula())
+        self.assertEqual(model.species_types.get_one(id='polr_non_specific_binding_site').structure.molecular_weight, 0.)
+        self.assertEqual(model.species_types.get_one(id='polr_non_specific_binding_site').structure.charge, 0)
         self.assertEqual(nuclear_genome_binding_site_conc.mean, 9)
         self.assertEqual(mito_genome_binding_site_conc.mean, 10)
         self.assertEqual(mito_genome_binding_site_conc.comments, 
@@ -194,6 +202,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.distribution_init_concentrations.get_one(
             id='dist-init-conc-complex1[n]').references[0].title, 
             'In vivo dynamics of RNA polymerase II transcription')
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_non_specific_site').structure.empirical_formula, EmpiricalFormula('H'))
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_non_specific_site').structure.molecular_weight, 1.018)
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_non_specific_site').structure.charge, 1)
         self.assertEqual(model.distribution_init_concentrations.get_one(
             id='dist-init-conc-complex1_bound_non_specific_site[n]').mean, 24)
         self.assertEqual(model.distribution_init_concentrations.get_one(
@@ -204,6 +215,12 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='non_specific_binding_complex2').submodel.id, 'transcription')
 
         # initiation
+        self.assertEqual(model.species_types.get_one(id='gene1_binding_site').structure.empirical_formula, EmpiricalFormula())
+        self.assertEqual(model.species_types.get_one(id='gene1_binding_site').structure.molecular_weight, 0.)
+        self.assertEqual(model.species_types.get_one(id='gene1_binding_site').structure.charge, 0)
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_gene1').structure.empirical_formula, EmpiricalFormula('H'))
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_gene1').structure.molecular_weight, 1.018)
+        self.assertEqual(model.species_types.get_one(id='complex1_bound_gene1').structure.charge, 1)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene1_binding_site[n]').mean, 10)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene2_binding_site[m]').mean, 10)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-gene4_binding_site[n]').mean, 2)
@@ -238,14 +255,22 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'k_non_specific_binding_complex3 * complex3[m]')
 
         # initiation
-        self.assertEqual(model.observables.get_one(id='subtotal_complex1_n').expression.expression,
+        self.assertEqual(model.observables.get_one(id='subtotal_complex1_n_1').expression.expression,
             'complex1_bound_gene1[n] + complex1[n] + complex1_bound_non_specific_site[n]')
         self.assertEqual(model.observables.get_one(id='total_complex1_n').expression.expression,
-            'subtotal_complex1_n')
+            'subtotal_complex1_n_1')
+        self.assertEqual(model.parameters.get_one(id='total_nuclear_genome_binding').value, 9)
+        self.assertEqual(model.parameters.get_one(id='total_nuclear_genome_binding').units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.parameters.get_one(id='total_nuclear_genome_binding').comments, 'Set to genome length divided by 2 bp')
+        self.assertEqual(model.parameters.get_one(id='total_nuclear_genome_binding').references[0].author, 'Steven Hahn')
+        self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').value, 10)
+        self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').comments, 'Set to genome length divided by 2 bp')
+        self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').references[0].pages, '394-403')
         self.assertEqual(model.functions.get_one(id='p_bound_gene1').expression.expression,
-            '1 / (1 + 9 / (total_complex1_n * 1) * exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
+            '1 / (1 + total_nuclear_genome_binding / (total_complex1_n * 1) * exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.functions.get_one(id='p_bound_gene2').expression.expression,
-            '1 / (1 + 10 / (total_complex3_m * ((1 + activator[m] / (Ka_transcription_initiation_trans2_activator * '
+            '1 / (1 + total_mitochondrial_genome_binding / (total_complex3_m * ((1 + activator[m] / (Ka_transcription_initiation_trans2_activator * '
             'Avogadro * volume_m) * f_transcription_initiation_trans2_activator) / (1 + activator[m] / '
             '(Ka_transcription_initiation_trans2_activator * Avogadro * volume_m))) * (1 / (1 + repressor[m] / '
             '(Kr_transcription_initiation_trans2_repressor * Avogadro * volume_m)))) * '

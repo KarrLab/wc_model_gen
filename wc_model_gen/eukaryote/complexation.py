@@ -111,7 +111,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             
                             model_rxn = model.reactions.create(
                                 submodel=self.submodel,
-                                id='{}_dissociation_in_{}_degradation_{}'.format(
+                                id='{}_dissociation_in_{}_degrade_{}'.format(
                                     compl.id, compl_compartment.id, compl_subunit.species_type.id),
                                 name='Dissociation of {} in {} and degradation of {}'.format(
                                     compl.id, compl_compartment.name, compl_subunit.species_type.id),
@@ -192,11 +192,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 diss_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
                     type=wc_ontology['WC:k_cat'],
-                    units=unit_registry.parse_units('s^-1'))
+                    units=unit_registry.parse_units('molecule^-1 s^-1'))
                 
                 complex_st_id = reaction.id[:reaction.id.index('_dissociation')]
                 compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4 : 
-                    reaction.id.index('_degradation')]
+                    reaction.id.index('_degrade')]
                 complex_species = model.species_types.get_one(id=complex_st_id).species.get_one(
                     compartment=model.compartments.get_one(id=compl_compartment_id))
                 
@@ -239,10 +239,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if 'dissociation' in reaction.id:
                 complex_st_id = reaction.id[:reaction.id.index('_dissociation')]
                 compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4 : 
-                    reaction.id.index('_degradation')]
+                    reaction.id.index('_degrade')]
                 compl_compartment = model.compartments.get_one(id=compl_compartment_id)
                 
-                degraded_subunit_st_id = reaction.id[reaction.id.index('degradation_') + 12:]
+                degraded_subunit_st_id = reaction.id[reaction.id.index('degrade_') + 8:]
                     
                 degraded_subunit_hlife = cell.species_types.get_one(
                     id=degraded_subunit_st_id).properties.get_one(
@@ -385,7 +385,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 if species_init_conc:
                     species_init_conc.mean = sol if sol > 0. else 0.
-                    species_init_conc.comments += '; Initial value was adjusted assuming the free pool ' + \
+                    species_init_conc.comments += 'Initial value was adjusted assuming the free pool ' + \
                             'is at steady state with its amount in macromolecular complexes'            
 
                 else:

@@ -7,6 +7,7 @@
 """
 
 from wc_onto import onto
+from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
@@ -160,6 +161,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 name='non-specific binding site of RNA polymerase',
                 type=onto['WC:pseudo_species'],
                 )
+            polr_non_specific_binding_site_st.structure = wc_lang.ChemicalStructure(
+                    empirical_formula = EmpiricalFormula(),
+                    molecular_weight = 0.,
+                    charge = 0)
             polr_non_specific_binding_site_species = model.species.get_or_create(
                 species_type=polr_non_specific_binding_site_st, compartment=rna_compartment)
             polr_non_specific_binding_site_species.id = polr_non_specific_binding_site_species.gen_id()
@@ -177,8 +182,12 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             polr_bound_non_specific_species_type = model.species_types.get_or_create(
                 id='{}_bound_non_specific_site'.format(polr_complex.id),
                 name='{}-bound non-specific site'.format(polr_complex.id),
-                type=onto['WC:pseudo_species'],
+                type=onto['WC:pseudo_species'],                
                 )
+            polr_bound_non_specific_species_type.structure = wc_lang.ChemicalStructure(
+                    empirical_formula = polr_complex.structure.empirical_formula,
+                    molecular_weight = polr_complex.structure.molecular_weight,
+                    charge = polr_complex.structure.charge)
             polr_bound_non_specific_species = model.species.get_or_create(
                 species_type=polr_bound_non_specific_species_type, compartment=rna_compartment)
             polr_bound_non_specific_species.id = polr_bound_non_specific_species.gen_id()
@@ -238,6 +247,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 name='binding site of {}'.format(gene.name),
                 type=onto['WC:pseudo_species'],
                 )
+            polr_binding_site_st.structure = wc_lang.ChemicalStructure(
+                    empirical_formula = EmpiricalFormula(),
+                    molecular_weight = 0.,
+                    charge = 0)
             polr_binding_site_species = model.species.get_or_create(
                 species_type=polr_binding_site_st, compartment=rna_compartment)
             polr_binding_site_species.id = polr_binding_site_species.gen_id()
@@ -257,8 +270,12 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             polr_bound_species_type = model.species_types.get_or_create(
                 id='{}_bound_{}'.format(polr_complex.id, gene.id),
                 name='{} bound {}'.format(polr_complex.name, gene.name),
-                type=onto['WC:pseudo_species'],
+                type=onto['WC:pseudo_species'],                
                 )
+            polr_bound_species_type.structure = wc_lang.ChemicalStructure(
+                    empirical_formula = polr_complex.structure.empirical_formula,
+                    molecular_weight = polr_complex.structure.molecular_weight,
+                    charge = polr_complex.structure.charge)
             polr_bound_species = model.species.get_or_create(
                 species_type=polr_bound_species_type, compartment=rna_compartment)
             polr_bound_species.id = polr_bound_species.gen_id()
@@ -388,6 +405,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         nucleus = model.compartments.get_one(id='n')  
         mitochondrion = model.compartments.get_one(id='m')
 
+        ref_polr_width = model.references.get_one(
+            title='Structure and mechanism of the RNA Polymerase II transcription machinery')
+
         ref_model = wc_lang.Reference(
             model=model,
             title='Transcriptional regulation by the numbers: models',
@@ -446,7 +466,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             non_specific_binding_constant = model.parameters.create(
                 id='k_non_specific_binding_{}'.format(polr_complex.id),
                 type=None,
-                units=unit_registry.parse_units('s^-1')
+                units=unit_registry.parse_units('molecule^-1 s^-1')
                 )
 
             expression, error = wc_lang.RateLawExpression.deserialize(
@@ -479,15 +499,15 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             chunked_data = [chunked_data[i * size:(i + 1) * size] for i in range((len(chunked_data) + size - 1) // size )]
             
             all_subtotal_obs = {}
-            for chunk in chunked_data:
+            for ind, chunk in enumerate(chunked_data):
                 chunked_dict = {k:v for k,v in chunk}              
                 polr_subtotal_exp, error = wc_lang.ObservableExpression.deserialize(
                     ' + '.join(chunked_dict.keys()),
                     {wc_lang.Species: chunked_dict})            
                 assert error is None, str(error)                
                 polr_subtotal_obs = model.observables.create(
-                    id='subtotal_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id), 
-                    name='subtotal of {} in {}'.format(polr, rna_compartment.name), 
+                    id='subtotal_{}_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id, ind+1), 
+                    name='subtotal {} of {} in {}'.format(ind+1, polr, rna_compartment.name), 
                     units=unit_registry.parse_units('molecule'), 
                     expression=polr_subtotal_exp)
                 all_subtotal_obs[polr_subtotal_obs.id] = polr_subtotal_obs
@@ -505,20 +525,35 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             specific_binding_constant = model.parameters.create(
                 id='k_specific_binding_{}'.format(polr_complex.id),
                 type=None,
-                units=unit_registry.parse_units('s^-1')
+                units=unit_registry.parse_units('molecule^-2 s^-1')
                 )                    
                 
         # Generate rate laws for initiation and elongation & termination
+        polr_occupancy_width = self.options.get('polr_occupancy_width')
         rate_law_no = 0                    
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb in rnas_kb:
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
-                no_of_binding_sites = self._nuclear_max_binding_sites
+                no_of_binding_sites = model.parameters.get_or_create(
+                    id='total_nuclear_genome_binding',
+                    type=None,
+                    value=self._nuclear_max_binding_sites,
+                    units=unit_registry.parse_units('molecule'),
+                    references=[ref_polr_width],
+                    comments='Set to genome length divided by {} bp'.format(polr_occupancy_width)
+                    )
                 rna_compartment = nucleus      
             else:
-                no_of_binding_sites = self._mitochondrial_max_binding_sites
+                no_of_binding_sites = model.parameters.get_or_create(
+                    id='total_mitochondrial_genome_binding',
+                    type=None,
+                    value=self._mitochondrial_max_binding_sites,
+                    units=unit_registry.parse_units('molecule'),
+                    references=[ref_polr_width],
+                    comments='Set to genome length divided by {} bp'.format(polr_occupancy_width)
+                    )
                 rna_compartment = mitochondrion
 
             # Assign transcriptional regulation
@@ -527,7 +562,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reg_functions = {}
 
             reg_parameters[Kd_specific_polr.id] = Kd_specific_polr
-            reg_parameters[Kd_non_specific_polr.id] = Kd_non_specific_polr            
+            reg_parameters[Kd_non_specific_polr.id] = Kd_non_specific_polr    
+            reg_parameters[no_of_binding_sites.id] = no_of_binding_sites        
             
             F_regs = []
             reaction_id = 'transcription_initiation_' + rna_kb.id
@@ -571,7 +607,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 id='total_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id))
 
             p_bound = '1 / (1 + {} / ({} * {}) * exp(log({} / {})))'.format(
-                no_of_binding_sites, 
+                no_of_binding_sites.id, 
                 polr_obs.id, 
                 F_reg_N if F_reg_N else 1,
                 Kd_specific_polr.id,
