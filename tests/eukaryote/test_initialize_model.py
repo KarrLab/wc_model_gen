@@ -402,6 +402,25 @@ class TestCase(unittest.TestCase):
         self.assertEqual(prot1_model.comments, '')
         self.assertEqual(prot3_model.comments, 'Testing')
 
+        # Test the use of determine_protein_structure_from_aa
+        amino_acid_id_conversion = {'N': 'met_N', 'E': 'met_E', 'I': 'met_I', 'L': 'met_L', 'K':'met_K', 'M':'met_M', 'V':'met_V'}
+        for i in amino_acid_id_conversion.values():
+            kb_met = self.kb.cell.species_types.create(__type=wc_kb.core.MetaboliteSpeciesType, id=i)
+            kb_met.properties.create(property='empirical_formula', value='C6H12O6N', value_type=wc_ontology['WC:string'])
+            kb_met.properties.create(property='charge', value='-1', value_type=wc_ontology['WC:integer'])
+        
+        option = self.set_options(['gen_metabolites', 'gen_protein'])
+        option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
+        model = core.EukaryoteModelGenerator(self.kb,
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': 
+                option}}).run()
+        
+        prot1_model = model.species_types.get_one(id='prot1')
+        self.assertEqual(prot1_model.structure.empirical_formula, chem.EmpiricalFormula('C60H102N10O51'))
+        self.assertAlmostEqual(prot1_model.structure.molecular_weight, 1779.4950000000001, delta=0.3)
+        self.assertEqual(prot1_model.structure.charge, -10)           
+
     def test_gen_metabolites(self):
 
         model = core.EukaryoteModelGenerator(self.kb,
@@ -484,6 +503,37 @@ class TestCase(unittest.TestCase):
         self.assertEqual(comp3_model.structure.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
         self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1201.49, delta=0.3)
         self.assertEqual(comp3_model.structure.charge, 1)
+
+        # Test the use of determine_protein_structure_from_aa
+        amino_acid_id_conversion = {'N': 'met_N', 'E': 'met_E', 'I': 'met_I', 'L': 'met_L', 'K':'met_K', 'M':'met_M', 'V':'met_V'}
+        for i in amino_acid_id_conversion.values():
+            kb_met = self.kb.cell.species_types.create(__type=wc_kb.core.MetaboliteSpeciesType, id=i)
+            kb_met.properties.create(property='empirical_formula', value='C6H12O6N', value_type=wc_ontology['WC:string'])
+            kb_met.properties.create(property='charge', value='-1', value_type=wc_ontology['WC:integer'])
+        
+        option = self.set_options(['gen_metabolites', 'gen_complexes'])
+        option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
+        model = core.EukaryoteModelGenerator(self.kb,
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': 
+                option}}).run()
+        
+        comp3_model = model.species_types.get_one(id='comp3')
+        self.assertEqual(comp3_model.structure.empirical_formula, chem.EmpiricalFormula('C60H102N10O51'))
+        self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1779.4950000000001, delta=0.3)
+        self.assertEqual(comp3_model.structure.charge, -10)
+
+        option = self.set_options(['gen_metabolites', 'gen_protein', 'gen_complexes'])
+        option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
+        model = core.EukaryoteModelGenerator(self.kb,
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': 
+                option}}).run()
+        
+        comp3_model = model.species_types.get_one(id='comp3')
+        self.assertEqual(comp3_model.structure.empirical_formula, chem.EmpiricalFormula('C60H102N10O51'))
+        self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1779.4950000000001, delta=0.3)
+        self.assertEqual(comp3_model.structure.charge, -10)
 
     def test_gen_distribution_init_concentrations(self):
 
@@ -661,7 +711,44 @@ class TestCase(unittest.TestCase):
             '([O-])(=O)O[C@@H]1[C@@H](CO)O[C@@H]([C@@H]1O)n1c[nH]c2cc(C)c(C)cc12')
         self.assertEqual(formula, chem.EmpiricalFormula('C62H99CoN13O15P'))
         self.assertEqual(charge, 2)
-        self.assertAlmostEqual(mol_wt, 1356.456955998, places=4)            
+        self.assertAlmostEqual(mol_wt, 1356.456955998, places=4)
+
+    def test_determine_protein_structure_from_aa(self):
+        
+        model = wc_lang.Model()        
+        test_instance = initialize_model.InitializeModel(self.kb, model)
+        test_instance.clean_and_validate_options()
+        count = {'A': 2, 'R': 3}
+        
+        formula, weight, charge, determined = test_instance.determine_protein_structure_from_aa('prot1', count)
+        self.assertEqual((formula, weight, charge, determined), (chem.EmpiricalFormula(), 0, 0, False))
+        
+        test_instance.options['amino_acid_id_conversion'] = {'A1': 'a1', 'R1': 'r1'}
+        formula, weight, charge, determined = test_instance.determine_protein_structure_from_aa('prot1', count)
+        self.assertEqual((formula, weight, charge, determined), (chem.EmpiricalFormula(), 0, 0, False))
+
+        amino_acid = {'a': ('C10H20O10', 14, 3), 'r': ('C20H70O20', 31, 0)}
+        for k, v in amino_acid.items():
+            model.species_types.create(id=k, structure = wc_lang.ChemicalStructure(
+                empirical_formula = chem.EmpiricalFormula(v[0]),
+                molecular_weight = v[1],
+                charge = v[2],
+                )
+            )                
+        test_instance.options['amino_acid_id_conversion'] = {'A': 'a', 'R': 'r'}
+        check_formula = chem.EmpiricalFormula('C10H20O10')*2 + chem.EmpiricalFormula('C20H70O20')*3 - chem.EmpiricalFormula('H8O4')
+        check_weight = 2*14 + 3*31 - 8*mendeleev.element('H').atomic_weight - 4*mendeleev.element('O').atomic_weight 
+        formula, weight, charge, determined = test_instance.determine_protein_structure_from_aa('prot1', count)
+        self.assertEqual((formula, weight, charge, determined), (check_formula, check_weight, 2*3+3*0, True))
+
+        prot1 = model.species_types.create(id='prot1', structure=wc_lang.ChemicalStructure())
+        self.assertEqual(prot1.structure.empirical_formula, None)
+                
+        formula, weight, charge, determined = test_instance.determine_protein_structure_from_aa('prot1', count)
+        self.assertEqual((formula, weight, charge, determined), (check_formula, check_weight, 2*3+3*0, True))
+        self.assertEqual(prot1.structure.empirical_formula, check_formula)
+        self.assertEqual(prot1.structure.molecular_weight, check_weight)
+        self.assertEqual(prot1.structure.charge, 2*3+3*0)
 
     def test_unchanged_kb(self):    
         

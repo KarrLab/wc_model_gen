@@ -13,6 +13,7 @@ from wc_utils.util import chem
 import wc_model_gen.global_vars as gvar
 import ete3
 import math
+import mendeleev
 import numpy
 import openbabel
 import scipy.constants
@@ -30,6 +31,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     * cell_density(:obj:`float`): cell density; default is 1040 g/liter
     * membrane_density (:obj:`float`): membrane density; default is 1160 g/liter
     * cds (:obj:`bool`): True indicates mRNA sequence is a complete CDS; default is True
+    * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
+            as keys and amino acid metabolite ids as values
     * environment (:obj:`dict`): dictionary with details for generating cell environment in the model 
     * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
     * check_reaction (:obj:`bool`): if True, reactions will be checked and corrected for proton and charge balance;
@@ -65,6 +68,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         print('Taxon, compartments, and parameters have been initialized')
 
+        if options['gen_metabolites']:
+            self.gen_metabolites()
+            print('All metabolite species types and species have been initialized')
+
         if options['gen_dna']:
             self.gen_dna()
             print('All DNA species types and species have been initialized')    
@@ -75,11 +82,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         if options['gen_protein']:
             self.gen_protein()
-            print('All protein species types and species have been initialized')    
-
-        if options['gen_metabolites']:
-            self.gen_metabolites()
-            print('All metabolite species types and species have been initialized')    
+            print('All protein species types and species have been initialized')                
 
         if options['gen_complexes']:
             self.gen_complexes()
@@ -126,6 +129,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         assert(isinstance(cds, bool))
         options['cds'] = cds
 
+        amino_acid_id_conversion = options.get('amino_acid_id_conversion', {})
+        assert(isinstance(amino_acid_id_conversion, dict))
+        options['amino_acid_id_conversion'] = amino_acid_id_conversion
+
         environment = options.get('environment', {})
         assert(isinstance(environment, dict))
         options['environment'] = environment
@@ -136,7 +143,11 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         check_reaction = options.get('check_reaction', True)
         assert(isinstance(check_reaction, bool))
-        options['check_reaction'] = check_reaction        
+        options['check_reaction'] = check_reaction
+
+        gen_metabolites = options.get('gen_metabolites', True)
+        assert(isinstance(gen_metabolites, bool))
+        options['gen_metabolites'] = gen_metabolites       
 
         gen_dna = options.get('gen_dna', True)
         assert(isinstance(gen_dna, bool))
@@ -149,10 +160,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         gen_protein = options.get('gen_protein', True)
         assert(isinstance(gen_protein, bool))
         options['gen_protein'] = gen_protein
-
-        gen_metabolites = options.get('gen_metabolites', True)
-        assert(isinstance(gen_metabolites, bool))
-        options['gen_metabolites'] = gen_metabolites
 
         gen_complexes = options.get('gen_complexes', True)
         assert(isinstance(gen_complexes, bool))
@@ -296,7 +303,18 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         scale = expr.to(unit_registry.parse_units('second'))
         conversion_factor = scale.magnitude
         model_doubling_time.value *= conversion_factor
-        model_doubling_time.units = unit_registry.parse_units('s')                 
+        model_doubling_time.units = unit_registry.parse_units('s')
+
+    def gen_metabolites(self):
+        """ Generate metabolites for the model from knowledge base """
+        kb = self.knowledge_base
+        model = self.model
+
+        kb_species_types = kb.cell.species_types.get(
+            __type=wc_kb.core.MetaboliteSpeciesType)
+
+        for kb_species_type in kb_species_types:
+            self.gen_species_type(kb_species_type)                    
 
     def gen_dna(self):
         """ Generate DNAs for the model from knowledge base """
@@ -344,17 +362,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 print('{}/{} of the proteins have been initialized'.format(
                     count, len(kb_species_types)))
 
-    def gen_metabolites(self):
-        """ Generate metabolites for the model from knowledge base """
-        kb = self.knowledge_base
-        model = self.model
-
-        kb_species_types = kb.cell.species_types.get(
-            __type=wc_kb.core.MetaboliteSpeciesType)
-
-        for kb_species_type in kb_species_types:
-            self.gen_species_type(kb_species_type)
-
     def gen_complexes(self):
         """ Generate complexes for the model from knowledge base """
         kb = self.knowledge_base
@@ -379,74 +386,14 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         """
 
         model = self.model
-        ph = self.options['ph']
+        ph = self.options['ph']        
 
         model_species_type = model.species_types.get_or_create(id=kb_species_type.id)
         model_species_type.name = kb_species_type.name
         model_species_type.structure = wc_lang.ChemicalStructure()
         model_species_type.comments = kb_species_type.comments
 
-        if isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
-            model_species_type.type = wc_ontology['WC:DNA'] # DNA
-            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
-            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
-            model_species_type.structure.charge = kb_species_type.get_charge()
-
-        elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
-            model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            seq = kb_species_type.get_seq()
-            gvar.transcript_ntp_usage[kb_species_type.id] = {
-                'A': seq.upper().count('A'),
-                'C': seq.upper().count('C'),
-                'G': seq.upper().count('G'),
-                'U': seq.upper().count('U'),
-                'len': len(seq)
-                }
-            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                seq_input=seq)
-            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                seq_input=seq)
-            model_species_type.structure.charge = kb_species_type.get_charge(
-                seq_input=seq)
-
-        elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
-            model_species_type.type = wc_ontology['WC:protein'] # protein
-            table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
-            cds = self.options['cds']
-            seq = kb_species_type.get_seq(table=table, cds=cds)
-            gvar.protein_aa_usage[kb_species_type.id] = {
-                'len': len(seq) - seq.count('*'),
-                '*': seq.count('*'),  # Symbol used in Bio.Seq.Seq when cds is set to False  
-                'A': seq.count('A'),  # Ala: Alanine (C3 H7 N O2)
-                'R': seq.count('R'),  # Arg: Arginine (C6 H14 N4 O2)
-                'N': seq.count('N'),  # Asn: Asparagine (C4 H8 N2 O3)
-                'D': seq.count('D'),  # Asp: Aspartic acid (C4 H7 N O4)
-                'C': seq.count('C'),  # Cys: Cysteine (C3 H7 N O2 S)
-                'Q': seq.count('Q'),  # Gln: Glutamine (C5 H10 N2 O3)
-                'E': seq.count('E'),  # Glu: Glutamic acid (C5 H9 N O4)
-                'G': seq.count('G'),  # Gly: Glycine (C2 H5 N O2)
-                'H': seq.count('H'),  # His: Histidine (C6 H9 N3 O2)
-                'I': seq.count('I'),  # Ile: Isoleucine (C6 H13 N O2)
-                'L': seq.count('L'),  # Leu: Leucine (C6 H13 N O2)
-                'K': seq.count('K'),  # Lys: Lysine (C6 H14 N2 O2)
-                'M': seq.count('M'),  # Met: Methionine (C5 H11 N O2 S)
-                'F': seq.count('F'),  # Phe: Phenylalanine (C9 H11 N O2)
-                'P': seq.count('P'),  # Pro: Proline (C5 H9 N O2)
-                'S': seq.count('S'),  # Ser: Serine (C3 H7 N O3)
-                'T': seq.count('T'),  # Thr: Threonine (C4 H9 N O3)
-                'W': seq.count('W'),  # Trp: Tryptophan (C11 H12 N2 O2)
-                'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
-                'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
-                'U': seq.count('U'),  # Selcys: Selenocysteine (C3 H7 N O2 Se)
-            }            
-            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                seq_input=seq)
-            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                seq_input=seq)
-            model_species_type.structure.charge = kb_species_type.get_charge(
-                seq_input=seq)
-
-        elif isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
+        if isinstance(kb_species_type, wc_kb.core.MetaboliteSpeciesType):
             model_species_type.type = wc_ontology['WC:metabolite'] # metabolite
             if kb_species_type.name == 'electron':
                 model_species_type.structure.value = '[*-]'
@@ -479,7 +426,46 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     mol_wt = kb_species_type.get_mol_wt()
                 model_species_type.structure.empirical_formula = formula
                 model_species_type.structure.molecular_weight = mol_wt
-                model_species_type.structure.charge = charge
+                model_species_type.structure.charge = charge 
+
+        elif isinstance(kb_species_type, wc_kb.core.DnaSpeciesType):
+            model_species_type.type = wc_ontology['WC:DNA'] # DNA
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula()
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt()
+            model_species_type.structure.charge = kb_species_type.get_charge()
+
+        elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
+            model_species_type.type = wc_ontology['WC:RNA'] # RNA
+            seq = kb_species_type.get_seq()
+            gvar.transcript_ntp_usage[model_species_type.id] = {
+                'A': seq.upper().count('A'),
+                'C': seq.upper().count('C'),
+                'G': seq.upper().count('G'),
+                'U': seq.upper().count('U'),
+                'len': len(seq)
+                }
+            model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
+                seq_input=seq)
+            model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
+                seq_input=seq)
+            model_species_type.structure.charge = kb_species_type.get_charge(
+                seq_input=seq)
+
+        elif isinstance(kb_species_type, wc_kb.eukaryote.ProteinSpeciesType):
+            model_species_type.type = wc_ontology['WC:protein'] # protein
+            table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
+            cds = self.options['cds']
+            seq = kb_species_type.get_seq(table=table, cds=cds)
+            self.populate_protein_aa_usage(model_species_type.id, seq)                        
+            _, _, _, determined = self.determine_protein_structure_from_aa(
+                model_species_type.id, gvar.protein_aa_usage[model_species_type.id])
+            if not determined:    
+                model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
+                    seq_input=seq)
+                model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
+                    seq_input=seq)
+                model_species_type.structure.charge = kb_species_type.get_charge(
+                    seq_input=seq)       
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo specie
@@ -487,17 +473,30 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             charge = 0
             weight = 0
             for subunit in kb_species_type.subunits:
+                subunit_id = subunit.species_type.id
+                coef = abs(max(1, subunit.coefficient))
                 if isinstance(subunit.species_type, wc_kb.eukaryote.ProteinSpeciesType):
-                    table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
-                    cds = self.options['cds']
-                    sequence = subunit.species_type.get_seq(table=table, cds=cds)
-                    for coeff in range(0, abs(int(max(1, subunit.coefficient)))):
-                        formula += subunit.species_type.get_empirical_formula(
-                            seq_input=sequence)
-                    charge += abs(max(1, subunit.coefficient))*subunit.species_type.get_charge(
-                        seq_input=sequence)
-                    weight += abs(max(1, subunit.coefficient))*subunit.species_type.get_mol_wt(
-                        seq_input=sequence)
+                    subunit_model_species_type = model.species_types.get_one(id=subunit_id)
+                    if subunit_model_species_type:
+                        formula += subunit_model_species_type.structure.empirical_formula * coef 
+                        charge += subunit_model_species_type.structure.charge * coef
+                        weight += subunit_model_species_type.structure.molecular_weight * coef
+                    else:    
+                        table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
+                        cds = self.options['cds']
+                        seq = subunit.species_type.get_seq(table=table, cds=cds)
+                        self.populate_protein_aa_usage(subunit_id, seq)                        
+                        sub_formula, sub_mol_wt, sub_charge, determined = \
+                            self.determine_protein_structure_from_aa(
+                            subunit_id, gvar.protein_aa_usage[subunit_id])
+                        if not determined:
+                            formula += subunit.species_type.get_empirical_formula(seq_input=seq) * coef
+                            charge += subunit.species_type.get_charge(seq_input=seq) * coef
+                            weight += subunit.species_type.get_mol_wt(seq_input=seq) * coef
+                        else:
+                            formula += sub_formula * coef 
+                            charge += sub_charge * coef
+                            weight += sub_mol_wt * coef   
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
@@ -508,10 +507,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         sub_charge = subunit.species_type.get_charge()
                         sub_mol_wt = subunit.species_type.get_mol_wt()    
                     
-                    for coeff in range(0, abs(int(max(1, subunit.coefficient)))):                         
-                        formula += sub_formula
-                    charge += abs(max(1, subunit.coefficient))*sub_charge
-                    weight += abs(max(1, subunit.coefficient))*sub_mol_wt        
+                    formula += sub_formula * coef
+                    charge += sub_charge * coef
+                    weight += sub_mol_wt * coef        
             
             model_species_type.structure.empirical_formula = formula
             model_species_type.structure.molecular_weight = weight
@@ -809,4 +807,97 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         charge = mol.GetTotalCharge()
         mol_wt = empirical_formula.get_molecular_weight()
         
-        return smiles, empirical_formula, charge, mol_wt        
+        return smiles, empirical_formula, charge, mol_wt
+
+    def populate_protein_aa_usage(self, protein_id, seq):
+        """ Populate a global variable dictionary of amino acid
+            usage in a protein given its sequence
+
+        Args:
+            protein_id (:obj:`str`): protein ID
+            seq (:obj:`Bio.Seq.Seq`): sequence    
+        """
+        gvar.protein_aa_usage[protein_id] = {
+                'len': len(seq) - seq.count('*'),
+                '*': seq.count('*'),  # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': seq.count('A'),  # Ala: Alanine (C3 H7 N O2)
+                'R': seq.count('R'),  # Arg: Arginine (C6 H14 N4 O2)
+                'N': seq.count('N'),  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': seq.count('D'),  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': seq.count('C'),  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': seq.count('Q'),  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': seq.count('E'),  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': seq.count('G'),  # Gly: Glycine (C2 H5 N O2)
+                'H': seq.count('H'),  # His: Histidine (C6 H9 N3 O2)
+                'I': seq.count('I'),  # Ile: Isoleucine (C6 H13 N O2)
+                'L': seq.count('L'),  # Leu: Leucine (C6 H13 N O2)
+                'K': seq.count('K'),  # Lys: Lysine (C6 H14 N2 O2)
+                'M': seq.count('M'),  # Met: Methionine (C5 H11 N O2 S)
+                'F': seq.count('F'),  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': seq.count('P'),  # Pro: Proline (C5 H9 N O2)
+                'S': seq.count('S'),  # Ser: Serine (C3 H7 N O3)
+                'T': seq.count('T'),  # Thr: Threonine (C4 H9 N O3)
+                'W': seq.count('W'),  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
+                'U': seq.count('U'),  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+            }
+
+    def determine_protein_structure_from_aa(self, 
+            polymer_id, count):
+        """ Determine the empirical formula, molecular weight and charge of
+            a protein based on the structural information of its metabolite
+            amino acid monomers to ensure consistency with the pH
+
+        Args:
+            polymer_id (:obj:`str`): polymer ID
+            count (:obj:`dict`): dictionary showing the count of each amino
+                acid in the protein
+
+        Returns:
+            :obj:`wc_utils.util.chem.EmpiricalFormula`: protein empirical formula
+            :obj:`float`: protein molecular weight
+            :obj:`int`: protein charge
+            :obj:`bool`: True if protein structure has been successfully determined
+                from the metabolite monomer, else False             
+        """                
+        model = self.model
+        amino_acid_id_conversion = self.options['amino_acid_id_conversion']
+        
+        total_empirical_formula = EmpiricalFormula()
+        total_molecular_weight = 0
+        total_charge = 0
+        polymer_len = 0
+
+        if not amino_acid_id_conversion:            
+            return EmpiricalFormula(), 0, 0, False        
+        
+        for standard_id, met_id in amino_acid_id_conversion.items():
+            if standard_id in count:
+                monomer_species_type = model.species_types.get_one(id=met_id)
+                if monomer_species_type:
+                    total_empirical_formula += \
+                        monomer_species_type.structure.empirical_formula * count[standard_id]
+                    total_molecular_weight += \
+                        monomer_species_type.structure.molecular_weight * count[standard_id]
+                    total_charge += monomer_species_type.structure.charge * count[standard_id]
+                    polymer_len += count[standard_id]    
+                else:
+                    return EmpiricalFormula(), 0, 0, False
+            else:
+                return EmpiricalFormula(), 0, 0, False        
+        
+        protein_empirical_formula = total_empirical_formula - \
+            EmpiricalFormula('H{}O{}'.format(2 * (polymer_len - 1), polymer_len - 1))
+        protein_molecular_weight = total_molecular_weight - \
+            2 * (polymer_len - 1) * mendeleev.element('H').atomic_weight - \
+            (polymer_len - 1) * mendeleev.element('O').atomic_weight 
+        protein_charge = total_charge    
+            
+        model_species_type = model.species_types.get_one(id=polymer_id)
+        if model_species_type:
+            model_species_type.structure.empirical_formula = protein_empirical_formula
+            model_species_type.structure.molecular_weight = protein_molecular_weight
+            model_species_type.structure.charge = protein_charge
+        
+        return protein_empirical_formula, protein_molecular_weight, protein_charge, True        
