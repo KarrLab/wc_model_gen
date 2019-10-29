@@ -11,7 +11,6 @@ import wc_model_gen.global_vars as gvar
 import Bio.Alphabet
 import Bio.Seq
 import collections
-import conv_opt
 import wc_model_gen.utils as utils
 import scipy.constants
 import wc_kb
@@ -36,10 +35,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * estimate_initial_state (:obj:`bool`): if True, the initial concentrations of complexes 
             and free-pool subunits will be estimated using linear programming,
             the default is True
-        * weighted_complexes (:obj:`list`, optional): a list of complex names that will be assigned a weight
-            in the objective function when solving for the initial concentrations
-        * weight (:obj:`float`, optional): the weight assigned to each weighted complexes in the objective
-            function when solving for the initial concentration, the default is 10                   
+        * greedy_step_size (:obj:`float`): the extent to which complex copy number is increased
+            at each round of reaction selection during initial copy number estimation, 
+            value should be higher than 0 and not more than 1.0, and the default value is 0.1    
     """
 
     def clean_and_validate_options(self):
@@ -63,11 +61,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         estimate_initial_state = options.get('estimate_initial_state', True)
         options['estimate_initial_state'] = estimate_initial_state
 
-        weighted_complexes = options.get('weighted_complexes', [])
-        options['weighted_complexes'] = weighted_complexes
-
-        weight = options.get('weight', 10.)
-        options['weight'] = weight
+        greedy_step_size = options.get('greedy_step_size', 0.1)
+        assert(greedy_step_size > 0 and greedy_step_size <= 1.)
+        options['greedy_step_size'] = greedy_step_size
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -81,7 +77,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         print('Start generating complexation submodel...')
         assembly_rxn_no = 0
         disassembly_rxn_no = 0
-        self._subunit_participation = collections.defaultdict(dict)
+        self._maximum_possible_amount = {}
         for compl in cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
             
             model_compl_species_type = model.species_types.get_one(id=compl.id)            
@@ -99,7 +95,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         id='{}_association_in_{}'.format(compl.id, compl_compartment.id),
                         name='Complexation of {} in {}'.format(compl.id, compl_compartment.name),
                         reversible=False)
-
+                    
+                    self._maximum_possible_amount[model_compl_species.id] = []
                     for subunit in compl.subunits:                        
                         model_subunit_species = model.species_types.get_one(
                             id=subunit.species_type.id).species.get_one(compartment=compl_compartment)
@@ -107,7 +104,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_rxn.participants.add(
                             model_subunit_species.species_coefficients.get_or_create(
                             coefficient=-subunit_coefficient))
-                        self._subunit_participation[model_subunit_species][model_compl_species] = subunit_coefficient
+                        if model_subunit_species.species_type.type != wc_ontology['WC:metabolite']:
+                            self._maximum_possible_amount[model_compl_species.id].append(
+                                model_subunit_species.distribution_init_concentration.mean / subunit_coefficient)
 
                     model_rxn.participants.add(
                         model_compl_species.species_coefficients.get_or_create(coefficient=1))
@@ -186,6 +185,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                     model_rxn.participants.add(
                                         model_subunit_species.species_coefficients.get_or_create(
                                         coefficient=subunit_coefficient))                              
+        
+        self._maximum_possible_amount = {k:min(v) if v else 0 for k, v in self._maximum_possible_amount.items()}
+
         print('{} reactions of complex assembly and {} reactions of complex dissociation have been generated'.format(
             assembly_rxn_no, disassembly_rxn_no))
 
@@ -197,7 +199,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             if 'association' in reaction.id:
                 rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                    model, reaction)               
+                    model, reaction)
+                rate_law_exp.expression += ' * 2 ** {}'.format(len(reaction.get_reactants()))               
 
             else:
                 diss_k_cat = model.parameters.create(id='k_cat_{}'.format(reaction.id),
@@ -244,6 +247,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             units=unit_registry.parse_units('molecule mol^-1'))
 
         # Calibrate dissociation constants
+        self._effective_dissociation_constant = collections.defaultdict(float)
         for reaction in self.submodel.reactions:
             
             if 'dissociation' in reaction.id:
@@ -264,10 +268,14 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     species=degraded_subunit_species).coefficient                         
                 diss_k_cat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
                 diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
+                
+                model_compl_species = model.species_types.get_one(
+                    id=complex_st_id).species.get_one(compartment=compl_compartment)
+                self._effective_dissociation_constant[model_compl_species.id] += diss_k_cat.value
 
-        # Calibrate the steady-state ('initial') concentrations of complex species by solving a system of linear equations
+        # Estimate the initial concentrations of complex species
         if self.options['estimate_initial_state']:
-            self.determine_initial_concentration(self._subunit_participation)    
+            self.determine_initial_concentration()    
                 
         # Calibrate the parameter values for the rate laws of complex association reactions 
         ref_kcat = wc_lang.Reference(
@@ -311,105 +319,66 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         print('Complexation submodel has been generated')
 
-    def determine_initial_concentration(self, subunit_participation):
-        """ Use linear optimization to estimate the initial concentrations of complex species
-            by assuming the system is at a state where the total amount of complex species is maximal. 
-            The initial concentration of protein subunits will also be updated accordingly.
+    def determine_initial_concentration(self):
+        """ Estimate the initial concentrations of complex species using the following steps: 
 
-            Args:
-                subunit_participation (:obj:`dict`): A nested dictionary with subunit species as
-                    keys, and dictionaries with key/value pairs of participated complex species and 
-                    subunit coefficient as values
+            1) For each complex species, calculate the maximum possible copy number by taking the minimum
+               of the availability of each subunit, which is determined as the ratio of
+               subunit copy number to its stoichiometric coefficient in the complex.
+            2) Arrange complexation reactions in decreasing order of the effective 
+               dissociation rate into a list.
+            3) For each reaction in the list, increase the copy number of complex 
+               by either the minimum of all current subunit availability or the maximum possible
+               copy number calculated in step 1 multiplied by the greedy_step_size, whichever is less. 
+               The copy number of subunits are adjusted accordingly. If the copy
+               number of any subunits reaches zero, the reaction is removed from the list.  
+            4) Repeat step 3 until the list is empty.
         """
 
         model = self.model
-        weighted_complexes = self.options['weighted_complexes']
-        weight = self.options['weight']
+        greedy_step_size = self.options['greedy_step_size']
+        
+        complexation_reactions = {}
+        for reaction in self.submodel.reactions:
+            if 'association' in reaction.id:
+                complex_species = reaction.get_products()[0]
+                complexation_reactions[reaction] = self._effective_dissociation_constant[complex_species.id] * \
+                    self._maximum_possible_amount[complex_species.id]
 
-        all_variables = list(set([i.id for i in subunit_participation.keys()] + 
-            [i.id for k,v in subunit_participation.items() for i in v.keys()]))
-        
-        opt_model = conv_opt.Model()
-        
-        variable_objs = {}
-        for variable in all_variables:
-            variable_objs[variable] = conv_opt.Variable(
-                name=variable, type=conv_opt.VariableType.continuous, lower_bound=0)
-            opt_model.variables.append(variable_objs[variable])
-            if model.species.get_one(id=variable).species_type.type == wc_ontology['WC:pseudo_species']:
-                if model.species.get_one(id=variable).species_type.name in weighted_complexes:
-                    weight_value = weight
-                else:
-                    weight_value = 1.    
-                opt_model.objective_terms.append(
-                    conv_opt.LinearTerm(variable_objs[variable], weight_value))       
-        opt_model.objective_direction = conv_opt.ObjectiveDirection.maximize      
-        
-        for subunit, participation in subunit_participation.items():            
-            # Populate equation for subunit mass conservation
-            constraint_coefs = [conv_opt.LinearTerm(variable_objs[subunit.id], 1)]                  
-            for compl, coeff in participation.items():
-                constraint_coefs.append(conv_opt.LinearTerm(variable_objs[compl.id], coeff))            
-            if subunit.distribution_init_concentration: 
-                total_mass = subunit.distribution_init_concentration.mean
-            else:
-                total_mass = 0.    
-            constraint = conv_opt.Constraint(constraint_coefs, upper_bound=total_mass, lower_bound=total_mass)
-            opt_model.constraints.append(constraint)
-            
-            # Populate inequality for the time evolution of subunit concentration
-            total_assoc_rate = 0
-            constraint_coefs = []
-            for compl, coeff in participation.items():
-                
-                total_diss_constant = 0
-                
-                dissociation_reactions = [i for i in model.reactions if '{}_dissociation_in_{}'.format(
-                    compl.species_type.id, compl.compartment.id) in i.id]
-                
-                for reaction in dissociation_reactions:
-                    if any(i.species==subunit for i in reaction.participants):
-                        total_diss_constant += reaction.participants.get_one(species=subunit).coefficient * \
-                            model.parameters.get_one(id='k_cat_{}'.format(reaction.id)).value
-                
-                constraint_coefs.append(conv_opt.LinearTerm(variable_objs[compl.id], total_diss_constant))   
-                
-                association_reaction = model.reactions.get_one(id='{}_association_in_{}'.format(
-                    compl.species_type.id, compl.compartment.id))
-                if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants() if i.distribution_init_concentration):
-                    total_assoc_rate += coeff * 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
+        sorted_reactions = sorted(complexation_reactions.items(), key=lambda kv: kv[1], reverse=True)
+        sorted_reactions = [(v1, v2) for v1, v2 in sorted_reactions if v2]
+        sorted_reactions = collections.OrderedDict(sorted_reactions)
 
-            constraint = conv_opt.Constraint(constraint_coefs, upper_bound=2e06 * total_assoc_rate, lower_bound=0)
-            opt_model.constraints.append(constraint)       
-            
-        # Solve the model and assign the results to species concentrations
-        options = conv_opt.SolveOptions(solver=conv_opt.Solver.cplex, 
-            presolve=conv_opt.Presolve.off)
-        result = opt_model.solve(options)
-        
-        if result.status_code != conv_opt.StatusCode.optimal:
-            raise Exception(result.status_message)
-        
-        primals = result.primals
-        
-        for ind, sol in enumerate(primals):               
-            
-            model_species = model.species.get_one(id=all_variables[ind])
-            
-            if model_species.species_type.type != wc_ontology['WC:metabolite']:
-                species_init_conc = model.distribution_init_concentrations.get_one(species=model_species)
+        while sorted_reactions:
+            for_removal = []
+            for reaction in sorted_reactions:
+                complex_species = reaction.get_products()[0]
+                
+                current_availability = []
+                for participant in reaction.participants:
+                    if participant.coefficient < 0 and participant.species.species_type.type != wc_ontology['WC:metabolite']:
+                        current_availability.append(- participant.species.distribution_init_concentration.mean / participant.coefficient)
+                
+                flux = min(greedy_step_size*self._maximum_possible_amount[complex_species.id], min(current_availability))
+                for participant in reaction.participants:
+                    if participant.species.species_type.type != wc_ontology['WC:metabolite']:
+                        species_init_conc = model.distribution_init_concentrations.get_one(species=participant.species)
 
-                if species_init_conc:
-                    species_init_conc.mean = sol if sol > 0. else 0.
-                    species_init_conc.comments += 'Initial value was adjusted assuming the free pool ' + \
-                            'is at steady state with its amount in macromolecular complexes'            
+                        if species_init_conc:
+                            species_init_conc.mean += flux * participant.coefficient
+                            
+                        else:
+                            conc_model = model.distribution_init_concentrations.create(
+                                species=participant.species,
+                                mean=flux * participant.coefficient,
+                                units=unit_registry.parse_units('molecule'),
+                                )
+                            conc_model.id = conc_model.gen_id()
 
-                else:
-                    conc_model = model.distribution_init_concentrations.create(
-                        species=model_species,
-                        mean=sol if sol > 0. else 0.,
-                        units=unit_registry.parse_units('molecule'),
-                        comments='Initial value was determined assuming the free pool ' + \
-                            'is at steady state with its amount in macromolecular complexes'
-                        )
-                    conc_model.id = conc_model.gen_id()
+                    if participant.species.species_type.type == wc_ontology['WC:protein']:
+                        if model.distribution_init_concentrations.get_one(species=participant.species).mean == 0.:
+                            if reaction not in for_removal:
+                                for_removal.append(reaction)
+            
+            for reaction in for_removal:
+                del sorted_reactions[reaction]                            
