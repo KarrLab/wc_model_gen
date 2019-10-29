@@ -33,9 +33,13 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1
-        * estimate_steady_state (:obj:`bool`): if True, the initial concentrations of complexes 
-            and free-pool subunits will be estimated by assuming they are at steady state,
-            the default if True          
+        * estimate_initial_state (:obj:`bool`): if True, the initial concentrations of complexes 
+            and free-pool subunits will be estimated using linear programming,
+            the default is True
+        * weighted_complexes (:obj:`list`, optional): a list of complex names that will be assigned a weight
+            in the objective function when solving for the initial concentrations
+        * weight (:obj:`float`, optional): the weight assigned to each weighted complexes in the objective
+            function when solving for the initial concentration, the default is 10                   
     """
 
     def clean_and_validate_options(self):
@@ -56,8 +60,14 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = options.get('beta', 1.)
         options['beta'] = beta
 
-        estimate_steady_state = options.get('estimate_steady_state', True)
-        options['estimate_steady_state'] = estimate_steady_state
+        estimate_initial_state = options.get('estimate_initial_state', True)
+        options['estimate_initial_state'] = estimate_initial_state
+
+        weighted_complexes = options.get('weighted_complexes', [])
+        options['weighted_complexes'] = weighted_complexes
+
+        weight = options.get('weight', 10.)
+        options['weight'] = weight
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -256,8 +266,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 diss_k_cat.value = - degraded_subunit_stoic / degraded_subunit_hlife
 
         # Calibrate the steady-state ('initial') concentrations of complex species by solving a system of linear equations
-        if self.options['estimate_steady_state']:
-            self.determine_steady_state_concentration(self._subunit_participation)    
+        if self.options['estimate_initial_state']:
+            self.determine_initial_concentration(self._subunit_participation)    
                 
         # Calibrate the parameter values for the rate laws of complex association reactions 
         ref_kcat = wc_lang.Reference(
@@ -301,9 +311,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         print('Complexation submodel has been generated')
 
-    def determine_steady_state_concentration(self, subunit_participation):
+    def determine_initial_concentration(self, subunit_participation):
         """ Use linear optimization to estimate the initial concentrations of complex species
-            by assuming the system is at a state where the total amount of complex spexies is maximal. 
+            by assuming the system is at a state where the total amount of complex species is maximal. 
             The initial concentration of protein subunits will also be updated accordingly.
 
             Args:
@@ -313,6 +323,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """
 
         model = self.model
+        weighted_complexes = self.options['weighted_complexes']
+        weight = self.options['weight']
 
         all_variables = list(set([i.id for i in subunit_participation.keys()] + 
             [i.id for k,v in subunit_participation.items() for i in v.keys()]))
@@ -324,9 +336,13 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             variable_objs[variable] = conv_opt.Variable(
                 name=variable, type=conv_opt.VariableType.continuous, lower_bound=0)
             opt_model.variables.append(variable_objs[variable])
-            if model.species.get_one(id=variable).species_type.type == wc_ontology['WC:pseudo_species']: 
+            if model.species.get_one(id=variable).species_type.type == wc_ontology['WC:pseudo_species']:
+                if model.species.get_one(id=variable).species_type.name in weighted_complexes:
+                    weight_value = weight
+                else:
+                    weight_value = 1.    
                 opt_model.objective_terms.append(
-                    conv_opt.LinearTerm(variable_objs[variable], 1.))       
+                    conv_opt.LinearTerm(variable_objs[variable], weight_value))       
         opt_model.objective_direction = conv_opt.ObjectiveDirection.maximize      
         
         for subunit, participation in subunit_participation.items():            
@@ -341,7 +357,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             constraint = conv_opt.Constraint(constraint_coefs, upper_bound=total_mass, lower_bound=total_mass)
             opt_model.constraints.append(constraint)
             
-            # Populate inequation for steady-state of subunit concentration
+            # Populate inequality for the time evolution of subunit concentration
             total_assoc_rate = 0
             constraint_coefs = []
             for compl, coeff in participation.items():
@@ -361,7 +377,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 association_reaction = model.reactions.get_one(id='{}_association_in_{}'.format(
                     compl.species_type.id, compl.compartment.id))
                 if all(i.distribution_init_concentration.mean > 0. for i in association_reaction.get_reactants() if i.distribution_init_concentration):
-                    total_assoc_rate += 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
+                    total_assoc_rate += coeff * 0.5 ** len([i for i in association_reaction.rate_laws[0].expression.parameters if 'K_m_' in i.id])    
 
             constraint = conv_opt.Constraint(constraint_coefs, upper_bound=2e06 * total_assoc_rate, lower_bound=0)
             opt_model.constraints.append(constraint)       

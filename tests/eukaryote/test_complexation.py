@@ -245,7 +245,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').comments, 
             'The value was assigned to 1e-05 because the concentration of prot1 in nucleus was zero')
 
-    def test_estimate_steady_state(self):
+    def test_estimate_initial_state(self):
 
         kb = wc_kb.KnowledgeBase()
         model = wc_lang.Model()
@@ -329,7 +329,7 @@ class TestCase(unittest.TestCase):
         test_instance = complexation.ComplexationSubmodelGenerator(kb, model, options={
             'amino_acid_id_conversion': amino_acid_id_conversion,
             'cds': False})
-        test_instance.determine_steady_state_concentration(subunit_participation)        
+        test_instance.determine_initial_concentration(subunit_participation)        
                 
         self.assertEqual({k.id:{x.id:y for x,y in v.items()} for k,v in subunit_participation.items()}, 
             {'P1[c]':{'C1[c]':1}, 'P2[c]':{'C1[c]':1, 'C2[c]':2}, 'P3[c]':{'C2[c]':2}, 'M1[c]':{'C2[c]':3}})
