@@ -230,7 +230,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             {'gene2_binding_site[m]': -1, 'complex3_bound_non_specific_site[m]': -1, 'polr_non_specific_binding_site[m]': 1, 'complex3_bound_gene2[m]': 1})      
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_initiation_trans3').participants},
             {'gene3_binding_site[n]': -1, 'complex2_bound_non_specific_site[n]': -1, 'polr_non_specific_binding_site[n]': 1, 'complex2_bound_gene3[n]': 1,
-            'atp[n]': -2, 'adp[n]': 2, 'pi[n]': 2})      
+            'atp[n]': -2, 'h2o[n]': -2, 'adp[n]': 2, 'pi[n]': 2, 'h[n]': 2})      
         
         # elongation        
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans1').participants}, 

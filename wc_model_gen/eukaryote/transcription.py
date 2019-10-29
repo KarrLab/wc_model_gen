@@ -311,10 +311,16 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 init_reaction.participants.append(metabolites['atp'][
                     rna_compartment.id].species_coefficients.get_or_create(
                     coefficient=-2))
+                init_reaction.participants.append(metabolites['h2o'][
+                    rna_compartment.id].species_coefficients.get_or_create(
+                    coefficient=-2))
                 init_reaction.participants.append(metabolites['adp'][
                     rna_compartment.id].species_coefficients.get_or_create(
                     coefficient=2))
                 init_reaction.participants.append(metabolites['pi'][
+                    rna_compartment.id].species_coefficients.get_or_create(
+                    coefficient=2))
+                init_reaction.participants.append(metabolites['h'][
                     rna_compartment.id].species_coefficients.get_or_create(
                     coefficient=2))
 
