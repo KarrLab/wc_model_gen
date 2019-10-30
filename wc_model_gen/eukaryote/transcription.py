@@ -536,6 +536,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
         # Generate rate laws for initiation and elongation & termination
         polr_occupancy_width = self.options.get('polr_occupancy_width')
+        p_function_exprs = {}
+        self._gene_p_function_map = {}
         rate_law_no = 0                    
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb in rnas_kb:
@@ -619,21 +621,27 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 Kd_specific_polr.id,
                 Kd_non_specific_polr.id
                 )
-            p_bound_expression, error = wc_lang.FunctionExpression.deserialize(p_bound, {
-                wc_lang.Species: reg_species,
-                wc_lang.Parameter: reg_parameters,            
-                wc_lang.Function: reg_functions,
-                wc_lang.Observable: {polr_obs.id: polr_obs}
-                })
-            assert error is None, str(error)
-            
-            p_bound_function = model.functions.create(
-                id='p_bound_{}'.format(rna_kb.gene.id),
-                name='probability of RNAP binding to {}'.format(rna_kb.gene.name),
-                expression=p_bound_expression,
-                references=[ref_model],
-                units=unit_registry.parse_units(''),
-                )
+            if p_bound in p_function_exprs:
+                p_bound_function = p_function_exprs[p_bound]
+                self._gene_p_function_map[rna_kb.id] = p_bound_function
+            else:    
+                p_bound_expression, error = wc_lang.FunctionExpression.deserialize(p_bound, {
+                    wc_lang.Species: reg_species,
+                    wc_lang.Parameter: reg_parameters,            
+                    wc_lang.Function: reg_functions,
+                    wc_lang.Observable: {polr_obs.id: polr_obs}
+                    })
+                assert error is None, str(error)
+                
+                p_bound_function = model.functions.create(                    
+                    name='probability of RNAP binding to {}'.format(rna_kb.gene.name),
+                    expression=p_bound_expression,
+                    references=[ref_model],
+                    units=unit_registry.parse_units(''),
+                    )
+                p_bound_function.id = 'p_bound_{}'.format(len(p_function_exprs)+1)
+                p_function_exprs[p_bound] = p_bound_function
+                self._gene_p_function_map[rna_kb.id] = p_bound_function
             
             specific_binding_constant = model.parameters.get_one(
                 id='k_specific_binding_{}'.format(polr_complex_species.species_type.id))
@@ -753,7 +761,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for i in self._polr_pool[rna_pol_pair[rna_kb.id]]:
                 init_reg_species_count[i] = total_polr / no_of_polr_pool            
             
-            p_bound_function = model.functions.get_one(id='p_bound_{}'.format(rna_kb.gene.id))
+            p_bound_function = self._gene_p_function_map[rna_kb.id]
             p_bound_value = p_bound_function.expression._parsed_expression.eval({
                 wc_lang.Species: init_reg_species_count,
                 wc_lang.Compartment: {

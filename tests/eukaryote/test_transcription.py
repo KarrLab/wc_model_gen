@@ -267,18 +267,18 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').units, unit_registry.parse_units('molecule'))
         self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').comments, 'Set to genome length divided by 2 bp')
         self.assertEqual(model.parameters.get_one(id='total_mitochondrial_genome_binding').references[0].pages, '394-403')
-        self.assertEqual(model.functions.get_one(id='p_bound_gene1').expression.expression,
+        self.assertEqual(model.functions.get_one(id='p_bound_1').expression.expression,
             '1 / (1 + total_nuclear_genome_binding / (total_complex1_n * 1) * exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
-        self.assertEqual(model.functions.get_one(id='p_bound_gene2').expression.expression,
+        self.assertEqual(model.functions.get_one(id='p_bound_2').expression.expression,
             '1 / (1 + total_mitochondrial_genome_binding / (total_complex3_m * ((1 + activator[m] / (Ka_transcription_initiation_trans2_activator * '
             'Avogadro * volume_m) * f_transcription_initiation_trans2_activator) / (1 + activator[m] / '
             '(Ka_transcription_initiation_trans2_activator * Avogadro * volume_m))) * (1 / (1 + repressor[m] / '
             '(Kr_transcription_initiation_trans2_repressor * Avogadro * volume_m)))) * '
             'exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans1-forward').expression.expression,
-            'p_bound_gene1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , 1) , 0)')
+            'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , 1) , 0)')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans2-forward').expression.expression,
-            'p_bound_gene2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , 1) , 0)')
+            'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , 1) , 0)')
 
         # elongation
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans2-forward').expression.expression,
