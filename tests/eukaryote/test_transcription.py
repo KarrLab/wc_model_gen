@@ -234,12 +234,12 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         
         # elongation        
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -3,'ppi[n]': 18, 'trans1[n]': 1, 
-            'amp[n]': 1, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 1, 'h[n]': 3, 
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -5,'ppi[n]': 19, 'trans1[n]': 1, 
+            'amp[n]': 1, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 1, 'h[n]': 5, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans2').participants}, 
-            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -7, 'ppi[m]': 17, 'trans2[m]': 1, 
-            'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 7,
+            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 
+            'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})
 
 
@@ -319,8 +319,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10/(0.5**4*1))
-        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*2))
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.003465735902799727, places=16)
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**3*2))
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0029706307738283375, places=16)
         self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
             'Set to the median value because it could not be determined from data')
 
@@ -337,10 +337,10 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 2, 'U': 5, 'G': 1, 'C': 2, 'len': 10})
 
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -10,'ppi[n]': 18, 'trans1[n]': 1, 
-            'amp[n]': 3, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 6, 'h[n]': 10, 
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -12,'ppi[n]': 19, 'trans1[n]': 1, 
+            'amp[n]': 3, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 6, 'h[n]': 12, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans2').participants}, 
-            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -7, 'ppi[m]': 17, 'trans2[m]': 1, 
-            'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 7,
+            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 
+            'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})

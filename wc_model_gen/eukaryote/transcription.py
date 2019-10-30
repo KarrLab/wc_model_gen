@@ -367,7 +367,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-pre_rna_seq.upper().count('U')))
             reaction.participants.append(metabolites['h2o'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=-(len(pre_rna_seq)-ntp_count['len']-1)))
+                coefficient=-(len(pre_rna_seq)-ntp_count['len']+1)))
             
             # Adding participants to RHS
             reaction.participants.append(
@@ -375,7 +375,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=1))
             reaction.participants.append(metabolites['ppi'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-1))
+                coefficient=len(pre_rna_seq)))
             reaction.participants.append(metabolites['amp'][
                 rna_compartment.id].species_coefficients.get_or_create(
                 coefficient=pre_rna_seq.upper().count('A')-ntp_count['A']))
@@ -390,7 +390,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=pre_rna_seq.upper().count('U')-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
                 rna_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-ntp_count['len']-1))
+                coefficient=len(pre_rna_seq)-ntp_count['len']+1))
             reaction.participants.append(
                 polr_complex_species.species_coefficients.get_or_create(
                 coefficient=1))
@@ -632,6 +632,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 name='probability of RNAP binding to {}'.format(rna_kb.gene.name),
                 expression=p_bound_expression,
                 references=[ref_model],
+                units=unit_registry.parse_units(''),
                 )
             
             specific_binding_constant = model.parameters.get_one(
@@ -657,7 +658,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 direction=wc_lang.RateLawDirection.forward,
                 type=None,
                 expression=init_rate_law_expression,
-                reaction=model.reactions.get_one(id='transcription_initiation_' + rna_kb.id),                
+                reaction=model.reactions.get_one(id='transcription_initiation_' + rna_kb.id),
+                units=unit_registry.parse_units('s^-1'),                
                 )
             init_rate_law.id = init_rate_law.gen_id()                   
 
