@@ -246,6 +246,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         # Test gen_rate_laws
         self.assertEqual(len(model.rate_laws), 14)
 
+        for law in model.rate_laws:
+            self.assertEqual(law.validate(), None)
+
         # binding to non-specific site
         self.assertEqual(model.rate_laws.get_one(id='non_specific_binding_complex1-forward').expression.expression,
             'k_non_specific_binding_complex1 * complex1[n]')
@@ -276,9 +279,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             '(Kr_transcription_initiation_trans2_repressor * Avogadro * volume_m)))) * '
             'exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans1-forward').expression.expression,
-            'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , 1) , 0)')
+            'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , max_bool_substance) , min_bool_substance)')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans2-forward').expression.expression,
-            'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , 1) , 0)')
+            'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , max_bool_substance) , min_bool_substance)')
 
         # elongation
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans2-forward').expression.expression,

@@ -161,6 +161,9 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans3-forward').expression.expression,
             'k_cat_degradation_trans3 * complex3[m] * '
             '(trans3[m] / (trans3[m] + K_m_degradation_trans3_trans3 * Avogadro * volume_m))')
+
+        for law in self.model.rate_laws:
+            self.assertEqual(law.validate(), None)
         
         # Test calibrate_submodel
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans2_trans2').value, 10/scipy.constants.Avogadro/2.5E-14)

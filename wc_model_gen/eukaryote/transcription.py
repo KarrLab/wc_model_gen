@@ -457,7 +457,23 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             units=unit_registry.parse_units('M'),
             references=[ref_kd],
             comments='Value taken from the estimation used in the reference'
-            )         
+            )
+
+        max_bool = model.parameters.create(
+            id='max_bool_substance',
+            type=None,
+            value=1,
+            units=unit_registry.parse_units('molecule'),
+            comments='Boolean switch for determining if gene binding site is still available'
+            )
+
+        min_bool = model.parameters.create(
+            id='min_bool_substance',
+            type=None,
+            value=0,
+            units=unit_registry.parse_units('molecule'),
+            comments='Boolean switch for determining if gene binding site is still available'
+            )                         
                 
         # Generate rate law for binding of RNA polymerase to non-specific site       
         rna_pol_pair = self.options.get('rna_pol_pair')
@@ -649,13 +665,17 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 id='k_specific_binding_{}'.format(polr_complex_species.species_type.id))
             reg_parameters[specific_binding_constant.id] = specific_binding_constant
 
-            expression = '{} * {} * {} * max(min({} , 1) , 0)'.format(
+            expression = '{} * {} * {} * max(min({} , {}) , {})'.format(
                 p_bound_function.id,
                 specific_binding_constant.id,
                 polr_bound_non_specific_species.id,
-                self._allowable_queue_len[rna_kb.id][0].id                
+                self._allowable_queue_len[rna_kb.id][0].id,
+                max_bool.id,
+                min_bool.id,                
                 )
             reg_species[self._allowable_queue_len[rna_kb.id][0].id] = self._allowable_queue_len[rna_kb.id][0]
+            reg_parameters[max_bool.id] = max_bool
+            reg_parameters[min_bool.id] = min_bool
 
             init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
                 wc_lang.Species: reg_species,

@@ -221,6 +221,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(dissociate_prot3.rate_laws[0].expression.expression, 
             'k_cat_complex_1_dissociation_in_n_degrade_prot3 * complex_1[n]')
 
+        for law in model.rate_laws:
+            self.assertEqual(law.validate(), None)
+
         # Test calibrate_submodels
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').value, 10/scipy.constants.Avogadro/5E-14)
