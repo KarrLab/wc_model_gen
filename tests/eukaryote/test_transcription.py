@@ -30,7 +30,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nATGCATGACTCTAGTTTAT\n'
-                    '>chrM\nTTTatgaCTCTAGTTTACTTT\n')
+                    '>chrM\nTTTatgaCTCTAGTTTACNNN\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -49,7 +49,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=self.sequence_path)
-        gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=18)
+        gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=19)
         exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
             name='transcript2', gene=gene2, exons=[exon2])
