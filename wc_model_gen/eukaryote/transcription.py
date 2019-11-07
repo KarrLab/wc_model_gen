@@ -600,7 +600,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         species_type=model.species_types.get_one(id=tf.transcription_factor.id), 
                         compartment=rna_compartment)                   
                     
-                    if tf.direction == wc_kb.eukaryote.RegulatoryDirection.activation:                        
+                    if tf_model and tf.direction == wc_kb.eukaryote.RegulatoryDirection.activation:                        
                         F_act, species_act, param_act, func_act = utils.simple_activator(
                             model, reaction_id, tf_model)
                         F_regs.append(F_act)
@@ -608,7 +608,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         reg_parameters.update(param_act)
                         reg_functions.update(func_act)
                         
-                    elif tf.direction == wc_kb.eukaryote.RegulatoryDirection.repression:
+                    elif tf_model and tf.direction == wc_kb.eukaryote.RegulatoryDirection.repression:
                         F_rep, species_rep, param_rep, func_rep = utils.simple_repressor(
                             model, reaction_id, tf_model) 
                         F_regs.append(F_rep)
