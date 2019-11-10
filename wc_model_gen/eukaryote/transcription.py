@@ -757,24 +757,37 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             init_reg_species_count = {}                
             init_reaction = model.reactions.get_one(id='transcription_initiation_' + rna_kb.id)
             for param in init_reaction.rate_laws[0].expression.functions[0].expression.parameters:
+                
                 if 'Kr_' in param.id:
                     repressor_species = model.species.get_one(
                         id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
                     init_reg_species_count[repressor_species.id] = \
                         repressor_species.distribution_init_concentration.mean
-                    param.value = beta_repressor * repressor_species.distribution_init_concentration.mean \
-                        / Avogadro.value / repressor_species.compartment.init_volume.mean
-                    param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta_repressor, repressor_species.species_type.id, repressor_species.compartment.name)    
+                    if repressor_species.distribution_init_concentration.mean:    
+                        param.value = beta_repressor * repressor_species.distribution_init_concentration.mean \
+                            / Avogadro.value / repressor_species.compartment.init_volume.mean
+                        param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta_repressor, repressor_species.species_type.id, repressor_species.compartment.name)
+                    else:
+                        param.value = 1e-05
+                        param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was zero'.format(
+                            repressor_species.species_type.id, repressor_species.compartment.name)
+                        
                 elif 'Ka_' in param.id:
                     activator_species = model.species.get_one(
                         id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
                     init_reg_species_count[activator_species.id] = \
                         activator_species.distribution_init_concentration.mean
-                    param.value = beta_activator * activator_species.distribution_init_concentration.mean \
-                        / Avogadro.value / activator_species.compartment.init_volume.mean
-                    param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta_activator, activator_species.species_type.id, activator_species.compartment.name)    
+                    if activator_species.distribution_init_concentration.mean:    
+                        param.value = beta_activator * activator_species.distribution_init_concentration.mean \
+                            / Avogadro.value / activator_species.compartment.init_volume.mean
+                        param.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta_activator, activator_species.species_type.id, activator_species.compartment.name) 
+                    else:
+                        param.value = 1e-05
+                        param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was zero'.format(
+                            activator_species.species_type.id, activator_species.compartment.name)                      
+                
                 elif 'f_' in param.id:
                     param.value = activator_effect
 

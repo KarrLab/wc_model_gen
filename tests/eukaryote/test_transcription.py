@@ -85,6 +85,15 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=nucleus)
         transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=0.)
 
+        gene6 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene6', polymer=chr1, start=1, end=3)
+        exon6 = wc_kb.eukaryote.GenericLocus(start=1, end=3)
+        transcript6 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans6', 
+            name='transcript6', gene=gene6, exons=[exon6])
+        transcript6_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript6, 
+            value='36000.0', value_type=wc_ontology['WC:float'])
+        transcript6_spec = wc_kb.core.Species(species_type=transcript6, compartment=nucleus)
+        transcript6_conc = wc_kb.core.Concentration(cell=cell, species=transcript6_spec, value=0.)
+
         activator = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator')
         repressor = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='repressor')
         gene2_reg1 = gene2.regulatory_modules.create(
@@ -92,7 +101,16 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             transcription_factor=activator, direction=wc_kb.eukaryote.RegulatoryDirection.activation)])
         gene2_reg2 = gene2.regulatory_modules.create(
             transcription_factor_regulation=[wc_kb.eukaryote.TranscriptionFactorRegulation(
-            transcription_factor=repressor, direction=wc_kb.eukaryote.RegulatoryDirection.repression)])                           
+            transcription_factor=repressor, direction=wc_kb.eukaryote.RegulatoryDirection.repression)])
+
+        activator2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator2')
+        repressor2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='repressor2')
+        gene6_reg1 = gene6.regulatory_modules.create(
+            transcription_factor_regulation=[wc_kb.eukaryote.TranscriptionFactorRegulation(
+            transcription_factor=activator2, direction=wc_kb.eukaryote.RegulatoryDirection.activation)])
+        gene6_reg2 = gene6.regulatory_modules.create(
+            transcription_factor_regulation=[wc_kb.eukaryote.TranscriptionFactorRegulation(
+            transcription_factor=repressor2, direction=wc_kb.eukaryote.RegulatoryDirection.repression)])                               
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -158,7 +176,16 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             model_species.id = model_species.gen_id()
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=3, units=unit_registry.parse_units('molecule'))
-            conc_model.id = conc_model.gen_id()        
+            conc_model.id = conc_model.gen_id()
+
+        for i in ['activator2', 'repressor2']:
+            model_species_type = model.species_types.create(id=i, name=i.upper())
+            model_compartment = model.compartments.get_one(id='n')
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+            model_species.id = model_species.gen_id()
+            conc_model = model.distribution_init_concentrations.create(species=model_species, 
+                mean=0, units=unit_registry.parse_units('molecule'))
+            conc_model.id = conc_model.gen_id()             
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
@@ -168,7 +195,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
-                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 'trans5': 'RNA Polymerase III'},
+                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
+                            'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
             'polr_occupancy_width': 2,                
             })
         gen.run()
@@ -244,7 +272,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 14)
+        self.assertEqual(len(model.rate_laws), 16)
 
         for law in model.rate_laws:
             self.assertEqual(law.validate(), None)
@@ -311,6 +339,13 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'The value was assumed to be 1.0 times the concentration of activator in mitochondria')
         self.assertEqual(model.parameters.get_one(id='f_transcription_initiation_trans2_activator').value, 1.2)
 
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_initiation_trans6_repressor2').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='Kr_transcription_initiation_trans6_repressor2').comments, 
+            'The value was assigned to 1e-05 because the concentration of repressor2 in nucleus was zero')
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_initiation_trans6_activator2').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='Ka_transcription_initiation_trans6_activator2').comments, 
+            'The value was assigned to 1e-05 because the concentration of activator2 in nucleus was zero')
+        
         self.assertEqual(model.parameters.get_one(id='k_non_specific_binding_complex1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/75)
         self.assertEqual(model.parameters.get_one(id='k_non_specific_binding_complex3').value, math.log(2)*(1/(20*3600) + 1/15000)*10/75)
         self.assertAlmostEqual(model.parameters.get_one(id='k_specific_binding_complex1').value, 
@@ -323,7 +358,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10/(0.5**4*1))
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**3*2))
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0029706307738283375, places=16)
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0019804205158855588, places=16)
         self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
             'Set to the median value because it could not be determined from data')
 
@@ -332,7 +367,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         gvar.transcript_ntp_usage = {'trans1': {'A': 2, 'U': 2, 'G': 2, 'C': 2, 'len': 8}}
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
-                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 'trans5': 'RNA Polymerase III'},
+                            'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
+                            'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
             'polr_occupancy_width': 2,                
             })
         gen.run()
