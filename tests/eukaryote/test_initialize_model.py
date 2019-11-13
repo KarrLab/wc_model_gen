@@ -187,7 +187,9 @@ class TestCase(unittest.TestCase):
         reaction4 = wc_kb.core.Reaction(cell=cell, id='r4', name='reaction4',
             participants=[met2_substrate], reversible=True) 
         reaction5 = wc_kb.core.Reaction(cell=cell, id='r5', name='reaction5',
-            participants=[participant1], reversible=True)                   
+            participants=[participant1], reversible=True)
+        reaction6 = wc_kb.core.Reaction(cell=cell, id='r6', name='reaction6',
+            participants=[participant2], reversible=True)                       
 
         identifier = wc_kb.core.Identifier(namespace='Sabio-RK', id='1234')
         kcat_r1_forward = wc_kb.core.Parameter(cell=cell, id='k_cat_r1_forward', value=0.2, 
@@ -624,6 +626,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.dfba_obj.id, 'dfba-obj-metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
+        self.assertEqual(model.reactions.get_one(id='r6_kb'), None)
 
         attr = wc_lang.core.ReactionParticipantAttribute()
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r1_kb').participants), 'met1[e] ==> met1[n]')            

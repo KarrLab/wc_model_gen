@@ -651,52 +651,54 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             framework=wc_ontology['WC:dynamic_flux_balance_analysis'])              
  
         for kb_rxn in kb.cell.reactions:
-            
-            model_rxn = model.reactions.create(
-                submodel=submodel,
-                id=kb_rxn.id + '_kb',
-                name=kb_rxn.name,
-                reversible=kb_rxn.reversible,
-                comments=kb_rxn.comments)
+            if [part.species.compartment.id for part in kb_rxn.participants]==['e']:
+                pass
+            else:    
+                model_rxn = model.reactions.create(
+                    submodel=submodel,
+                    id=kb_rxn.id + '_kb',
+                    name=kb_rxn.name,
+                    reversible=kb_rxn.reversible,
+                    comments=kb_rxn.comments)
 
-            delta_formula = EmpiricalFormula()
-            delta_charge = 0.
-            proton_participant = 0
-            for participant in kb_rxn.participants:
-                kb_species = participant.species
-                model_species_type = model.species_types.get_one(id=kb_species.species_type.id)
-                model_compartment = model.compartments.get_one(id=kb_species.compartment.id)
-                model_species = model_species_type.species.get_one(compartment=model_compartment)
-                
-                if model_species_type.name=='proton':
-                    proton_participant += 1
+                delta_formula = EmpiricalFormula()
+                delta_charge = 0.
+                proton_participant = 0
+                for participant in kb_rxn.participants:
+                    kb_species = participant.species
+                    model_species_type = model.species_types.get_one(id=kb_species.species_type.id)
+                    model_compartment = model.compartments.get_one(id=kb_species.compartment.id)
+                    model_species = model_species_type.species.get_one(compartment=model_compartment)
+                    
+                    if model_species_type.name=='proton':
+                        proton_participant += 1
 
-                if model_species is None:
-                    model_species = self.gen_species_type(kb_species.species_type, model_compartment)
+                    if model_species is None:
+                        model_species = self.gen_species_type(kb_species.species_type, model_compartment)
 
-                model_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
+                    model_rxn.participants.add(
+                        model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
-                # Check element and charge balance          
-                delta_formula += model_species_type.structure.empirical_formula * participant.coefficient
-                delta_charge += model_species_type.structure.charge * participant.coefficient
+                    # Check element and charge balance          
+                    delta_formula += model_species_type.structure.empirical_formula * participant.coefficient
+                    delta_charge += model_species_type.structure.charge * participant.coefficient
 
-            # Correct proton and charge balance at the pH at which metabolite properties are determined
-            if self.options['check_reaction']:
-                if delta_charge and len(delta_formula)==1 and delta_charge==delta_formula['H']:
-                    proton_species_type = model.species_types.get_one(name='proton')
-                    if proton_participant:
-                        proton_coef = [i for i in model_rxn.participants if i.species.species_type==proton_species_type][0]
-                        model_rxn.participants.discard(proton_coef)
-                        model_rxn.participants.add(
-                            proton_coef.species.species_coefficients.get_or_create(coefficient=proton_coef.coefficient-delta_charge))
-                    else:
-                        comp_id = set([i.species.compartment.id for i in model_rxn.participants]).pop()
-                        proton_compartment = model.compartments.get_one(id=comp_id)
-                        proton_species = model.species.get_or_create(species_type=proton_species_type, compartment=proton_compartment)
-                        proton_species.id = proton_species.gen_id()
-                        model_rxn.participants.add(
-                            proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
+                # Correct proton and charge balance at the pH at which metabolite properties are determined
+                if self.options['check_reaction']:
+                    if delta_charge and len(delta_formula)==1 and delta_charge==delta_formula['H']:
+                        proton_species_type = model.species_types.get_one(name='proton')
+                        if proton_participant:
+                            proton_coef = [i for i in model_rxn.participants if i.species.species_type==proton_species_type][0]
+                            model_rxn.participants.discard(proton_coef)
+                            model_rxn.participants.add(
+                                proton_coef.species.species_coefficients.get_or_create(coefficient=proton_coef.coefficient-delta_charge))
+                        else:
+                            comp_id = set([i.species.compartment.id for i in model_rxn.participants]).pop()
+                            proton_compartment = model.compartments.get_one(id=comp_id)
+                            proton_species = model.species.get_or_create(species_type=proton_species_type, compartment=proton_compartment)
+                            proton_species.id = proton_species.gen_id()
+                            model_rxn.participants.add(
+                                proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
 
         # Temporary code to be moved to metabolism model gen later
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
