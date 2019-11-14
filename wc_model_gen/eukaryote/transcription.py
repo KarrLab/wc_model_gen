@@ -652,7 +652,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 assert error is None, str(error)
                 
                 p_bound_function = model.functions.create(                    
-                    name='probability of RNAP binding to {}'.format(rna_kb.gene.name),
+                    name='probability of RNAP binding {}'.format(len(p_function_exprs)),
                     expression=p_bound_expression,
                     references=[ref_model],
                     units=unit_registry.parse_units(''),
