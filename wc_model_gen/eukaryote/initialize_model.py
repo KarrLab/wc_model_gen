@@ -35,6 +35,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             as keys and amino acid metabolite ids as values
     * environment (:obj:`dict`): dictionary with details for generating cell environment in the model 
     * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
+    * media (:obj:`dict`): a dictionary with species type ids as keys and tuples of concentration (M) in the 
+        media (extracellular space), `list` of `wc_lang.Reference`, and comments as values
     * check_reaction (:obj:`bool`): if True, reactions will be checked and corrected for proton and charge balance;
         default is True
     * gen_dna (:obj:`bool`): if True, DNA species types and species will be generated; 
@@ -140,6 +142,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         ph = options.get('ph', 7.4)
         assert(isinstance(ph, float))
         options['ph'] = ph
+
+        media = options.get('media', {})
+        assert(isinstance(media, dict))
+        options['media'] = media
 
         check_reaction = options.get('check_reaction', True)
         assert(isinstance(check_reaction, bool))
@@ -549,6 +555,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         """ Generate concentrations for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
+        media = self.options['media']
 
         Avogadro = model.parameters.get_one(id='Avogadro')
 
@@ -604,8 +611,32 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 mean=chromosome.ploidy, 
                 units=unit_registry.parse_units('molecule'),
                 )
-            conc_model.id = conc_model.gen_id()              
+            conc_model.id = conc_model.gen_id()
 
+        for Id, (conc, refs, comments) in media.items():
+            species_type = model.species_types.get_or_create(id=Id)
+            species_comp_model = model.compartments.get_one(id='e')
+            species = model.species.get_or_create(species_type=species_type, compartment=species_comp_model)
+            species.id = species.gen_id()
+
+            conc_model = model.distribution_init_concentrations.create(
+                species=species,
+                mean=conc * Avogadro.value * species_comp_model.init_volume.mean,
+                units=unit_registry.parse_units('molecule'),
+                comments=comments,
+                )
+            conc_model.id = conc_model.gen_id()
+
+            if refs:
+                for ref in refs:
+                    ref_model = model.references.get_one(title=ref.title)
+                    if ref_model:
+                        conc_model.references.append(ref_model)
+                    else:    
+                        ref.model = model
+                        ref.id = 'ref_'+str(len(model.references))
+                        conc_model.references.append(ref)
+            
     def gen_observables(self):
         """ Generate observables for the model from knowledge base """
         kb = self.knowledge_base

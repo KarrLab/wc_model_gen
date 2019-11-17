@@ -545,10 +545,15 @@ class TestCase(unittest.TestCase):
             journal='Journal1', volume='1', issue='1', pages='20', year=1999, comments='xyz'))
         test_conc.identifiers.append(wc_kb.core.Identifier(namespace='ECMDB', id='12345'))
 
+        ref1 = wc_lang.Reference(id='ref10', title='Title1', author='Author1', 
+            publication='Journal1', volume='1', issue='1', pages='20', year=1999, comments='xyz')
+        ref2 = wc_lang.Reference(title='Title2', author='Author2', 
+            publication='Journal2', volume='2', issue='2', pages='200', year=1998)      
+        options = self.set_options(['gen_dna', 'gen_distribution_init_concentrations'])
+        options['media'] = {'met1': (0.75, [ref1, ref2], 'Comments for extracellular concentration')}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options([
-                'gen_dna', 'gen_distribution_init_concentrations'])}}).run()
+            options={'component': {'InitializeModel': options}}).run()
 
         met1_nucleus = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[n]')
 
@@ -567,6 +572,14 @@ class TestCase(unittest.TestCase):
         self.assertEqual(met1_nucleus.references[0].comments, 'xyz')
         self.assertEqual(met1_nucleus.references[0].type, wc_ontology['WC:article'])
         self.assertEqual(met1_nucleus.identifiers[0].serialize(), 'ECMDB: 12345')
+
+        met1_extra = model.distribution_init_concentrations.get_one(id='dist-init-conc-met1[e]')
+
+        self.assertEqual(met1_extra.mean, 0.75*scipy.constants.Avogadro*1.)
+        self.assertEqual(met1_extra.units, unit_registry.parse_units('molecule'))
+        self.assertEqual(met1_extra.comments, 'Comments for extracellular concentration')
+        self.assertEqual(sorted([i.title for i in met1_extra.references]), sorted(['Title1', 'Title2']))
+        self.assertEqual([i.model for i in met1_extra.references], [model, model])
 
         test_conc.units = unit_registry.parse_units('molecule')
 
