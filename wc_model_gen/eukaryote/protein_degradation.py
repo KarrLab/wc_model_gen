@@ -6,22 +6,30 @@
 """
 
 from wc_utils.util.units import unit_registry
-import wc_model_gen.utils as utils
 import math
 import numpy
 import scipy.constants
 import wc_kb
 import wc_lang
 import wc_model_gen
+import wc_model_gen.global_vars as gvar
+import wc_model_gen.utils as utils
 
 
 class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for protein degradation submodel
 
         Options:
-        * protein_proteasomes (:obj:`dict`): a dictionary with protein species ID
+        * compartment_proteasomes (:obj:`dict`): a dictionary with compartment id
             as the key and a list of the names of proteasome complexes that degrade the protein
-            species as value 
+            species in the compartments as value
+        * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
+            as keys and amino acid metabolite ids as values
+        * codon_table (:obj:`dict`): a dictionary with protein id as key and 
+            NCBI identifier for translation table as value, the default is 1 (standard table) 
+            for all protein
+        * cds (:obj:`bool`): True indicates the sequences of protein are complete CDS,
+            the default is True     
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1      
@@ -31,126 +39,146 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """ Apply default options and validate options """
         options = self.options
 
-        beta = options.get('beta', 1.)
-        options['beta'] = beta
-
-        if 'protein_proteasomes' not in options:
-            raise ValueError('The list protein_proteasomes has not been provided')
+        if 'compartment_proteasomes' not in options:
+            raise ValueError('The dictionary of compartment:proteasomes has not been provided')
         else:    
-            protein_proteasomes = options['protein_proteasomes']
+            compartment_proteasomes = options['compartment_proteasomes']
+
+        if 'amino_acid_id_conversion' not in options:
+            raise ValueError('The dictionary amino_acid_id_conversion has not been provided')
+        else:    
+            amino_acid_id_conversion = options['amino_acid_id_conversion']
+
+        codon_table = options.get('codon_table', 1)
+        options['codon_table'] = codon_table
+
+        cds = options.get('cds', True)
+        options['cds'] = cds
+
+        beta = options.get('beta', 1.)
+        options['beta'] = beta        
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
         cell = self.knowledge_base.cell
+
+        compartment_proteasomes = self.options['compartment_proteasomes']
+        amino_acid_id_conversion = self.options['amino_acid_id_conversion']
+        codon_table = self.options['codon_table']
+        cds = self.options['cds']
                 
-        # Get species involved in reaction
-        metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
-        metabolites = {}
-        for met in metabolic_participants:
-            met_species_type = model.species_types.get_one(id=met)
-            metabolites[met] = {
-                'n': met_species_type.species.get_one(compartment=nucleus),
-                'm': met_species_type.species.get_one(compartment=mitochondrion)
-                }
+        print('Start generating protein degradation submodel...')
+        protein_kbs = cell.species_types.get(__type=wc_kb.eukaryote.ProteinSpeciesType)
+        rxn_no = 0
+        self._rxn_species_modifier = {}
+        for protein_kb in protein_kbs:
 
-        # Create reaction for each RNA and get exosome
-        rna_exo_pair = self.options.get('rna_exo_pair')
-        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
-        self._degradation_modifier = {}
-        for rna_kb in rna_kbs:  
+            aa_content = {}
 
-            rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
-                rna_compartment = nucleus
+            if protein_kb.id in gvar.protein_aa_usage:                                        
+                for aa, aa_id in amino_acid_id_conversion.items():
+                    if gvar.protein_aa_usage[protein_kb.id][aa]:
+                        aa_content[aa_id] = gvar.protein_aa_usage[protein_kb.id][aa]
             else:
-                rna_compartment = mitochondrion    
+                if codon_table == 1:
+                    codon_id = 1
+                else:
+                    codon_id = codon_table[protein_kb.id]                                        
+                protein_seq = ''.join(i for i in protein_kb.get_seq(table=codon_id, cds=cds) if i!='*')
+                for aa in protein_seq:
+                    aa_id = amino_acid_id_conversion[aa]
+                    if aa_id not in aa_content:
+                        aa_content[aa_id] = 1
+                    else:
+                        aa_content[aa_id] += 1
             
-            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
-            reaction = model.reactions.get_or_create(submodel=self.submodel, id='degradation_' + rna_kb.id)
-            reaction.name = 'degradation of ' + rna_kb.name
-            seq = rna_kb.get_seq()
+            protein_model = model.species_types.get_one(id=protein_kb.id)
+            
+            for protein_sp in protein_model.species:
 
-            # Adding participants to LHS
-            reaction.participants.append(rna_model.species_coefficients.get_or_create(coefficient=-1))
-            reaction.participants.append(metabolites['h2o'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=-(len(seq)-1)))
+                model_rxn = model.reactions.create(
+                    submodel=self.submodel,
+                    id='{}_{}_degradation'.format(protein_kb.id, protein_sp.compartment.id),
+                    name='Degradation of {} of {}'.format(protein_kb.id, protein_sp.compartment.name),
+                    reversible=False)
 
-            # Adding participants to RHS
-            reaction.participants.append(metabolites['amp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('A')))
-            reaction.participants.append(metabolites['cmp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('C')))
-            reaction.participants.append(metabolites['gmp'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('G')))
-            reaction.participants.append(metabolites['ump'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=seq.count('U')))
-            reaction.participants.append(metabolites['h'][
-                rna_compartment.id].species_coefficients.get_or_create(coefficient=len(seq)-1))
-                             
-            # Assign modifier
-            exo_ids = rna_exo_pair[rna_kb.id]
-            modifier_obs = []
-            for exo_id in exo_ids:
-                complexes = model.species_types.get(name=exo_id)
+                self._rxn_species_modifier[model_rxn.id] = (protein_sp,)
 
-                if not complexes:
-                    raise ValueError('{} that catalyzes the degradation of {} cannot be found'.format(exo_id, rna_kb.id))
+                model_rxn.participants.add(
+                    protein_sp.species_coefficients.get_or_create(coefficient=-1))
 
-                else:                
-                    observable = model.observables.get_one(
-                        name='{} observable in {}'.format(exo_id, rna_compartment.name))
+                if protein_sp.compartment.id not in compartment_proteasomes:
+                    degradation_comp = model.compartments.get_one(id='l')
+                else:
+                    degradation_comp = protein_sp.compartment
+                for aa_id, aa_count in aa_content.items():
+                    model_aa = model.species_types.get_one(id=aa_id).species.get_or_create(
+                        model=model, compartment=degradation_comp)
+                    model_aa.id = model_aa.gen_id()
+                    model_rxn.participants.add(
+                        model_aa.species_coefficients.get_or_create(
+                        coefficient=aa_count))        
 
-                    if not observable:
-                        
-                        all_species = {}                             
-                        
-                        for compl_variant in complexes:
-                            exo_species = compl_variant.species.get_one(compartment=rna_compartment)
-                            if not exo_species:
-                                raise ValueError('{} cannot be found in the {}'.format(exo_species, rna_compartment.name))
-                            all_species[exo_species.gen_id()] = exo_species
-                            
-                        observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                            ' + '.join(list(all_species.keys())), {
-                            wc_lang.Species: all_species,
-                            })
-                        assert error is None, str(error)
+                h2o = model.species_types.get_one(id='h2o').species.get_or_create(
+                    compartment=degradation_comp)
+                h2o.id = h2o.gen_id()
+                model_rxn.participants.add(
+                    h2o.species_coefficients.get_or_create(
+                    coefficient=-(sum(aa_content.values())-1)))
 
-                        observable = model.observables.create(
-                                name='{} observable in {}'.format(exo_id, rna_compartment.name),
-                                expression=observable_expression)
-                        observable.id = 'obs_{}'.format(len(model.observables))
-
-                if observable not in modifier_obs:
-                    modifier_obs.append(observable)    
-
-            if len(modifier_obs) == 1:
-                self._degradation_modifier[reaction.name] = modifier_obs[0]
-            else:
-                all_obs = {obs.id: obs for obs in modifier_obs} 
-                observable_expression, error = wc_lang.ObservableExpression.deserialize(
-                    ' + '.join(list(all_obs.keys())), {
-                    wc_lang.Observable: all_obs,
-                    })
-                assert error is None, str(error)
-
-                observable = model.observables.create(
-                            name='Combined exosome observable in {}'.format(rna_compartment.name),
-                            expression=observable_expression)
-                observable.id = 'obs_{}'.format(len(model.observables))
-
-                self._degradation_modifier[reaction.name] = observable        
+                rxn_no += 1
+        
+        print('{} protein degradation reactions have been generated'.format(rxn_no))
             
     def gen_rate_laws(self):
         """ Generate rate laws for the reactions in the submodel """
-                
+        model = self.model
+        compartment_proteasomes = self.options['compartment_proteasomes']
+        
+        rate_law_no = 0        
         for reaction in self.submodel.reactions:
+            
+            protein_compartment_id = self._rxn_species_modifier[reaction.id][0].compartment.id
+            if protein_compartment_id not in compartment_proteasomes:
+                degradation_comp = model.compartments.get_one(id='l')
+            else:
+                degradation_comp = model.compartments.get_one(id=protein_compartment_id)
 
-            modifier = self._degradation_modifier[reaction.name]
+            proteasomes = compartment_proteasomes[degradation_comp.id]
+            if len(proteasomes) == 1:
+                modifier = model.species_types.get_one(name=proteasomes[0]).species.get_one(
+                    compartment=degradation_comp)
+            else:
+                if model.observables.get_one(id='total_proteasomes_{}'.format(degradation_comp.id)):
+                    modifier = model.observables.get_one(id='total_proteasomes_{}'.format(
+                        degradation_comp.id))
+                else:
+                    modifier_species = {}
+                    
+                    for proteasome in proteasomes:
+                        proteasome_species = model.species_types.get_one(name=proteasome).species.get_one(
+                            compartment=degradation_comp)
+                        modifier_species[proteasome_species.id] = proteasome_species
+                    
+                    proteasome_total_exp, error = wc_lang.ObservableExpression.deserialize(
+                        ' + '.join(modifier_species.keys()),
+                        {wc_lang.Species: modifier_species})            
+                    assert error is None, str(error)                
+                    
+                    modifier = model.observables.create(
+                        id='total_proteasomes_{}'.format(degradation_comp.id), 
+                        name='total proteasomes in {}'.format(degradation_comp.name), 
+                        units=unit_registry.parse_units('molecule'), 
+                        expression=proteasome_total_exp)
+
+            self._rxn_species_modifier[reaction.id] += (modifier,)            
+
+            h2o_species = model.species_types.get_one(id='h2o').species.get_one(
+                compartment=degradation_comp)
 
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                self.model, reaction, modifiers=[modifier])
+                self.model, reaction, modifiers=[modifier], exclude_substrates=[h2o_species])
             self.model.parameters += parameters
 
             rate_law = self.model.rate_laws.create(
@@ -160,15 +188,17 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 reaction=reaction,
                 )
             rate_law.id = rate_law.gen_id()
+            rate_law_no += 1
+
+        print('{} rate laws for protein degradation have been generated'.format(rate_law_no))     
 
     def calibrate_submodel(self):
         """ Calibrate the submodel using data in the KB """
         
         model = self.model        
         cell = self.knowledge_base.cell
-        nucleus = model.compartments.get_one(id='n')
-        mitochondrion = model.compartments.get_one(id='m')
-
+        compartment_proteasomes = self.options['compartment_proteasomes']
+        
         beta = self.options.get('beta')
 
         Avogadro = self.model.parameters.get_or_create(
@@ -177,45 +207,78 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))       
 
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
-        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
+        undetermined_model_kcat = []
+        undetermined_model_km = []
+        determined_kcat = []
+        determined_km = []
+        for reaction in self.submodel.reactions:
 
             init_species_counts = {}
+            compartment_volumes = {}            
         
-            modifier = self._degradation_modifier[reaction.name]      
-            for species in modifier.expression.species:
-                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-            for observable in modifier.expression.observables:
-                for species in observable.expression.species:
-                    init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean    
-        
-            rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
-                rna_compartment = nucleus
+            modifier = self._rxn_species_modifier[reaction.id][1]
+            modifier_total = 0      
+            if type(modifier) == wc_lang.Species:
+                init_species_counts[modifier.gen_id()] = modifier.distribution_init_concentration.mean
+                modifier_total += modifier.distribution_init_concentration.mean
             else:
-                rna_compartment = mitochondrion 
-
-            rna_reactant = model.species_types.get_one(id=rna_kb.id).species.get_one(compartment=rna_compartment)
-
-            half_life = rna_kb.properties.get_one(property='half_life').get_value()
-            mean_concentration = rna_reactant.distribution_init_concentration.mean
-
+                for species in modifier.expression.species:
+                    init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
+                    modifier_total += species.distribution_init_concentration.mean    
+        
+            protein_sp = self._rxn_species_modifier[reaction.id][0]
+            mean_concentration = protein_sp.distribution_init_concentration.mean           
+            half_life = cell.species_types.get_one(
+                id=protein_sp.species_type.id).properties.get_one(property='half-life').get_value()
+            
             average_rate = utils.calc_avg_deg_rate(mean_concentration, half_life)
 
-            for species in reaction.get_reactants():
+            compartment_volumes[protein_sp.compartment.id] = protein_sp.compartment.init_volume.mean * \
+                    protein_sp.compartment.init_density.value
+            if protein_sp.compartment.id not in compartment_proteasomes:
+                degradation_comp = model.compartments.get_one(id='l')                
+            else:
+                degradation_comp = model.compartments.get_one(id=protein_sp.compartment.id)
+            
+            model_Km = model.parameters.get_one(
+                id='K_m_{}_{}'.format(reaction.id, protein_sp.species_type.id))
+            if mean_concentration:
+                model_Km.value = beta * mean_concentration \
+                    / Avogadro.value / protein_sp.compartment.init_volume.mean
+                if degradation_comp == protein_sp.compartment:    
+                    model_Km.comments = 'The value was assumed to be ' +\
+                        '{} times the concentration of {} in {}'.format(
+                        beta, protein_sp.species_type.id, protein_sp.compartment.name)                     
+                else:
+                    model_Km.comments = 'The value was assumed to be ' +\
+                        '{} times the concentration of {} in {} before transport to {}'.format(
+                        beta, protein_sp.species_type.id, protein_sp.compartment.name, degradation_comp.name)
+                determined_km.append(model_Km.value)
+            else:
+                undetermined_model_km.append(model_Km)            
 
-                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-
-                if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
-                    model_Km = model.parameters.get_one(
-                        id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
-                    model_Km.value = beta * species.distribution_init_concentration.mean \
-                        / Avogadro.value / species.compartment.init_volume.mean
+            init_species_counts[protein_sp.gen_id()] = mean_concentration
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
-            model_kcat.value = 1.
-            model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
-                wc_lang.Species: init_species_counts,
-                wc_lang.Compartment: {
-                    rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
-            })       
+
+            if average_rate and modifier_total:
+                model_kcat.value = 1.
+                model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                    wc_lang.Species: init_species_counts,
+                    wc_lang.Compartment: compartment_volumes,
+                })       
+                determined_kcat.append(model_kcat.value)
+            else:          
+                undetermined_model_kcat.append(model_kcat)
+        
+        median_km = numpy.median(determined_km)
+        for model_Km in undetermined_model_km:
+            model_Km.value = median_km
+            model_Km.comments = 'Set to the median value because protein concentration was zero'
+        
+        median_kcat = numpy.median(determined_kcat)
+        for model_kcat in undetermined_model_kcat:
+            model_kcat.value = median_kcat
+            model_kcat.comments = 'Set to the median value because it could not be determined from data'       
+
+        print('Protein degradation submodel has been generated')
