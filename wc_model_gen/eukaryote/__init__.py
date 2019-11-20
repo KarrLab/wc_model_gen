@@ -1,5 +1,6 @@
 from .core import EukaryoteModelGenerator
 from .complexation import ComplexationSubmodelGenerator
 from .initialize_model import InitializeModel
+from .protein_degradation import ProteinDegradationSubmodelGenerator
 from .rna_degradation import RnaDegradationSubmodelGenerator
 from .transcription import TranscriptionSubmodelGenerator
