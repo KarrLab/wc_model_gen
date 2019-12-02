@@ -459,20 +459,20 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             comments='Value taken from the estimation used in the reference'
             )
 
-        max_bool = model.parameters.create(
+        max_bool = model.parameters.get_or_create(
             id='max_bool_substance',
             type=None,
             value=1,
             units=unit_registry.parse_units('molecule'),
-            comments='Boolean switch for determining if gene binding site is still available'
+            comments='Boolean switch for determining if binding site is still available'
             )
 
-        min_bool = model.parameters.create(
+        min_bool = model.parameters.get_or_create(
             id='min_bool_substance',
             type=None,
             value=0,
             units=unit_registry.parse_units('molecule'),
-            comments='Boolean switch for determining if gene binding site is still available'
+            comments='Boolean switch for determining if binding site is still available'
             )                         
                 
         # Generate rate law for binding of RNA polymerase to non-specific site       
