@@ -42,7 +42,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=19)
         exon1 = wc_kb.eukaryote.GenericLocus(start=5, end=19)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1', 
-            name='transcript1', gene=gene1, exons=[exon1])
+            name='transcript1', gene=gene1, exons=[exon1], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
@@ -52,7 +52,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         gene2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene2', polymer=chrM, start=1, end=19)
         exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=10)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2', 
-            name='transcript2', gene=gene2, exons=[exon2])
+            name='transcript2', gene=gene2, exons=[exon2], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcript2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript2, 
             value='15000.0', value_type=wc_ontology['WC:float'])
         transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=mito)
@@ -119,7 +119,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         model.parameters.create(id='Avogadro', value = scipy.constants.Avogadro,
                                 units = unit_registry.parse_units('molecule mol^-1'))
 
-        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14)}
+        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14), 'c': ('cytoplasm', 1E-13)}
         for k, v in compartments.items():
             init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=v[1], std=0)
@@ -197,7 +197,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
-            'polr_occupancy_width': 2,                
+            'polr_occupancy_width': 2,
+            'ribosome_occupancy_width': 4,                
             })
         gen.run()
 
@@ -262,14 +263,18 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         
         # elongation        
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -5,'ppi[n]': 19, 'trans1[n]': 1, 
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -5,'ppi[n]': 19, 'trans1[n]': 1, 'trans1_ribosome_binding_site[c]': 4,
             'amp[n]': 1, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 1, 'h[n]': 5, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans2').participants}, 
-            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 
+            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 'trans2_ribosome_binding_site[m]': 3, 
             'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})
-
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans4').participants}, 
+            {'atp[n]': -1, 'ctp[n]': 0, 'gtp[n]': -1, 'utp[n]': -1, 'h2o[n]': -1,'ppi[n]': 3, 'trans4[n]': 1,
+            'amp[n]': 0, 'cmp[n]': 0, 'gmp[n]': 0, 'ump[n]': 0, 'h[n]': 1, 
+            'complex2_bound_gene4[n]': -1, 'gene4_binding_site[n]': 1, 'complex2[n]': 1})
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trans1_ribosome_binding_site[c]').mean, 40)
 
         # Test gen_rate_laws
         self.assertEqual(len(model.rate_laws), 16)
@@ -369,17 +374,18 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
-            'polr_occupancy_width': 2,                
+            'polr_occupancy_width': 2,
+            'ribosome_occupancy_width': 4,                
             })
         gen.run()
 
         self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 2, 'U': 5, 'G': 1, 'C': 2, 'len': 10})
 
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -12,'ppi[n]': 19, 'trans1[n]': 1, 
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -12,'ppi[n]': 19, 'trans1[n]': 1, 'trans1_ribosome_binding_site[c]': 3,
             'amp[n]': 3, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 6, 'h[n]': 12, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans2').participants}, 
-            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 
+            {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 'trans2_ribosome_binding_site[m]': 3,
             'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})

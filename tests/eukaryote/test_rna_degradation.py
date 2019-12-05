@@ -99,8 +99,15 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=10., units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
-        model.distribution_init_concentrations.get_one(id='dist-init-conc-trans4[m]').mean = 0.    
-
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-trans4[m]').mean = 0.
+        ribo_site_species_type = model.species_types.create(id='trans2_ribosome_binding_site')
+        mitochondria = model.compartments.get_one(id='m')
+        ribo_site_species = model.species.create(species_type=ribo_site_species_type, compartment=mitochondria)
+        ribo_site_species.id = ribo_site_species.gen_id()
+        conc_ribo_site_species = model.distribution_init_concentrations.create(
+            species=ribo_site_species, mean=20, units=unit_registry.parse_units('molecule'))
+        conc_ribo_site_species.id = conc_ribo_site_species.gen_id()
+            
         complexes = {'complex1': ('Exosome', ['c', 'n']), 'complex2': ('Exosome variant', ['c', 'n']), 'complex3': ('Mitochondrial Exosome', ['m']),
             'complex4': ('Mitochondrial Exosome variant', ['m'])}
         for k, v in complexes.items():
@@ -132,7 +139,8 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
-            'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'}
+                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'},
+            'ribosome_occupancy_width': 4,
             })
         gen.run()
 
@@ -148,7 +156,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
             {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[n]': -1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
-            {'amp[m]': 2, 'cmp[m]': 2, 'gmp[m]': 1, 'ump[m]': 5, 'h[m]': 9, 'h2o[m]': -9, 'trans2[m]': -1})
+            {'amp[m]': 2, 'cmp[m]': 2, 'gmp[m]': 1, 'ump[m]': 5, 'h[m]': 9, 'h2o[m]': -9, 'trans2[m]': -1, 'trans2_ribosome_binding_site[m]': -3})
         
         # Test gen_rate_laws
         self.assertEqual(len(self.model.rate_laws), 4)
@@ -183,7 +191,8 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         gvar.transcript_ntp_usage = {'trans2': {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15}}
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
-            'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'}
+                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'},
+            'ribosome_occupancy_width': 4,    
             })
         gen.run()
 
@@ -192,5 +201,5 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
             {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[n]': -1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
-            {'amp[m]': 4, 'cmp[m]': 2, 'gmp[m]': 2, 'ump[m]': 7, 'h[m]': 14, 'h2o[m]': -14, 'trans2[m]': -1})
+            {'amp[m]': 4, 'cmp[m]': 2, 'gmp[m]': 2, 'ump[m]': 7, 'h[m]': 14, 'h2o[m]': -14, 'trans2[m]': -1, 'trans2_ribosome_binding_site[m]': -4})
         

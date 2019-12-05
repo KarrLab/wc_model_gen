@@ -44,7 +44,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * activator_effect (:obj:`float`, optional): interaction effect between an activator 
             and RNA polymerase, which must take the value of 1 and higher, the default value is 1.2    
         * polr_occupancy_width (:obj:`int`, optional): number of base-pairs on the DNA occupied 
-            by each bound RNA polymerase, , the default value is 80                          
+            by each bound RNA polymerase, , the default value is 80
+        * ribosome_occupancy_width (:obj:`int`, optional): number of base-pairs on the mRNA occupied 
+            by each bound ribosome, the default value is 27 (9 codons)                              
     """
 
     def clean_and_validate_options(self):
@@ -71,14 +73,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         polr_occupancy_width = options.get('polr_occupancy_width', 80)
         options['polr_occupancy_width'] = polr_occupancy_width
 
+        ribosome_occupancy_width = options.get('ribosome_occupancy_width', 27)
+        options['ribosome_occupancy_width'] = ribosome_occupancy_width
+
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
         model = self.model
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
+        cytosol = model.compartments.get_one(id='c')
 
         polr_occupancy_width = self.options.get('polr_occupancy_width')
+        ribosome_occupancy_width = self.options['ribosome_occupancy_width']        
 
         # Get species involved in reaction
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 
@@ -115,7 +122,20 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             volume='14',
             pages='796-806'
             )
-        ref_polr_distribution.id = 'ref_'+str(len(model.references))  
+        ref_polr_distribution.id = 'ref_'+str(len(model.references))
+
+        ref_ribo_width = wc_lang.Reference(
+            model=model,
+            title='Genome-wide analysis in vivo of translation with nucleotide resolution using ribosome profiling',
+            author='Nicholas T Ingolia, Sina Ghaemmaghami, John R. S. Newman, Jonathan S. Weissman',        
+            year=2009,
+            type=onto['WC:article'],
+            publication='Science',        
+            volume='324',
+            issue='5924',
+            pages='218-223'
+            )
+        ref_ribo_width.id = 'ref_'+str(len(model.references))  
 
         print('Start generating transcription submodel...')                  
         
@@ -224,6 +244,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb in rna_kbs:
             
             rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
+            translation_compartment = cytosol if rna_kb.species[0].compartment.id == 'n' else mitochondrion
             
             # Create initiation reaction
             polr_complex = model.species_types.get_one(name=rna_pol_pair[rna_kb.id])
@@ -330,7 +351,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction = model.reactions.get_or_create(
                 submodel=self.submodel, id='transcription_elongation_' + rna_kb.id,
                 name='transcription elongation of ' + rna_kb.name,
-                reversible=False, comments='Lumped reaction')
+                reversible=False, comments='Lumped reaction')            
 
             if rna_kb.gene.strand == wc_kb.core.PolymerStrand.positive:
                 pre_rna_seq = gene_seq.transcribe()
@@ -399,6 +420,37 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.append(
                 polr_binding_site_species.species_coefficients.get_or_create(
                 coefficient=1))
+
+            if rna_kb.type==wc_kb.eukaryote.TranscriptType.mRna:
+                ribo_binding_site_st = model.species_types.get_or_create(
+                    id='{}_ribosome_binding_site'.format(rna_kb.id),
+                    name='ribosome binding site of {}'.format(rna_kb.name),
+                    type=onto['WC:pseudo_species'],
+                    )
+                ribo_binding_site_st.structure = wc_lang.ChemicalStructure(
+                    empirical_formula = EmpiricalFormula(),
+                    molecular_weight = 0.,
+                    charge = 0)
+                ribo_binding_site_species = model.species.get_or_create(
+                    species_type=ribo_binding_site_st, compartment=translation_compartment)
+                ribo_binding_site_species.id = ribo_binding_site_species.gen_id()
+
+                site_per_rna = math.floor(ntp_count['len']/ribosome_occupancy_width) + 1
+                reaction.participants.append(
+                    ribo_binding_site_species.species_coefficients.get_or_create(
+                    coefficient=site_per_rna))
+
+                rna_init_conc = model.distribution_init_concentrations.get_one(
+                    species=rna_model).mean
+                conc_model = model.distribution_init_concentrations.create(
+                    species=ribo_binding_site_species,
+                    mean=site_per_rna * rna_init_conc,
+                    units=unit_registry.parse_units('molecule'),
+                    comments='Set to mRNA length divided by {} bp to allow '
+                        'queueing of ribosome during translation'.format(ribosome_occupancy_width),
+                    references=[ref_ribo_width]    
+                    )
+                conc_model.id = conc_model.gen_id()
 
             init_el_rxn_no += 1
 

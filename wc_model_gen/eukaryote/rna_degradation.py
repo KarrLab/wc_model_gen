@@ -24,7 +24,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the name of exosome complex that degrades the RNA as value
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
-            Km values, the default value is 1      
+            Km values, the default value is 1
+        * ribosome_occupancy_width (:obj:`int`, optional): number of base-pairs 
+            on the mRNA occupied by each bound ribosome, 
+            the default value is 27 (9 codons)          
     """
 
     def clean_and_validate_options(self):
@@ -38,6 +41,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             raise ValueError('The dictionary rna_exo_pair has not been provided')
         else:    
             rna_exo_pair = options['rna_exo_pair']
+
+        ribosome_occupancy_width = options.get('ribosome_occupancy_width', 27)
+        options['ribosome_occupancy_width'] = ribosome_occupancy_width    
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -60,6 +66,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         print('Start generating RNA degradation submodel...')
         # Create reaction for each RNA and get exosome
         rna_exo_pair = self.options.get('rna_exo_pair')
+        ribosome_occupancy_width = self.options['ribosome_occupancy_width']
         rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         self._degradation_modifier = {}
         deg_rxn_no = 0
@@ -94,6 +101,13 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction.participants.append(metabolites['h2o'][
                 degradation_compartment.id].species_coefficients.get_or_create(coefficient=-(ntp_count['len']-1)))
 
+            ribo_binding_site_st = model.species_types.get_one(id='{}_ribosome_binding_site'.format(rna_kb.id))
+            if ribo_binding_site_st:
+                ribo_binding_site_species = ribo_binding_site_st.species[0]
+                site_per_rna = math.floor(ntp_count['len']/ribosome_occupancy_width) + 1
+                reaction.participants.append(ribo_binding_site_species.species_coefficients.get_or_create(
+                    coefficient=-site_per_rna))
+
             # Adding participants to RHS
             reaction.participants.append(metabolites['amp'][
                 degradation_compartment.id].species_coefficients.get_or_create(coefficient=ntp_count['A']))
@@ -123,7 +137,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         rate_law_no = 0
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
-        for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
+        for rna_kb in rnas_kb:
+
+            reaction = self.submodel.reactions.get_one(id='degradation_{}'.format(rna_kb.id))
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
             if rna_kb_compartment_id == 'n':
@@ -136,8 +152,15 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             h2o_species = model.species_types.get_one(id='h2o').species.get_one(
                 compartment=degradation_compartment)
 
+            ribo_binding_site_st = model.species_types.get_one(id='{}_ribosome_binding_site'.format(rna_kb.id))
+            if ribo_binding_site_st:
+                ribo_binding_site_species = ribo_binding_site_st.species[0]
+                exclude_substrates = [ribo_binding_site_species, h2o_species]
+            else:
+                exclude_substrates = [h2o_species]    
+
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                self.model, reaction, modifiers=[modifier], exclude_substrates=[h2o_species])
+                self.model, reaction, modifiers=[modifier], exclude_substrates=exclude_substrates)
             self.model.parameters += parameters
 
             rate_law = self.model.rate_laws.create(
