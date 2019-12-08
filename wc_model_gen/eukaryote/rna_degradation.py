@@ -159,10 +159,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 exclude_substrates = [h2o_species]    
 
-            rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
+            rate_law_exp, _ = utils.gen_michaelis_menten_like_rate_law(
                 self.model, reaction, modifiers=[modifier], exclude_substrates=exclude_substrates)
-            self.model.parameters += parameters
-
+            
             rate_law = self.model.rate_laws.create(
                 direction=wc_lang.RateLawDirection.forward,
                 type=None,
