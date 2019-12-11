@@ -160,15 +160,15 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             self._gene_bound_polr[polr] = []
             
             if 'mito' in polr:
-                rna_compartment = mitochondrion
+                transcription_compartment = mitochondrion
                 genome_sites = self._mitochondrial_max_binding_sites
             else:
-                rna_compartment = nucleus
+                transcription_compartment = nucleus
                 genome_sites = self._nuclear_max_binding_sites
             
             polr_complex = model.species_types.get_one(name=polr)
             polr_complex_species = model.species.get_one(
-                species_type=polr_complex, compartment=rna_compartment)
+                species_type=polr_complex, compartment=transcription_compartment)
             conc_free_polr = model.distribution_init_concentrations.get_one(
                 species=polr_complex_species)
             self._total_polr[polr] = conc_free_polr.mean
@@ -186,7 +186,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     molecular_weight = 0.,
                     charge = 0)
             polr_non_specific_binding_site_species = model.species.get_or_create(
-                species_type=polr_non_specific_binding_site_st, compartment=rna_compartment)
+                species_type=polr_non_specific_binding_site_st, compartment=transcription_compartment)
             polr_non_specific_binding_site_species.id = polr_non_specific_binding_site_species.gen_id()
 
             conc_model = model.distribution_init_concentrations.get_or_create(
@@ -209,7 +209,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     molecular_weight = polr_complex.structure.molecular_weight,
                     charge = polr_complex.structure.charge)
             polr_bound_non_specific_species = model.species.get_or_create(
-                species_type=polr_bound_non_specific_species_type, compartment=rna_compartment)
+                species_type=polr_bound_non_specific_species_type, compartment=transcription_compartment)
             polr_bound_non_specific_species.id = polr_bound_non_specific_species.gen_id()
 
             conc_model = model.distribution_init_concentrations.get_or_create(
@@ -222,7 +222,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             ns_binding_reaction = model.reactions.create(
                 submodel=self.submodel, id='non_specific_binding_{}'.format(polr_complex.id),
-                name='non-specific binding of {} in {}'.format(polr, rna_compartment.name),
+                name='non-specific binding of {} in {}'.format(polr, transcription_compartment.name),
                 reversible=False)
             
             ns_binding_reaction.participants.append(
@@ -243,24 +243,24 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         self._allowable_queue_len = {}        
         for rna_kb in rna_kbs:
             
-            rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
-            translation_compartment = cytosol if rna_kb.species[0].compartment.id == 'n' else mitochondrion
+            transcription_compartment = nucleus if rna_kb.species[0].compartment.id == 'c' else mitochondrion
+            translation_compartment = cytosol if rna_kb.species[0].compartment.id == 'c' else mitochondrion
             
             # Create initiation reaction
             polr_complex = model.species_types.get_one(name=rna_pol_pair[rna_kb.id])
             polr_complex_species = model.species.get_one(
-                species_type=polr_complex, compartment=rna_compartment)
+                species_type=polr_complex, compartment=transcription_compartment)
             self._initiation_polr_species[rna_kb.id] = polr_complex_species
             
             polr_bound_non_specific_species_type = model.species_types.get_one(
                 id='{}_bound_non_specific_site'.format(polr_complex.id))
             polr_bound_non_specific_species = model.species.get_one(
-                species_type=polr_bound_non_specific_species_type, compartment=rna_compartment)
+                species_type=polr_bound_non_specific_species_type, compartment=transcription_compartment)
             
             polr_non_specific_binding_site_st = model.species_types.get_one(
                 id='polr_non_specific_binding_site')
             polr_non_specific_binding_site_species = model.species.get_one(
-                species_type=polr_non_specific_binding_site_st, compartment=rna_compartment)
+                species_type=polr_non_specific_binding_site_st, compartment=transcription_compartment)
             
             gene = rna_kb.gene
             polr_binding_site_st = model.species_types.get_or_create(
@@ -273,7 +273,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     molecular_weight = 0.,
                     charge = 0)
             polr_binding_site_species = model.species.get_or_create(
-                species_type=polr_binding_site_st, compartment=rna_compartment)
+                species_type=polr_binding_site_st, compartment=transcription_compartment)
             polr_binding_site_species.id = polr_binding_site_species.gen_id()
 
             gene_seq = gene.get_seq() 
@@ -298,7 +298,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     molecular_weight = polr_complex.structure.molecular_weight,
                     charge = polr_complex.structure.charge)
             polr_bound_species = model.species.get_or_create(
-                species_type=polr_bound_species_type, compartment=rna_compartment)
+                species_type=polr_bound_species_type, compartment=transcription_compartment)
             polr_bound_species.id = polr_bound_species.gen_id()
             self._elongation_modifier[rna_kb.id] = polr_bound_species
             self._gene_bound_polr[rna_pol_pair[rna_kb.id]].append(polr_bound_species)
@@ -330,24 +330,23 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Add ATP hydrolysis requirement for DNA melting and promoter escape by RNA polymerase II
             if 'RNA Polymerase II' in rna_pol_pair[rna_kb.id]:
                 init_reaction.participants.append(metabolites['atp'][
-                    rna_compartment.id].species_coefficients.get_or_create(
+                    transcription_compartment.id].species_coefficients.get_or_create(
                     coefficient=-2))
                 init_reaction.participants.append(metabolites['h2o'][
-                    rna_compartment.id].species_coefficients.get_or_create(
+                    transcription_compartment.id].species_coefficients.get_or_create(
                     coefficient=-2))
                 init_reaction.participants.append(metabolites['adp'][
-                    rna_compartment.id].species_coefficients.get_or_create(
+                    transcription_compartment.id].species_coefficients.get_or_create(
                     coefficient=2))
                 init_reaction.participants.append(metabolites['pi'][
-                    rna_compartment.id].species_coefficients.get_or_create(
+                    transcription_compartment.id].species_coefficients.get_or_create(
                     coefficient=2))
                 init_reaction.participants.append(metabolites['h'][
-                    rna_compartment.id].species_coefficients.get_or_create(
+                    transcription_compartment.id].species_coefficients.get_or_create(
                     coefficient=2))
 
             # Create elongation reaction
-            rna_model = model.species_types.get_one(id=rna_kb.id).species.get_one(
-                compartment=rna_compartment)
+            rna_model = model.species_types.get_one(id=rna_kb.id).species[0]
             reaction = model.reactions.get_or_create(
                 submodel=self.submodel, id='transcription_elongation_' + rna_kb.id,
                 name='transcription elongation of ' + rna_kb.name,
@@ -375,19 +374,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 polr_bound_species.species_coefficients.get_or_create(
                 coefficient=-1))
             reaction.participants.append(metabolites['atp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=-pre_rna_seq.upper().count('A')))
             reaction.participants.append(metabolites['ctp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=-pre_rna_seq.upper().count('C')))
             reaction.participants.append(metabolites['gtp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=-pre_rna_seq.upper().count('G')))
             reaction.participants.append(metabolites['utp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=-pre_rna_seq.upper().count('U')))
             reaction.participants.append(metabolites['h2o'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=-(len(pre_rna_seq)-pre_rna_seq.upper().count('N')
                     -ntp_count['len']+1)))
             
@@ -396,22 +395,22 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 rna_model.species_coefficients.get_or_create(
                 coefficient=1))
             reaction.participants.append(metabolites['ppi'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=len(pre_rna_seq)-pre_rna_seq.upper().count('N')))
             reaction.participants.append(metabolites['amp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=pre_rna_seq.upper().count('A')-ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=pre_rna_seq.upper().count('C')-ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=pre_rna_seq.upper().count('G')-ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=pre_rna_seq.upper().count('U')-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
-                rna_compartment.id].species_coefficients.get_or_create(
+                transcription_compartment.id].species_coefficients.get_or_create(
                 coefficient=len(pre_rna_seq)-pre_rna_seq.upper().count('N')
                     -ntp_count['len']+1))
             reaction.participants.append(
@@ -531,13 +530,13 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rna_pol_pair = self.options.get('rna_pol_pair')
         self._polr_pool = {}
         for polr in set(rna_pol_pair.values()):            
-            rna_compartment = mitochondrion if 'mito' in polr else nucleus
+            transcription_compartment = mitochondrion if 'mito' in polr else nucleus
             ns_binding_reaction = model.reactions.get_one(
-                name='non-specific binding of {} in {}'.format(polr, rna_compartment.name))
+                name='non-specific binding of {} in {}'.format(polr, transcription_compartment.name))
 
             polr_complex = model.species_types.get_one(name=polr)
             polr_complex_species = model.species.get_one(
-                species_type=polr_complex, compartment=rna_compartment)
+                species_type=polr_complex, compartment=transcription_compartment)
 
             non_specific_binding_constant = model.parameters.create(
                 id='k_non_specific_binding_{}'.format(polr_complex.id),
@@ -564,7 +563,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             polr_bound_non_specific_species = model.species.get_one(
                 species_type=model.species_types.get_one(
                     id='{}_bound_non_specific_site'.format(polr_complex.id)), 
-                compartment=rna_compartment)
+                compartment=transcription_compartment)
             
             self._polr_pool[polr] = {i.id: i for i in self._gene_bound_polr[polr]}
             self._polr_pool[polr][polr_complex_species.id] = polr_complex_species        
@@ -582,8 +581,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     {wc_lang.Species: chunked_dict})            
                 assert error is None, str(error)                
                 polr_subtotal_obs = model.observables.create(
-                    id='subtotal_{}_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id, ind+1), 
-                    name='subtotal {} of {} in {}'.format(ind+1, polr, rna_compartment.name), 
+                    id='subtotal_{}_{}_{}'.format(polr_complex_species.species_type.id, transcription_compartment.id, ind+1), 
+                    name='subtotal {} of {} in {}'.format(ind+1, polr, transcription_compartment.name), 
                     units=unit_registry.parse_units('molecule'), 
                     expression=polr_subtotal_exp)
                 all_subtotal_obs[polr_subtotal_obs.id] = polr_subtotal_obs
@@ -593,8 +592,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 {wc_lang.Observable: all_subtotal_obs})            
             assert error is None, str(error)
             polr_obs = model.observables.create(
-                id='total_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id), 
-                name='total {} in {}'.format(polr, rna_compartment.name), 
+                id='total_{}_{}'.format(polr_complex_species.species_type.id, transcription_compartment.id), 
+                name='total {} in {}'.format(polr, transcription_compartment.name), 
                 units=unit_registry.parse_units('molecule'), 
                 expression=polr_obs_exp)
 
@@ -613,7 +612,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb in rnas_kb:
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
+            if rna_kb_compartment_id == 'c':
                 no_of_binding_sites = model.parameters.get_or_create(
                     id='total_nuclear_genome_binding',
                     type=None,
@@ -622,7 +621,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     references=[ref_polr_width],
                     comments='Set to genome length divided by {} bp'.format(polr_occupancy_width)
                     )
-                rna_compartment = nucleus      
+                transcription_compartment = nucleus      
             else:
                 no_of_binding_sites = model.parameters.get_or_create(
                     id='total_mitochondrial_genome_binding',
@@ -632,7 +631,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     references=[ref_polr_width],
                     comments='Set to genome length divided by {} bp'.format(polr_occupancy_width)
                     )
-                rna_compartment = mitochondrion
+                transcription_compartment = mitochondrion
 
             # Assign transcriptional regulation
             reg_species = {}            
@@ -650,7 +649,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     
                     tf_model = model.species.get_one(
                         species_type=model.species_types.get_one(id=tf.transcription_factor.id), 
-                        compartment=rna_compartment)                   
+                        compartment=transcription_compartment)                   
                     
                     if tf_model and tf.direction == wc_kb.eukaryote.RegulatoryDirection.activation:                        
                         F_act, species_act, param_act, func_act = utils.simple_activator(
@@ -675,14 +674,14 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species_type=model.species_types.get_one(
                     id='{}_bound_non_specific_site'.format(
                         self._initiation_polr_species[rna_kb.id].species_type.id)), 
-                compartment=rna_compartment)
+                compartment=transcription_compartment)
             reg_species[polr_bound_non_specific_species.id] = polr_bound_non_specific_species
 
             polr_complex_species = model.species.get_one(
                 species_type=model.species_types.get_one(name=rna_pol_pair[rna_kb.id]), 
-                compartment=rna_compartment)
+                compartment=transcription_compartment)
             polr_obs = model.observables.get_one(
-                id='total_{}_{}'.format(polr_complex_species.species_type.id, rna_compartment.id))
+                id='total_{}_{}'.format(polr_complex_species.species_type.id, transcription_compartment.id))
 
             p_bound = '1 / (1 + {} / ({} * {}) * exp(log({} / {})))'.format(
                 no_of_binding_sites.id, 
@@ -752,7 +751,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     self._elongation_modifier[rna_kb.id]],
                 exclude_substrates=[model.species.get_one(
                     species_type=model.species_types.get_one(id='h2o'), 
-                    compartment=rna_compartment)])
+                    compartment=transcription_compartment)])
             
             rate_law = model.rate_laws.create(
                 direction=wc_lang.RateLawDirection.forward,
@@ -793,11 +792,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         for rna_kb in rnas_kb:            
         
-            rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion 
+            transcription_compartment = nucleus if rna_kb.species[0].compartment.id == 'c' else mitochondrion 
             
             # Estimate the average rate of transcription
-            rna_product = model.species_types.get_one(id=rna_kb.id).species.get_one(
-                compartment=rna_compartment)           
+            rna_product = model.species_types.get_one(id=rna_kb.id).species[0]
             
             half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_product.distribution_init_concentration.mean         
@@ -812,7 +810,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
                 if 'Kr_' in param.id:
                     repressor_species = model.species.get_one(
-                        id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
+                        id='{}[{}]'.format(param.id.split('_')[-1], transcription_compartment.id))
                     init_reg_species_count[repressor_species.id] = \
                         repressor_species.distribution_init_concentration.mean
                     if repressor_species.distribution_init_concentration.mean:    
@@ -827,7 +825,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         
                 elif 'Ka_' in param.id:
                     activator_species = model.species.get_one(
-                        id='{}[{}]'.format(param.id.split('_')[-1], rna_compartment.id))
+                        id='{}[{}]'.format(param.id.split('_')[-1], transcription_compartment.id))
                     init_reg_species_count[activator_species.id] = \
                         activator_species.distribution_init_concentration.mean
                     if activator_species.distribution_init_concentration.mean:    
@@ -852,7 +850,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             p_bound_value = p_bound_function.expression._parsed_expression.eval({
                 wc_lang.Species: init_reg_species_count,
                 wc_lang.Compartment: {
-                    rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
+                    transcription_compartment.id: transcription_compartment.init_volume.mean * \
+                        transcription_compartment.init_density.value},
                 })
             p_bound[rna_kb.id] = p_bound_value
         
@@ -865,18 +864,18 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         total_gene_bound = {}
         for polr, rnas in polr_rna_pair.items():
             
-            rna_compartment = mitochondrion if 'mito' in polr else nucleus
+            transcription_compartment = mitochondrion if 'mito' in polr else nucleus
 
             polr_complex = model.species_types.get_one(name=polr)
             polr_complex_species = model.species.get_one(
-                species_type=polr_complex, compartment=rna_compartment)
+                species_type=polr_complex, compartment=transcription_compartment)
             polr_free_conc = model.distribution_init_concentrations.get_one(
                 species=polr_complex_species).mean
 
             polr_ns_bound = model.species_types.get_one(
                     id='{}_bound_non_specific_site'.format(polr_complex.id))
             polr_ns_bound_species = model.species.get_one(
-                species_type=polr_ns_bound, compartment=rna_compartment)
+                species_type=polr_ns_bound, compartment=transcription_compartment)
             polr_ns_bound_conc = model.distribution_init_concentrations.get_one(
                 species=polr_ns_bound_species).mean
 
@@ -902,7 +901,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         determined_kcat = []
         for rna_kb in rnas_kb: 
 
-            rna_compartment = nucleus if rna_kb.species[0].compartment.id == 'n' else mitochondrion
+            transcription_compartment = nucleus if rna_kb.species[0].compartment.id == 'c' else mitochondrion
 
             polr_gene_bound_conc = min(self._allowable_queue_len[rna_kb.id][1], 
                 p_bound[rna_kb.id] / total_p_bound[rna_pol_pair[rna_kb.id]] * \
@@ -934,7 +933,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     reaction.rate_laws[0].expression._parsed_expression.eval({
                         wc_lang.Species: init_species_counts,
                         wc_lang.Compartment: {
-                            rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value},
+                            transcription_compartment.id: transcription_compartment.init_volume.mean * \
+                                transcription_compartment.init_density.value},
                     })
                 determined_kcat.append(model_kcat.value)
             else:

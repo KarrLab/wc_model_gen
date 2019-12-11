@@ -37,6 +37,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         nucleus = cell.compartments.create(id='n')
         mito = cell.compartments.create(id='m')
+        cytoplasm = cell.compartments.create(id='c')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
         gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=19)
@@ -45,7 +46,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             name='transcript1', gene=gene1, exons=[exon1], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcript1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript1, 
             value='36000.0', value_type=wc_ontology['WC:float'])
-        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
+        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=cytoplasm)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
 
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=self.sequence_path)
@@ -64,7 +65,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             name='transcript3', gene=gene3, exons=[exon3])
         transcript3_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript3, 
             value='36000.0', value_type=wc_ontology['WC:float'])
-        transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=nucleus)
+        transcript3_spec = wc_kb.core.Species(species_type=transcript3, compartment=cytoplasm)
         transcript3_conc = wc_kb.core.Concentration(cell=cell, species=transcript3_spec, value=10.)
 
         gene4 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene4', polymer=chr1, start=1, end=3)
@@ -73,7 +74,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             name='transcript4', gene=gene4, exons=[exon4])
         transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript4, 
             value='36000.0', value_type=wc_ontology['WC:float'])
-        transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=nucleus)
+        transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=cytoplasm)
         transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)
 
         gene5 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene5', polymer=chr1, start=1, end=3)
@@ -82,7 +83,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             name='transcript5', gene=gene5, exons=[exon5])
         transcript5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript5, 
             value='36000.0', value_type=wc_ontology['WC:float'])
-        transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=nucleus)
+        transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=cytoplasm)
         transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=0.)
 
         gene6 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene6', polymer=chr1, start=1, end=3)
@@ -91,7 +92,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             name='transcript6', gene=gene6, exons=[exon6])
         transcript6_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript6, 
             value='36000.0', value_type=wc_ontology['WC:float'])
-        transcript6_spec = wc_kb.core.Species(species_type=transcript6, compartment=nucleus)
+        transcript6_spec = wc_kb.core.Species(species_type=transcript6, compartment=cytoplasm)
         transcript6_conc = wc_kb.core.Concentration(cell=cell, species=transcript6_spec, value=0.)
 
         activator = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator')
@@ -135,13 +136,13 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type = model.species_types.create(id=i.id)
-            model_compartment = model.compartments.get_one(id='m' if 'M' in i.gene.polymer.id else 'n')
+            model_compartment = model.compartments.get_one(id='m' if 'M' in i.gene.polymer.id else 'c')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=10, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
-        model.distribution_init_concentrations.get_one(id='dist-init-conc-trans5[n]').mean = 0.
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-trans5[c]').mean = 0.
 
         complexes = {'complex1': ('RNA Polymerase I','n'), 'complex2': ('RNA Polymerase II', 'n'), 
             'complex3': ('RNA Polymerase mitochondria', 'm'), 'complex4': ('RNA Polymerase III', 'n')}
@@ -263,7 +264,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         
         # elongation        
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -5,'ppi[n]': 19, 'trans1[n]': 1, 'trans1_ribosome_binding_site[c]': 4,
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -5,'ppi[n]': 19, 'trans1[c]': 1, 'trans1_ribosome_binding_site[c]': 4,
             'amp[n]': 1, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 1, 'h[n]': 5, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans2').participants}, 
@@ -271,7 +272,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans4').participants}, 
-            {'atp[n]': -1, 'ctp[n]': 0, 'gtp[n]': -1, 'utp[n]': -1, 'h2o[n]': -1,'ppi[n]': 3, 'trans4[n]': 1,
+            {'atp[n]': -1, 'ctp[n]': 0, 'gtp[n]': -1, 'utp[n]': -1, 'h2o[n]': -1,'ppi[n]': 3, 'trans4[c]': 1,
             'amp[n]': 0, 'cmp[n]': 0, 'gmp[n]': 0, 'ump[n]': 0, 'h[n]': 1, 
             'complex2_bound_gene4[n]': -1, 'gene4_binding_site[n]': 1, 'complex2[n]': 1})
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trans1_ribosome_binding_site[c]').mean, 40)
@@ -382,7 +383,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 2, 'U': 5, 'G': 1, 'C': 2, 'len': 10})
 
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans1').participants}, 
-            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -12,'ppi[n]': 19, 'trans1[n]': 1, 'trans1_ribosome_binding_site[c]': 3,
+            {'atp[n]': -5, 'ctp[n]': -3, 'gtp[n]': -3, 'utp[n]': -8, 'h2o[n]': -12,'ppi[n]': 19, 'trans1[c]': 1, 'trans1_ribosome_binding_site[c]': 3,
             'amp[n]': 3, 'cmp[n]': 1, 'gmp[n]': 1, 'ump[n]': 6, 'h[n]': 12, 
             'complex1_bound_gene1[n]': -1, 'gene1_binding_site[n]': 1, 'complex1[n]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans2').participants}, 

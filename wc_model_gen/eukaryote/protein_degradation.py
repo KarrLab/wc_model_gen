@@ -81,17 +81,23 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     if gvar.protein_aa_usage[protein_kb.id][aa]:
                         aa_content[aa_id] = gvar.protein_aa_usage[protein_kb.id][aa]
             else:
+                gvar.protein_aa_usage[protein_kb.id] = {i:0 for i in list(amino_acid_id_conversion.keys())}
                 if codon_table == 1:
                     codon_id = 1
                 else:
                     codon_id = codon_table[protein_kb.id]                                        
-                protein_seq = ''.join(i for i in protein_kb.get_seq(table=codon_id, cds=cds) if i!='*')
+                raw_seq = protein_kb.get_seq(table=codon_id, cds=cds)                                            
+                protein_seq = ''.join(i for i in raw_seq if i!='*')
                 for aa in protein_seq:
                     aa_id = amino_acid_id_conversion[aa]
                     if aa_id not in aa_content:
                         aa_content[aa_id] = 1
+                        gvar.protein_aa_usage[protein_kb.id][aa] = 1
                     else:
                         aa_content[aa_id] += 1
+                        gvar.protein_aa_usage[protein_kb.id][aa] += 1
+                gvar.protein_aa_usage[protein_kb.id]['*'] = raw_seq.count('*')
+                gvar.protein_aa_usage[protein_kb.id]['len'] = len(protein_seq)
             
             protein_model = model.species_types.get_one(id=protein_kb.id)
             

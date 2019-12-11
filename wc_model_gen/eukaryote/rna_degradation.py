@@ -73,8 +73,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for rna_kb in rna_kbs:  
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
-                rna_compartment = nucleus
+            if rna_kb_compartment_id == 'c':
+                rna_compartment = cytoplasm
                 degradation_compartment = cytoplasm
             else:
                 rna_compartment = mitochondrion
@@ -142,7 +142,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction = self.submodel.reactions.get_one(id='degradation_{}'.format(rna_kb.id))
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
+            if rna_kb_compartment_id == 'c':
                 degradation_compartment = cytoplasm
             else:
                 degradation_compartment = mitochondrion 
@@ -203,8 +203,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             init_species_counts[modifier_species.gen_id()] = modifier_species.distribution_init_concentration.mean
                     
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
-            if rna_kb_compartment_id == 'n':
-                rna_compartment = nucleus
+            if rna_kb_compartment_id == 'c':
+                rna_compartment = cytoplasm
                 degradation_compartment = cytoplasm
             else:
                 rna_compartment = mitochondrion

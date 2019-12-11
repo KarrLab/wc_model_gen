@@ -140,7 +140,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage, {})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'len': 2, '*': 0})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['protein_degradation'])

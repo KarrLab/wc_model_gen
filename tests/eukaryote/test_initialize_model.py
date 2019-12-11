@@ -66,6 +66,7 @@ class TestCase(unittest.TestCase):
 
         nucleus = cell.compartments.create(id='n', name='nucleus', volumetric_fraction=0.5)
         nucleus_membrane = cell.compartments.create(id='n_m', name='nucleus membrane')
+        cytoplasm = cell.compartments.create(id='c', name='cytoplasm', volumetric_fraction=0.5)
         mito = cell.compartments.create(id='m', name='mitochondrion', volumetric_fraction=0.2)
         extra = cell.compartments.create(id='e', name='extracellular space')
 
@@ -75,7 +76,7 @@ class TestCase(unittest.TestCase):
         exon1 = wc_kb.eukaryote.GenericLocus(start=4, end=36)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1',
             name='transcript1', gene=gene1, exons=[exon1])
-        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
+        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=cytoplasm)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=0.02)
         transcript1_conc.id = transcript1_conc.serialize()
         cds1 = wc_kb.eukaryote.GenericLocus(start=4, end=36)        
@@ -91,7 +92,7 @@ class TestCase(unittest.TestCase):
         exon2 = wc_kb.eukaryote.GenericLocus(start=1, end=4)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans2',
             name='transcript2', gene=gene2, exons=[exon2])
-        transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
+        transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=cytoplasm)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=0.01)
         transcript2_conc.id = transcript2_conc.serialize()         
 
@@ -338,8 +339,8 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(transcript1_model.name, 'transcript1')
         self.assertEqual(transcript3_model.type, wc_ontology['WC:RNA'])
-        self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=transcript1_model)), True)
-        self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=transcript2_model)), True)
+        self.assertEqual(all(i.compartment.id=='c' for i in model.species.get(species_type=transcript1_model)), True)
+        self.assertEqual(all(i.compartment.id=='c' for i in model.species.get(species_type=transcript2_model)), True)
         self.assertEqual(all(i.compartment.id=='m' for i in model.species.get(species_type=transcript3_model)), True)
 
         transcript = self.kb.cell.species_types.get_one(id='trans2')
