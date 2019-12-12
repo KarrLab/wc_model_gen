@@ -5,6 +5,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
@@ -15,7 +16,6 @@ import scipy.constants
 import wc_kb
 import wc_lang
 import wc_model_gen
-import wc_ontology
 
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -65,7 +65,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the default is True        
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
-        * polysome_fraction (:obj:`dict`, optional): a dictionary with mRNA ids as keys and
+        * polysome_fraction (:obj:`dict`): a dictionary with mRNA ids as keys and
             fraction of total cellular ribosomes the mRNA is bound to            
     """
 
@@ -142,7 +142,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                            
         # Get metabolite species involved in reaction
         amino_acid_participants = list(amino_acid_id_conversion.values()) 
-        other_metabolite_participants = ['atp', 'adp,', 'amp', 'gtp','gdp','pi', 'h2o', 'h']
+        other_metabolite_participants = ['atp', 'adp', 'amp', 'gtp', 'gdp', 'pi', 'h2o', 'h']
         metabolites = {}
         for met in amino_acid_participants + other_metabolite_participants:
             met_species_type = model.species_types.get_one(id=met)
@@ -199,7 +199,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             ribo_bound_species_type = model.species_types.get_or_create(
                 id='ribo_bound_{}'.format(mrna_kb.id),
                 name='Ribosome bound {}'.format(mrna_kb.name),
-                type=onto['WC:pseudo_species'],                
+                type=wc_ontology['WC:pseudo_species'],                
                 )
             ribo_bound_species_type.structure = wc_lang.ChemicalStructure(
                 empirical_formula = ribosome_complex.species_type.structure.empirical_formula +\
@@ -273,17 +273,23 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     if gvar.protein_aa_usage[mrna_kb.protein.id][aa]:
                         aa_content[aa_id] = gvar.protein_aa_usage[mrna_kb.protein.id][aa]
             else:
+                gvar.protein_aa_usage[mrna_kb.protein.id] = {i:0 for i in list(amino_acid_id_conversion.keys())}
                 if codon_table == 1:
                     codon_id = 1
                 else:
-                    codon_id = codon_table[mrna_kb.protein.id]                                        
-                protein_seq = ''.join(i for i in mrna_kb.protein.get_seq(table=codon_id, cds=cds) if i!='*')
+                    codon_id = codon_table[mrna_kb.protein.id]
+                raw_seq = mrna_kb.protein.get_seq(table=codon_id, cds=cds)                                            
+                protein_seq = ''.join(i for i in raw_seq if i!='*')
                 for aa in protein_seq:
                     aa_id = amino_acid_id_conversion[aa]
                     if aa_id not in aa_content:
                         aa_content[aa_id] = 1
+                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] = 1
                     else:
                         aa_content[aa_id] += 1
+                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] += 1
+                gvar.protein_aa_usage[mrna_kb.protein.id]['*'] = raw_seq.count('*')
+                gvar.protein_aa_usage[mrna_kb.protein.id]['len'] = len(protein_seq)        
             
             aa_content[amino_acid_id_conversion['M']] -= 1
 
@@ -295,17 +301,18 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-1))
             el_reaction.participants.append(metabolites['gtp'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-len(protein_seq)))
+                    coefficient=-gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
             el_reaction.participants.append(metabolites['atp'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-(len(protein_seq)-1)))
+                    coefficient=-(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)))
             el_reaction.participants.append(metabolites['h2o'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-((len(protein_seq)-1)*2 + 1)))
-            for aa_met, count in aa_content.items():                
-                el_reaction.participants.append(metabolites[aa_met][
-                    translation_compartment.id].species_coefficients.get_or_create(
-                        coefficient=-protein_seq.count(aa_std)))            
+                    coefficient=-((gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*2 + 1)))
+            for aa_met, count in aa_content.items():   
+                if count:             
+                    el_reaction.participants.append(metabolites[aa_met][
+                        translation_compartment.id].species_coefficients.get_or_create(
+                            coefficient=-count))            
             
             # Adding participants to RHS
             el_reaction.participants.append(ribosome_complex.species_coefficients.get_or_create(
@@ -316,16 +323,16 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=1))
             el_reaction.participants.append(metabolites['amp'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=len(protein_seq)-1))
+                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1))
             el_reaction.participants.append(metabolites['gdp'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=len(protein_seq)))
+                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
             el_reaction.participants.append(metabolites['pi'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=(len(protein_seq)-1)*3 + 1))
+                    coefficient=(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*3 + 1))
             el_reaction.participants.append(metabolites['h'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=len(protein_seq)))
+                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
 
             init_el_rxn_no += 1
             
@@ -343,20 +350,20 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     reversible=False, comments='Lumped reaction')
                 self._translocation_reactions[mrna_kb][compartment] = trans_reaction
 
-                if compartment.id=='n'
-                    energy_compartment = nucleus
+                if compartment.id=='n':
+                    energy_compartment = nucleus # GTP-dependent translocation
                     energy_reactant = 'gtp'
                     energy_product = 'gdp'
                 elif compartment.id=='m':
-                    energy_compartment = mitochondrion
+                    energy_compartment = mitochondrion # ATP-dependent translocation
                     energy_reactant = 'atp'
                     energy_product = 'adp'
                 elif compartment.id=='x':
-                    energy_compartment = peroxisome
+                    energy_compartment = peroxisome # ATP-dependent translocation
                     energy_reactant = 'atp'
                     energy_product = 'adp'
                 else:
-                    energy_compartment = er
+                    energy_compartment = er # GTP-dependent translocation to other organelles and membranes
                     energy_reactant = 'gtp'
                     energy_product = 'gdp'            
 
@@ -385,20 +392,27 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             'have been generated'.format(init_el_rxn_no, trans_rxn_no))        
 
     def gen_rate_laws(self):
-        """ Generate rate laws for the reactions in the submodel """                     
+        """ Generate rate laws for the reactions in the submodel """
+        model = self.model
+        cell = self.knowledge_base.cell
+
+        amino_acid_id_conversion = self.options.get('amino_acid_id_conversion')
+
         cytoplasmic_ribosome = self.options.get('cytoplasmic_ribosome')
         mitochondrial_ribosome = self.options.get('mitochondrial_ribosome')
         cytoplasmic_initiation_factors = self.options.get('cytoplasmic_initiation_factors')
-        mitochondrial_initiation_factors = options.get('mitochondrial_initiation_factors')
-        cytoplasmic_elongation_factors = options.get('cytoplasmic_elongation_factors')
-        mitochondrial_elongation_factors = options.get('mitochondrial_elongation_factors')
-        cytoplasmic_chaperones = options.get('cytoplasmic_chaperones')
-        mitochondrial_chaperones = options.get('mitochondrial_chaperones')
-        er_chaperones = options.get('er_chaperones')
+        mitochondrial_initiation_factors = self.options.get('mitochondrial_initiation_factors')
+        cytoplasmic_elongation_factors = self.options.get('cytoplasmic_elongation_factors')
+        mitochondrial_elongation_factors = self.options.get('mitochondrial_elongation_factors')
+        cytoplasmic_chaperones = self.options.get('cytoplasmic_chaperones')
+        mitochondrial_chaperones = self.options.get('mitochondrial_chaperones')
+        er_chaperones = self.options.get('er_chaperones')
         
         cytosol = model.compartments.get_one(id='c')
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
+        peroxisome = model.compartments.get_one(id='x')
+        er = model.compartments.get_one(id='r')
 
         max_bool = model.parameters.get_or_create(
             id='max_bool_substance',
@@ -421,7 +435,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                         type=wc_kb.eukaryote.TranscriptType.tRna)
         trna_grouping = {'c': {}, 'm': {}}
         for trna in trna_kb:
-            anticodon_prop = i.properties.get_one(property='anticodon:amino_acid').get_value().split(':')
+            anticodon_prop = trna.properties.get_one(property='anticodon:amino_acid').get_value().split(':')
             codon = Bio.Seq.transcribe(Bio.Seq.reverse_complement(anticodon_prop[0]))
             if trna.species[0].compartment.id == 'm':
                 if codon in trna_grouping['m']: 
@@ -433,13 +447,13 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     trna_grouping['c'][codon]['trna'].append(trna.id)
                 else:
                     trna_grouping['c'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
-        
+
         trna_functions = {'c': {}, 'm': {}}
         for comp, all_trnas in trna_grouping.items():
             for codon, trnas in all_trnas.items():
-                compartment = mitochondrion if comp=='m' else nucleus
+                compartment = mitochondrion if comp=='m' else cytosol
                 factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation', compartment, [trnas['trna']])
+                    'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), compartment, [trnas['trna']])
 
                 objects = {
                     wc_lang.Species: all_species,
@@ -458,7 +472,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             expression=trna_expression,
                             units=unit_registry.parse_units(''),
                             ),
-                    'aa': trnas['aa'],
+                    'aa': amino_acid_id_conversion[trnas['aa']],
                     'objects':objects,
                     }
 
@@ -466,7 +480,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for aa_id in amino_acid_id_conversion.values():
             for compartment in [cytosol, mitochondrion]:
                 factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation', compartment, [aa_id])
+                    'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), compartment, [[aa_id]])
 
                 objects = {
                     wc_lang.Species: all_species,
@@ -478,16 +492,99 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 aa_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
                 assert error is None, str(error)
 
-                aa_functions[compartment.id] = {
-                    aa_id: {
-                        'function': model.functions.create(     
-                            id='aminoacid_function_{}_{}'.format(aa_id, compartment.id),               
-                            name='response function for amino acid {} in {}'.format(aa_id, compartment.name),
-                            expression=aa_expression,
-                            units=unit_registry.parse_units(''),
-                            ),
-                        'objects': objects},
-                    }            
+                aa_functions[compartment.id][aa_id] = {
+                    'function': model.functions.create(     
+                        id='aminoacid_function_{}_{}'.format(aa_id, compartment.id),               
+                        name='response function for amino acid {} in {}'.format(aa_id, compartment.name),
+                        expression=aa_expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects
+                    }
+                            
+        # Generate response function for each translation initiation factor group
+        init_factor_functions = {'c': {}, 'm': {}}
+        for comp, factors in {cytosol: cytoplasmic_initiation_factors, mitochondrion: mitochondrial_initiation_factors}.items():
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
+                    'translation_init_{}'.format(comp.id), 'translation_init_{}'.format(comp.id), comp, [factor])
+
+                objects = {
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }                                
+                    
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                init_factor_functions[comp.id][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='translation_init_factor_function_{}_{}'.format(comp.id, n),               
+                        name='response function for translation initiation factor {} in {}'.format(n, comp.name),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1
+
+        # Generate response function for each translation elongation factor group
+        el_factor_functions = {'c': {}, 'm': {}}
+        for comp, factors in {cytosol: cytoplasmic_elongation_factors, mitochondrion: mitochondrial_elongation_factors}.items():
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
+                    'translation_el_{}'.format(comp.id), 'translation_el_{}'.format(comp.id), comp, [factor])
+
+                objects = {
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }                                
+                    
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                el_factor_functions[comp.id][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='translation_el_factor_function_{}_{}'.format(comp.id, n),               
+                        name='response function for translation elongation factor {} in {}'.format(n, comp.name),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1
+        
+        # Generate response function for each translocation factor/chaperone group
+        trans_factor_functions = {'c': {}, 'm': {}, 'r': {}}
+        for comp, factors in {cytosol: cytoplasmic_chaperones, mitochondrion: mitochondrial_chaperones, er: er_chaperones}.items():
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
+                    'translocation_{}'.format(comp.id), 'translocation_{}'.format(comp.id), comp, [factor])
+
+                objects = {
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }                                
+                    
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                trans_factor_functions[comp.id][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='translocation_factor_function_{}_{}'.format(comp.id, n),               
+                        name='response function for translocation factor {} in {}'.format(n, comp.name),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1                
         
         rate_law_no = 0  
         mrna_kbs = [i for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType) \
@@ -510,37 +607,62 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Generate rate law for initiation
             init_reaction = model.reactions.get_one(id='translation_initiation_' + mrna_kb.id)
-            factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                init_reaction.id, translation_compartment, initiation_factors)
-            
+                        
             specific_binding_constant = model.parameters.create(
                 id='{}_ribosome_binding_constant'.format(mrna_kb.id),
                 type=None,
                 units=unit_registry.parse_units('molecule^-2 s^-1'),
                 )
-            
-            all_species[ribosome_complex.id] = ribosome_complex
-            all_species[self._allowable_queue_len[mrna_kb.id][0].id]= self._allowable_queue_len[mrna_kb.id][0]
 
-            all_parameters[max_bool.id] = max_bool
-            all_parameters[min_bool.id] = min_bool
-            all_parameters[specific_binding_constant.id] = specific_binding_constant
+            objects = {
+                wc_lang.Species: {},
+                wc_lang.Parameter: {},
+                wc_lang.Observable: {},
+                wc_lang.Function: {},            
+                }
+            expression_terms = []
+            for factor in initiation_factors:
+                factor_details = init_factor_functions[translation_compartment.id][','.join(factor)]
+                expression_terms.append(factor_details['function'].id)
+                for cl, dictionary in objects.items():
+                    dictionary.update(factor_details['objects'][cl])
+                objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
+
+            codon_info = trna_functions[translation_compartment.id]['AUG']
+            expression_terms.append(codon_info['function'].id)
+            objects[wc_lang.Function][codon_info['function'].id] = codon_info['function'] 
             
-            expression = '{} * {} * max(min({} , {}) , {}){}'.format(
+            for cl, dictionary in objects.items():
+                dictionary.update(codon_info['objects'][cl])                 
+                           
+            expression_terms.append(aa_functions[translation_compartment.id][
+                codon_info['aa']]['function'].id)
+            objects[wc_lang.Function][aa_functions[translation_compartment.id][
+                codon_info['aa']]['function'].id] = aa_functions[translation_compartment.id][
+                codon_info['aa']]['function']
+
+            for cl, dictionary in objects.items():
+                dictionary.update(aa_functions[translation_compartment.id][
+                    codon_info['aa']]['objects'][cl])    
+            
+            objects[wc_lang.Species][ribosome_complex.id] = ribosome_complex
+            objects[wc_lang.Species][self._allowable_queue_len[mrna_kb.id][0].id]= self._allowable_queue_len[mrna_kb.id][0]
+
+            objects[wc_lang.Parameter][max_bool.id] = max_bool
+            objects[wc_lang.Parameter][min_bool.id] = min_bool
+            objects[wc_lang.Parameter][specific_binding_constant.id] = specific_binding_constant
+            
+            expression = '{} * {} * max(min({} , {}) , {}) * {} * 2**{}'.format(
                 specific_binding_constant.id,
                 ribosome_complex.id,
                 self._allowable_queue_len[mrna_kb.id][0].id,
                 max_bool.id,
                 min_bool.id,
-                (' * {} * 2**{}'.format(' * '.join(factor_exp), len(factor_exp))) if factor_exp else '',                
+                ' * '.join(expression_terms),
+                len(expression_terms),
                 )
 
-            init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
-                wc_lang.Species: all_species,
-                wc_lang.Parameter: all_parameters,
-                wc_lang.Observable: all_observables,
-                wc_lang.Function: all_volumes,            
-                })
+            init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
             assert error is None, str(error)
 
             init_rate_law = model.rate_laws.create(
@@ -554,47 +676,63 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             # Generate rate law for elongation and termination
             elongation_reaction = model.reactions.get_one(id='translation_elongation_' + mrna_kb.id)
-            expression_terms, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                elongation_reaction.id, translation_compartment, elongation_factors + [['gtp'], ['atp']])
+
+            objects = {
+                wc_lang.Species: {},
+                wc_lang.Parameter: {},
+                wc_lang.Observable: {},
+                wc_lang.Function: {},            
+                }
+            expression_terms = []
+            for factor in elongation_factors:
+                factor_details = el_factor_functions[translation_compartment.id][','.join(factor)]
+                expression_terms.append(factor_details['function'].id)
+                for cl, dictionary in objects.items():
+                    dictionary.update(factor_details['objects'][cl])
+                objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
+            
+            mrna_seq = mrna_kb.get_seq()
+            all_codons = sorted(set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )]))
+            for i in all_codons:
+                if len(i)==3 and i in trna_functions[translation_compartment.id] and i!='AUG':
+                    codon_info = trna_functions[translation_compartment.id][i]
+                    expression_terms.append(codon_info['function'].id)
+                    objects[wc_lang.Function][codon_info['function'].id] = codon_info['function'] 
+                    
+                    for cl, dictionary in objects.items():
+                        dictionary.update(codon_info['objects'][cl])                    
+
+                    if aa_functions[translation_compartment.id][codon_info['aa']][
+                        'function'].id not in expression_terms:
+                        
+                        expression_terms.append(aa_functions[translation_compartment.id][
+                            codon_info['aa']]['function'].id)
+                        objects[wc_lang.Function][aa_functions[translation_compartment.id][
+                            codon_info['aa']]['function'].id] = aa_functions[translation_compartment.id][
+                            codon_info['aa']]['function']
+
+                        for cl, dictionary in objects.items():
+                            dictionary.update(aa_functions[translation_compartment.id][
+                                codon_info['aa']]['objects'][cl])
+            
+            expressions, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
+                elongation_reaction.id, 'translation_elongation', translation_compartment, [['gtp'], ['atp']])
+            expression_terms += expressions
+            objects[wc_lang.Species].update(all_species)
+            objects[wc_lang.Parameter].update(all_parameters)
+            objects[wc_lang.Function].update(all_volumes)
+            objects[wc_lang.Observable].update(all_observables)
             
             ribo_bound_species = model.species_types.get_one(id='ribo_bound_{}'.format(mrna_kb.id)).species[0]
-            all_species[ribo_bound_species.id] = ribo_bound_species
+            objects[wc_lang.Species][ribo_bound_species.id] = ribo_bound_species
 
             k_cat_elongation = model.parameters.create(
                 id='k_cat_{}'.format(elongation_reaction.id),
                 type=wc_ontology['WC:k_cat'],
                 units=unit_registry.parse_units('molecule^-1 s^-1'),
                 )
-            all_parameters[k_cat_elongation.id] = k_cat_elongation
+            objects[wc_lang.Parameter][k_cat_elongation.id] = k_cat_elongation
 
-            objects = {
-                wc_lang.Species: all_species,
-                wc_lang.Parameter: all_parameters,
-                wc_lang.Observable: all_observables,
-                wc_lang.Function: all_volumes,            
-                }
-            
-            mrna_seq = mrna_kb.get_seq()
-            all_codons = set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )])            
-            for i in all_codons:                
-                if len(i)==3 and i in trna_functions[translation_compartment.id]:
-
-                    codon_info = trna_functions[translation_compartment.id][i]
-                    expression_terms.append(codon_info['function'].expression.expression)
-                    
-                    for cl, dictionary in objects.items():
-                        dictionary.update(codon_info['objects'][cl])
-                    
-                    if aa_functions[translation_compartment.id][codon_info['aa']][
-                        'function'].expression.expression not in expression_terms:
-                        
-                        expression_terms.append(aa_functions[translation_compartment.id][
-                            codon_info['aa']]['function'].expression.expression)
-
-                        for cl, dictionary in objects.items():
-                            dictionary.update(aa_functions[translation_compartment.id][
-                                codon_info['aa']]['objects'][cl])
-            
             expression = '{} * {} * {} * 2**{}'.format(
                 k_cat_elongation.id,
                 ribo_bound_species.id,
@@ -623,7 +761,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 translation_compartment = model.compartments.get_one(id=reaction.id.split('_')[2])                
                 target_compartment_id = '_'.join(reaction.id.split('_')[4:])
                 
-                if target_compartment_id=='n'
+                if target_compartment_id=='n':
                     energy_compartment = nucleus
                     energy_reactant = 'gtp'       
                     chaperones = []
@@ -640,36 +778,50 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     energy_reactant = 'gtp'
                     chaperones = er_chaperones
 
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    reaction.id, energy_compartment, chaperones + [['gtp'], ['atp']])
+                objects = {
+                    wc_lang.Species: {},
+                    wc_lang.Parameter: {},
+                    wc_lang.Observable: {},
+                    wc_lang.Function: {},            
+                    }
+                expression_terms = []
+                for factor in chaperones:
+                    factor_details = trans_factor_functions[energy_compartment.id][','.join(factor)]
+                    expression_terms.append(factor_details['function'].id)
+                    for cl, dictionary in objects.items():
+                        dictionary.update(factor_details['objects'][cl])
+                    objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']    
+
+                expressions, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
+                    reaction.id, 'translocation', energy_compartment, [[energy_reactant]])
+                expression_terms += expressions
+                objects[wc_lang.Species].update(all_species)
+                objects[wc_lang.Parameter].update(all_parameters)
+                objects[wc_lang.Function].update(all_volumes)
+                objects[wc_lang.Observable].update(all_observables)
 
                 k_cat_translocation = model.parameters.create(
                     id='k_cat_{}'.format(reaction.id),
                     type=wc_ontology['WC:k_cat'],
                     units=unit_registry.parse_units('molecule^-1 s^-1'),
                     )
-                all_parameters[k_cat_translocation.id] = k_cat_translocation
+                objects[wc_lang.Parameter][k_cat_translocation.id] = k_cat_translocation
 
                 protein_species = model.species_types.get_one(
                     id=reaction.id.split('_')[1]).species.get_one(compartment=translation_compartment)
-                all_species[protein_species.id] = protein_species
+                objects[wc_lang.Species][protein_species.id] = protein_species
 
                 volume = translation_compartment.init_density.function_expressions[0].function
-                all_volumes[volume.id] = volume
+                objects[wc_lang.Function][volume.id] = volume
 
                 expression = '{} * {} * {} * 2**{}'.format(
                     k_cat_translocation.id,
                     protein_species.id,
-                    ' * '.join(factor_exp),
-                    len(factor_exp),
+                    ' * '.join(expression_terms),
+                    len(expression_terms),
                     )
 
-                trans_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
-                    wc_lang.Species: all_species,
-                    wc_lang.Parameter: all_parameters,
-                    wc_lang.Observable: all_observables,
-                    wc_lang.Function: all_volumes,            
-                    })
+                trans_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
                 assert error is None, str(error)
                 
                 trans_rate_law = model.rate_laws.create(
@@ -695,11 +847,15 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
         cytosol = model.compartments.get_one(id='c')
+        peroxisome = model.compartments.get_one(id='x')
+        er = model.compartments.get_one(id='r')
 
         init_compartment_volumes = {
             nucleus.id: nucleus.init_volume.mean * nucleus.init_density.value,
             mitochondrion.id: mitochondrion.init_volume.mean * mitochondrion.init_density.value,
             cytosol.id: cytosol.init_volume.mean * cytosol.init_density.value,
+            peroxisome.id: peroxisome.init_volume.mean * peroxisome.init_density.value,
+            er.id: er.init_volume.mean * er.init_density.value,
             }
 
         beta = self.options.get('beta')
@@ -750,10 +906,6 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mitochondrial_ribosome_species.distribution_init_concentration.mean -= mitochondrial_bound_ribosomes
              
         # Calibrate initiation and elongation reactions
-        undetermined_el_km = []
-        determined_el_km = []
-        undetermined_trans_km = []
-        determined_trans_km = []              
         for mrna_kb in mrna_kbs:
 
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
@@ -773,12 +925,31 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Calibrate initiation reaction
             init_reaction = model.reactions.get_one(id='translation_initiation_' + mrna_kb.id)
-            
+
+            init_species_counts = {}
+                        
             init_species_counts[ribosome_complex.id] = ribosome_complex.distribution_init_concentration.mean
             init_species_counts[self._allowable_queue_len[mrna_kb.id][0].id] = self._allowable_queue_len[mrna_kb.id][1]
 
-            model_kcat = model.parameters.get_one(id='{}_ribosome_binding_constant'.format(mrna_kb.id))
+            for species in init_reaction.rate_laws[0].expression.species:
+                init_species_counts[species.id] = species.distribution_init_concentration.mean
+                if model.parameters.get(id='K_m_{}_{}'.format(init_reaction.id, species.species_type.id)):
+                    model_Km = model.parameters.get_one(
+                        id='K_m_{}_{}'.format(init_reaction.id, species.species_type.id))
+                    model_Km.value = beta * species.distribution_init_concentration.mean \
+                        / Avogadro.value / species.compartment.init_volume.mean
+                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, species.species_type.id, species.compartment.name)
 
+            for func in init_reaction.rate_laws[0].expression.functions:
+                for species in func.expression.species:
+                    init_species_counts[species.id] = species.distribution_init_concentration.mean
+                for obs in func.expression.observables:
+                    for species in obs.expression.species:    
+                        init_species_counts[species.id] = species.distribution_init_concentration.mean
+
+            model_kcat = model.parameters.get_one(id='{}_ribosome_binding_constant'.format(mrna_kb.id))
+            
             if average_rate:            
                 model_kcat.value = 1.
                 model_kcat.value = average_rate / init_reaction.rate_laws[0].expression._parsed_expression.eval({
@@ -792,41 +963,23 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             el_reaction = model.reactions.get_one(id='translation_elongation_' + mrna_kb.id)
             
             el_species_counts = {}
-            el_observable_values = {}            
-
+            
             for species in el_reaction.rate_laws[0].expression.species:
                 el_species_counts[species.id] = species.distribution_init_concentration.mean
-                if model.parameters.get(id='K_m_{}_{}'.format(el_reaction.id, species.species_type.id)):
-                    model_Km = model.parameters.get_one(
+                model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(el_reaction.id, species.species_type.id))
-                    if species.distribution_init_concentration.mean:
-                        model_Km.value = beta * species.distribution_init_concentration.mean \
-                            / Avogadro.value / species.compartment.init_volume.mean
-                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                            beta, species.species_type.id, species.compartment.name)
-                        determined_el_km.append(model_Km.value)
-                    else:
-                        undetermined_el_km.append(model_Km)
-
-            for obs in el_reaction.rate_laws[0].expression.observables:
-                
-                obs_species_counts = {}    
-                for species in obs.species:
-                    obs_species_counts[species.id] = species.distribution_init_concentration.mean
+                if model_Km:                    
+                    model_Km.value = beta * species.distribution_init_concentration.mean \
+                        / Avogadro.value / species.compartment.init_volume.mean
+                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, species.species_type.id, species.compartment.name)
+                    
+            for func in el_reaction.rate_laws[0].expression.functions:                
+                for species in func.expression.species:
                     el_species_counts[species.id] = species.distribution_init_concentration.mean
-                
-                obs_value = obs.expression._parsed_expression.eval({
-                    wc_lang.Species: obs_species_counts,
-                    wc_lang.Compartment: init_compartment_volumes})
-                el_observable_values[obs.id] = obs_value
-
-                if model.parameters.get(id='K_m_{}_{}'.format(el_reaction.id, obs.id)):
-                    model_Km = model.parameters.get_one(
-                        id='K_m_{}_{}'.format(el_reaction.id, obs.id))
-                    model_Km.value = beta * obs_value / Avogadro.value \
-                            / species.compartment.init_volume.mean # All species in the obs should be in the same compartment
-                    model_Km.comments = 'The value was assumed to be {} times the value of {}'.format(
-                        beta, obs.id)                
+                for obs in func.expression.observables:
+                    for species in obs.expression.species:    
+                        el_species_counts[species.id] = species.distribution_init_concentration.mean
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(el_reaction.id))
 
@@ -835,7 +988,6 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 model_kcat.value = average_rate / el_reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: el_species_counts,
                     wc_lang.Compartment: init_compartment_volumes,
-                    wc_lang.Observable: el_observable_values,
                 })
             else:          
                 model_kcat.value = 0.
@@ -855,43 +1007,25 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             translation_compartment = cytosol if mrna_kb_compartment_id == 'n' else mitochondrion
 
-            for compartment, trans_reaction in self._translocation_reactions[mrna_kb]:
+            for compartment, trans_reaction in self._translocation_reactions[mrna_kb].items():
                 trans_species_counts = {}
-                trans_observable_values = {}            
-
+                
                 for species in trans_reaction.rate_laws[0].expression.species:
                     trans_species_counts[species.id] = species.distribution_init_concentration.mean
-                    if model.parameters.get(id='K_m_{}_{}'.format(trans_reaction.id, species.species_type.id)):
-                        model_Km = model.parameters.get_one(
+                    model_Km = model.parameters.get_one(
                             id='K_m_{}_{}'.format(trans_reaction.id, species.species_type.id))
-                        if species.distribution_init_concentration.mean:
-                            model_Km.value = beta * species.distribution_init_concentration.mean \
-                                / Avogadro.value / species.compartment.init_volume.mean
-                            model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                                beta, species.species_type.id, species.compartment.name)
-                            determined_trans_km.append(model_Km.value)
-                        else:
-                            undetermined_trans_km.append(model_Km)
-
-                for obs in trans_reaction.rate_laws[0].expression.observables:
-                    
-                    obs_species_counts = {}    
-                    for species in obs.species:
-                        obs_species_counts[species.id] = species.distribution_init_concentration.mean
+                    if model_Km:                        
+                        model_Km.value = beta * species.distribution_init_concentration.mean \
+                            / Avogadro.value / species.compartment.init_volume.mean
+                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta, species.species_type.id, species.compartment.name)
+                            
+                for func in trans_reaction.rate_laws[0].expression.functions:
+                    for species in func.expression.species:
                         trans_species_counts[species.id] = species.distribution_init_concentration.mean
-                    
-                    obs_value = obs.expression._parsed_expression.eval({
-                        wc_lang.Species: obs_species_counts,
-                        wc_lang.Compartment: init_compartment_volumes})
-                    trans_observable_values[obs.id] = obs_value
-
-                    if model.parameters.get(id='K_m_{}_{}'.format(trans_reaction.id, obs.id)):
-                        model_Km = model.parameters.get_one(
-                            id='K_m_{}_{}'.format(trans_reaction.id, obs.id))
-                        model_Km.value = beta * obs_value / Avogadro.value \
-                                / species.compartment.init_volume.mean # All species in the obs should be in the same compartment
-                        model_Km.comments = 'The value was assumed to be {} times the value of {}'.format(
-                            beta, obs.id)                
+                    for obs in func.expression.observables:
+                        for species in obs.expression.species:    
+                            trans_species_counts[species.id] = species.distribution_init_concentration.mean
 
                 model_kcat = model.parameters.get_one(id='k_cat_{}'.format(trans_reaction.id))
 
@@ -901,22 +1035,11 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         average_rate / trans_reaction.rate_laws[0].expression._parsed_expression.eval({
                         wc_lang.Species: trans_species_counts,
                         wc_lang.Compartment: init_compartment_volumes,
-                        wc_lang.Observable: trans_observable_values,
                         })
                 else:          
                     model_kcat.value = 0.                
         
-        median_km = numpy.median(determined_el_km)
-        for model_Km in undetermined_el_km:
-            model_Km.value = median_km
-            model_Km.comments = 'Set to the median value because transcript concentration was zero'
-
-        median_km = numpy.median(determined_trans_km)
-        for model_Km in undetermined_trans_km:
-            model_Km.value = median_km
-            model_Km.comments = 'Set to the median value because transcript concentration was zero'    
-
-    def gen_response_functions(self, reaction_id, compartment, reaction_factors):
+    def gen_response_functions(self, reaction_id, reaction_class, compartment, reaction_factors):
         """ Generate a list of response function expression string for each factor or 
             group of factors (F) in the form of:
                        
@@ -924,6 +1047,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         Args:
             reaction_id (:obj:`str`): identifier of reaction whose rate law will use the function expressions
+            reaction_class (:obj:`str`): generic class that the reaction belongs to which 
+                share the same observables in their rate laws 
             compartment (:obj:`wc_lang.Compartment`): compartment where the reaction occurs
             reaction_factors (:obj:`list` of `list`): list of lists of the name of
                 (initiation/elongation/translocation) factors, grouped based on similar functions or classes
@@ -936,79 +1061,95 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             :obj:`dict`: IDs of observables (keys) and their observable objects (values)
         """
         model = self.model
+        beta = self.options.get('beta')
 
         all_species = {}
         all_parameters = {}
         all_volumes = {}
         all_observables = {}
 
-        avogadro = model.parameters.get_or_create(
+        Avogadro = model.parameters.get_or_create(
             id='Avogadro',
             type=None,
             value=scipy.constants.Avogadro,
             units=unit_registry.parse_units('molecule mol^-1'))
-        all_parameters[avogadro.id] = avogadro
+        all_parameters[Avogadro.id] = Avogadro
 
         volume = compartment.init_density.function_expressions[0].function
         all_volumes[volume.id] = volume
 
         factor_exp = []
-        n = 0
         for factors in reaction_factors:
             
             if len(factors) == 1:
-                
-                factor_species = model.species_types.get_one(
-                    name=factors[0]).species.get_one(compartment=compartment)
+
+                factor_species_type = model.species_types.get_one(name=factors[0]) 
+                if not factor_species_type:
+                    factor_species_type = model.species_types.get_one(id=factors[0])
+                factor_species = factor_species_type.species.get_one(compartment=compartment)                
                 all_species[factor_species.gen_id()] = factor_species
 
                 model_k_m = model.parameters.create(
                     id='K_m_{}_{}'.format(reaction_id, factor_species.species_type.id),
+                    value = beta * factor_species.distribution_init_concentration.mean \
+                        / Avogadro.value / compartment.init_volume.mean,
                     type=wc_ontology['WC:K_m'],
-                    units=unit_registry.parse_units('M'))
+                    units=unit_registry.parse_units('M'),
+                    comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, factor_species_type.id, compartment.name)
+                    )
                 all_parameters[model_k_m.id] = model_k_m                    
 
                 factor_exp.append('({} / ({} + {} * {} * {}))'.format(
                     factor_species.gen_id(),
                     factor_species.gen_id(),
                     model_k_m.id, 
-                    avogadro.id,
+                    Avogadro.id,
                     volume.id))
 
             else:
                 
-                obs_exp = []                    
-                for factor in factors:                        
-                    factor_species = model.species_types.get_one(
-                        name=factors).species.get_one(compartment=compartment)
+                obs_exp = []
+                obs_total = 0                    
+                for factor in factors:                  
+                    factor_species_type = model.species_types.get_one(name=factor)
+                    if not factor_species_type:
+                        factor_species_type = model.species_types.get_one(id=factor)
+                    factor_species = factor_species_type.species.get_one(compartment=compartment)
                     all_species[factor_species.gen_id()] = factor_species
                     obs_exp.append(factor_species.gen_id())
-                
-                n += 1
+                    obs_total += factor_species.distribution_init_concentration.mean
                 
                 observable_exp, error = wc_lang.ObservableExpression.deserialize(
                 ' + '.join(obs_exp),
                 {wc_lang.Species: all_species})            
                 assert error is None, str(error)                
                 
-                factor_observable = model.observables.create(
-                    id='{}_factors_{}_{}'.format(reaction_id, compartment.id, n), 
-                    name='factor for {} in {} {}'.format(reaction_id, compartment.name, n), 
+                n = len(model.observables.get(name='factor for {} in {}'.format(
+                    reaction_class, compartment.name)))
+
+                factor_observable = model.observables.get_or_create(
+                    id='{}_factors_{}_{}'.format(reaction_class, compartment.id, n+1), 
+                    name='factor for {} in {}'.format(reaction_class, compartment.name), 
                     units=unit_registry.parse_units('molecule'), 
                     expression=observable_exp)
                 all_observables[factor_observable.id] = factor_observable
 
                 model_k_m = model.parameters.create(
-                    id='K_m_{}_{}'.format(reaction_id, factor_observable.id),
+                    id='K_m_{}_{}'.format(reaction_class, factor_observable.id),
+                    value = beta * obs_total / Avogadro.value / compartment.init_volume.mean,
                     type=wc_ontology['WC:K_m'],
-                    units=unit_registry.parse_units('M'))
+                    units=unit_registry.parse_units('M'),
+                    comments = 'The value was assumed to be {} times the value of {}'.format(
+                        beta, factor_observable.id)  
+                    )
                 all_parameters[model_k_m.id] = model_k_m
 
                 factor_exp.append('({} / ({} + {} * {} * {}))'.format(
                     factor_observable.id,
                     factor_observable.id,
                     model_k_m.id, 
-                    avogadro.id,
+                    Avogadro.id,
                     volume.id))
 
         return factor_exp, all_species, all_parameters, all_volumes, all_observables            
