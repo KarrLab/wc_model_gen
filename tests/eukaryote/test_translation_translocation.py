@@ -188,8 +188,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'mitochondrial_ribosome': 'ribosome',
             'cytoplasmic_initiation_factors': [['init_factor']],
             'mitochondrial_initiation_factors': [['init_factor']],
-            'cytoplasmic_elongation_factors': [['el_factor1', 'el_factor2']],
-            'mitochondrial_elongation_factors': [['el_factor1'], ['el_factor2']],
+            'cytoplasmic_elongation_factors': [['prot2', 'el_factor2']],
+            'mitochondrial_elongation_factors': [['el_factor1'], ['protM']],
             'cytoplasmic_chaperones': [['chaperone']],
             'mitochondrial_chaperones': [['chaperone']],
             'er_chaperones': [['chaperone']],
@@ -249,7 +249,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(len(model.observables), 2)
         self.assertEqual(len(model.functions), 30) # 6 volume + 8 trna + 8 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
-        self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_3[c] + comp_4[c]')
+        self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'prot2[c] + comp_4[c]')
         self.assertEqual(model.functions.get_one(id='trna_function_GCG_c').expression.expression, 
         	'(translation_c_factors_c_1 / (translation_c_factors_c_1 + K_m_translation_c_translation_c_factors_c_1 * Avogadro * volume_c))')
         self.assertEqual(model.functions.get_one(id='trna_function_GCG_m').expression.expression, 
@@ -267,7 +267,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.functions.get_one(id='translation_el_factor_function_m_1').expression.expression, 
         	'(comp_3[m] / (comp_3[m] + K_m_translation_el_m_comp_3 * Avogadro * volume_m))')
         self.assertEqual(model.functions.get_one(id='translation_el_factor_function_m_2').expression.expression, 
-        	'(comp_4[m] / (comp_4[m] + K_m_translation_el_m_comp_4 * Avogadro * volume_m))')
+        	'(protM[m] / (protM[m] + K_m_translation_el_m_protM * Avogadro * volume_m))')
         self.assertEqual(model.functions.get_one(id='translocation_factor_function_c_1').expression.expression, 
         	'(comp_5[c] / (comp_5[c] + K_m_translocation_c_comp_5 * Avogadro * volume_c))')
         self.assertEqual(model.functions.get_one(id='translocation_factor_function_m_1').expression.expression, 
@@ -341,7 +341,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='trans2_ribosome_binding_constant').value, 0.)
         
         # Elongation
-        self.assertEqual(model.parameters.get_one(id='K_m_translation_el_c_translation_el_c_factors_c_1').value, (5+5)/scipy.constants.Avogadro/1E-13)
+        self.assertEqual(model.parameters.get_one(id='K_m_translation_el_c_translation_el_c_factors_c_1').value, (0+5)/scipy.constants.Avogadro/1E-13)
         self.assertEqual(model.parameters.get_one(id='K_m_translation_el_c_translation_el_c_factors_c_1').comments, 
         	'The value was assumed to be 1.0 times the value of translation_el_c_factors_c_1')
         self.assertEqual(model.parameters.get_one(id='k_cat_translation_elongation_transM').value, math.log(2)*(1/(20*3600) + 1/25000)*20/2)

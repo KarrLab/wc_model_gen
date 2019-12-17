@@ -127,9 +127,9 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         gen = protein_degradation.ProteinDegradationSubmodelGenerator(self.kb, self.model, options={
             'compartment_proteasomes': {
                 'n': ['26S proteasome'], 
-                'c': ['26S proteasome'], 
+                'c': ['prot2'], 
                 'l': ['cathepsin B', 'cathepsin D'], 
-                'm': ['lonp1', 'clpp'],
+                'm': ['lonp1', 'protM'],
                 },
             'amino_acid_id_conversion': {
                 'A': 'Ala',
@@ -171,7 +171,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(len(self.model.rate_laws), 7)
         self.assertEqual(len(self.model.observables), 2)
         self.assertEqual(self.model.observables.get_one(id='total_proteasomes_l').expression.expression, 'comp_4[l] + comp_5[l]')
-        self.assertEqual(self.model.observables.get_one(id='total_proteasomes_m').expression.expression, 'comp_2[m] + comp_3[m]')
+        self.assertEqual(self.model.observables.get_one(id='total_proteasomes_m').expression.expression, 'comp_2[m] + protM[m]')
         self.assertEqual(self.model.rate_laws.get_one(id='prot1_n_degradation-forward').expression.expression,
             'k_cat_prot1_n_degradation * comp_1[n] * '
             '(prot1[n] / (prot1[n] + K_m_prot1_n_degradation_prot1 * Avogadro * volume_n))')
@@ -198,7 +198,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').value, 0.5*(10/scipy.constants.Avogadro/5E-14 + 10/scipy.constants.Avogadro/1.5E-14))
         self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').comments, 
             'Set to the median value because protein concentration was zero')
-        self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').value, 0.5*(math.log(2)/40000*10/(0.5*2) + math.log(2)/25000*10/(0.5*4)))
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').value, 0.5*(math.log(2)/40000*10/(0.5*4) + math.log(2)/25000*10/(0.5*4)))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').comments, 
             'Set to the median value because it could not be determined from data')
 

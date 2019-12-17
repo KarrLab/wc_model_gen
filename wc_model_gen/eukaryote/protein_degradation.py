@@ -151,21 +151,39 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             else:
                 degradation_comp = model.compartments.get_one(id=protein_compartment_id)
 
+            modifier_reactants = []
             proteasomes = compartment_proteasomes[degradation_comp.id]
             if len(proteasomes) == 1:
-                modifier = model.species_types.get_one(name=proteasomes[0]).species.get_one(
-                    compartment=degradation_comp)
+                modifier_st = model.species_types.get_one(id=proteasomes[0])
+                if not modifier_st:
+                    modifier_st = model.species_types.get_one(name=proteasomes[0])
+                
+                modifier = modifier_st.species.get_one(compartment=degradation_comp)
+                
+                if modifier == self._rxn_species_modifier[reaction.id][0]:
+                    modifier_reactants.append(modifier)
             else:
                 if model.observables.get_one(id='total_proteasomes_{}'.format(degradation_comp.id)):
                     modifier = model.observables.get_one(id='total_proteasomes_{}'.format(
                         degradation_comp.id))
+                    for species in modifier.expression.species:
+                        if species == self._rxn_species_modifier[reaction.id][0]:
+                            modifier_reactants.append(species)
                 else:
                     modifier_species = {}
                     
                     for proteasome in proteasomes:
-                        proteasome_species = model.species_types.get_one(name=proteasome).species.get_one(
+                        proteasome_st = model.species_types.get_one(id=proteasome)
+                        if not proteasome_st:
+                            proteasome_st = model.species_types.get_one(name=proteasome)
+                        
+                        proteasome_species = proteasome_st.species.get_one(
                             compartment=degradation_comp)
+                        
                         modifier_species[proteasome_species.id] = proteasome_species
+                        
+                        if proteasome_species == self._rxn_species_modifier[reaction.id][0]:
+                            modifier_reactants.append(proteasome_species)
                     
                     proteasome_total_exp, error = wc_lang.ObservableExpression.deserialize(
                         ' + '.join(modifier_species.keys()),
@@ -184,7 +202,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 compartment=degradation_comp)
 
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
-                self.model, reaction, modifiers=[modifier], exclude_substrates=[h2o_species])
+                self.model, reaction, modifiers=[modifier], modifier_reactants=modifier_reactants,
+                exclude_substrates=[h2o_species])
             self.model.parameters += parameters
 
             rate_law = self.model.rate_laws.create(
