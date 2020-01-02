@@ -186,7 +186,19 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             model_species.id = model_species.gen_id()
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=0, units=unit_registry.parse_units('molecule'))
-            conc_model.id = conc_model.gen_id()             
+            conc_model.id = conc_model.gen_id()
+
+        factors = ['pol1_init_factor1', 'pol1_el_factor1', 'pol2_init_factor1', 'pol2_el_factor1', 'pol2_neg_factor1', 
+            'pol3_init_factor1', 'pol3_el_factor1', 'polm_init_factor1', 'polm_el_factor1']
+        for i in factors:
+            model_species_type = model.species_types.create(id=i, name=i.upper())
+            model_compartment = model.compartments.get_one(id='m' if 'polm' in i else 'n')
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+            model_species.id = model_species.gen_id()
+            conc_model = model.distribution_init_concentrations.create(species=model_species, 
+                mean=2, units=unit_registry.parse_units('molecule'))
+            conc_model.id = conc_model.gen_id()
+
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
@@ -198,6 +210,24 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
+            'init_factors': {'pol1_init_factors': [['pol1_init_factor1']],
+                             'pol2_init_factors': [['pol2_init_factor1']],
+                             'pol3_init_factors': [['pol3_init_factor1']],
+                             'polm_init_factors': [['polm_init_factor1']]},
+            'elongation_termination_factors': {'pol1_el_factors': [['pol1_el_factor1']],
+                                               'pol2_el_factors': [['pol2_el_factor1']],
+                                               'pol3_el_factors': [['pol3_el_factor1']],
+                                               'polm_el_factors': [['polm_el_factor1']]},
+            'elongation_negative_factors': {'pol2_neg_factors': [['pol2_neg_factor1']]},
+            'rna_init_factors': {'trans1': 'pol1_init_factors', 'trans2': 'polm_init_factors', 
+                                'trans3': 'pol2_init_factors', 'trans4': 'pol2_init_factors', 
+                                'trans5': 'pol3_init_factors', 'trans6': 'pol2_init_factors'},
+            'rna_elongation_termination_factors': {'trans1': 'pol1_el_factors', 'trans2': 'polm_el_factors', 
+                                                    'trans3': 'pol2_el_factors', 'trans4': 'pol2_el_factors', 
+                                                    'trans5': 'pol3_el_factors', 'trans6': 'pol2_el_factors'},
+            'rna_elongation_negative_factors': {'trans1': '', 'trans2': '', 
+                                                'trans3': 'pol2_neg_factors', 'trans4': 'pol2_neg_factors', 
+                                                'trans5': '', 'trans6': 'pol2_neg_factors'},                                                              
             'polr_occupancy_width': 2,
             'ribosome_occupancy_width': 4,                
             })
@@ -283,6 +313,14 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         for law in model.rate_laws:
             self.assertEqual(law.validate(), None)
 
+        # factor functions
+        self.assertEqual(model.functions.get_one(id='transcription_init_factor_function_pol1_init_factors_1').expression.expression, 
+            '(pol1_init_factor1[n] / (pol1_init_factor1[n] + K_m_transcription_init_pol1_pol1_init_factor1 * Avogadro * volume_n))')
+        self.assertEqual(model.functions.get_one(id='transcription_el_factor_function_polm_el_factors_1').expression.expression, 
+            '(polm_el_factor1[m] / (polm_el_factor1[m] + K_m_transcription_el_polm_polm_el_factor1 * Avogadro * volume_m))')
+        self.assertEqual(model.functions.get_one(id='transcription_neg_factor_function_pol2_neg_factors_1').expression.expression, 
+            '(pol2_neg_factor1[n] / (pol2_neg_factor1[n] + K_m_transcription_neg_pol2_pol2_neg_factor1 * Avogadro * volume_n))')        
+
         # binding to non-specific site
         self.assertEqual(model.rate_laws.get_one(id='non_specific_binding_complex1-forward').expression.expression,
             'k_non_specific_binding_complex1 * complex1[n]')
@@ -313,23 +351,30 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             '(Kr_transcription_initiation_trans2_repressor * Avogadro * volume_m)))) * '
             'exp(log(K_d_specific_polr / K_d_non_specific_polr)))')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans1-forward').expression.expression,
-            'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * max(min(gene1_binding_site[n] , max_bool_substance) , min_bool_substance)')
+            'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * '
+            'max(min(gene1_binding_site[n] , max_bool_substance) , min_bool_substance) * '
+            'transcription_init_factor_function_pol1_init_factors_1 * 2**1')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans2-forward').expression.expression,
-            'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * max(min(gene2_binding_site[m] , max_bool_substance) , min_bool_substance)')
+            'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * '
+            'max(min(gene2_binding_site[m] , max_bool_substance) , min_bool_substance) * '
+            'transcription_init_factor_function_polm_init_factors_1 * 2**1')
 
         # elongation
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans2-forward').expression.expression,
             'k_cat_transcription_elongation_trans2 * complex3_bound_gene2[m] * '
+            'transcription_el_factor_function_polm_el_factors_1 * '
             '(atp[m] / (atp[m] + K_m_transcription_elongation_trans2_atp * Avogadro * volume_m)) * '
             '(ctp[m] / (ctp[m] + K_m_transcription_elongation_trans2_ctp * Avogadro * volume_m)) * '
             '(gtp[m] / (gtp[m] + K_m_transcription_elongation_trans2_gtp * Avogadro * volume_m)) * '
-            '(utp[m] / (utp[m] + K_m_transcription_elongation_trans2_utp * Avogadro * volume_m))')
+            '(utp[m] / (utp[m] + K_m_transcription_elongation_trans2_utp * Avogadro * volume_m)) * 2**5')
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans3-forward').expression.expression,
             'k_cat_transcription_elongation_trans3 * complex2_bound_gene3[n] * '
+            'transcription_el_factor_function_pol2_el_factors_1 * '
+            'transcription_neg_factor_function_pol2_neg_factors_1 * '
             '(atp[n] / (atp[n] + K_m_transcription_elongation_trans3_atp * Avogadro * volume_n)) * '
             '(ctp[n] / (ctp[n] + K_m_transcription_elongation_trans3_ctp * Avogadro * volume_n)) * '
             '(gtp[n] / (gtp[n] + K_m_transcription_elongation_trans3_gtp * Avogadro * volume_n)) * '
-            '(utp[n] / (utp[n] + K_m_transcription_elongation_trans3_utp * Avogadro * volume_n))')
+            '(utp[n] / (utp[n] + K_m_transcription_elongation_trans3_utp * Avogadro * volume_n)) * 2**6')
 
         
         # Test calibrate_submodel
@@ -361,10 +406,10 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertAlmostEqual(model.parameters.get_one(id='k_specific_binding_complex3').value, 
             math.log(2)*(1/(20*3600) + 1/15000)*10/(24*1/(1+10/(100*((1+1.2)/(1+1))*(1/(1+1)))*math.exp(math.log(1e-09/1e-03)))), places=20)
 
-        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**4*1))
-        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10/(0.5**4*1))
-        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/(0.5**3*2))
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0019804205158855588, places=16)
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10)
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10)
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/2)
+        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0001444056626166553, places=16)
         self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
             'Set to the median value because it could not be determined from data')
 
@@ -375,6 +420,24 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
+            'init_factors': {'pol1_init_factors': [['pol1_init_factor1']],
+                             'pol2_init_factors': [['pol2_init_factor1']],
+                             'pol3_init_factors': [['pol3_init_factor1']],
+                             'polm_init_factors': [['polm_init_factor1']]},
+            'elongation_termination_factors': {'pol1_el_factors': [['pol1_el_factor1']],
+                                               'pol2_el_factors': [['pol2_el_factor1']],
+                                               'pol3_el_factors': [['pol3_el_factor1']],
+                                               'polm_el_factors': [['polm_el_factor1']]},
+            'elongation_negative_factors': {'pol2_neg_factors': [['pol2_neg_factor1']]},
+            'rna_init_factors': {'trans1': 'pol1_init_factors', 'trans2': 'polm_init_factors', 
+                                'trans3': 'pol2_init_factors', 'trans4': 'pol2_init_factors', 
+                                'trans5': 'pol3_init_factors', 'trans6': 'pol2_init_factors'},
+            'rna_elongation_termination_factors': {'trans1': 'pol1_el_factors', 'trans2': 'polm_el_factors', 
+                                                    'trans3': 'pol2_el_factors', 'trans4': 'pol2_el_factors', 
+                                                    'trans5': 'pol3_el_factors', 'trans6': 'pol2_el_factors'},
+            'rna_elongation_negative_factors': {'trans1': '', 'trans2': '', 
+                                                'trans3': 'pol2_neg_factors', 'trans4': 'pol2_neg_factors', 
+                                                'trans5': '', 'trans6': 'pol2_neg_factors'},                  
             'polr_occupancy_width': 2,
             'ribosome_occupancy_width': 4,                
             })

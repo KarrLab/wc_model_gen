@@ -397,6 +397,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
 
         amino_acid_id_conversion = self.options.get('amino_acid_id_conversion')
+        beta = self.options.get('beta')
 
         cytoplasmic_ribosome = self.options.get('cytoplasmic_ribosome')
         mitochondrial_ribosome = self.options.get('mitochondrial_ribosome')
@@ -452,8 +453,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for comp, all_trnas in trna_grouping.items():
             for codon, trnas in all_trnas.items():
                 compartment = mitochondrion if comp=='m' else cytosol
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), compartment, [trnas['trna']])
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), 
+                    compartment, [trnas['trna']])
 
                 objects = {
                     wc_lang.Species: all_species,
@@ -479,8 +481,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         aa_functions = {'c': {}, 'm': {}}
         for aa_id in amino_acid_id_conversion.values():
             for compartment in [cytosol, mitochondrion]:
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), compartment, [[aa_id]])
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), 
+                    compartment, [[aa_id]])
 
                 objects = {
                     wc_lang.Species: all_species,
@@ -507,8 +510,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for comp, factors in {cytosol: cytoplasmic_initiation_factors, mitochondrion: mitochondrial_initiation_factors}.items():
             n = 1
             for factor in factors:
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation_init_{}'.format(comp.id), 'translation_init_{}'.format(comp.id), comp, [factor])
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'translation_init_{}'.format(comp.id), 'translation_init_{}'.format(comp.id), comp, [factor])
 
                 objects = {
                         wc_lang.Species: all_species,
@@ -535,8 +538,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for comp, factors in {cytosol: cytoplasmic_elongation_factors, mitochondrion: mitochondrial_elongation_factors}.items():
             n = 1
             for factor in factors:
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translation_el_{}'.format(comp.id), 'translation_el_{}'.format(comp.id), comp, [factor])
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'translation_el_{}'.format(comp.id), 'translation_el_{}'.format(comp.id), comp, [factor])
 
                 objects = {
                         wc_lang.Species: all_species,
@@ -563,8 +566,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for comp, factors in {cytosol: cytoplasmic_chaperones, mitochondrion: mitochondrial_chaperones, er: er_chaperones}.items():
             n = 1
             for factor in factors:
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    'translocation_{}'.format(comp.id), 'translocation_{}'.format(comp.id), comp, [factor])
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'translocation_{}'.format(comp.id), 'translocation_{}'.format(comp.id), comp, [factor])
 
                 objects = {
                         wc_lang.Species: all_species,
@@ -715,8 +718,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             dictionary.update(aa_functions[translation_compartment.id][
                                 codon_info['aa']]['objects'][cl])
             
-            expressions, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                elongation_reaction.id, 'translation_elongation', translation_compartment, [['gtp'], ['atp']])
+            expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                model, beta, elongation_reaction.id, 'translation_elongation', translation_compartment, [['gtp'], ['atp']])
             expression_terms += expressions
             objects[wc_lang.Species].update(all_species)
             objects[wc_lang.Parameter].update(all_parameters)
@@ -792,8 +795,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         dictionary.update(factor_details['objects'][cl])
                     objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']    
 
-                expressions, all_species, all_parameters, all_volumes, all_observables = self.gen_response_functions(
-                    reaction.id, 'translocation', energy_compartment, [[energy_reactant]])
+                expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, reaction.id, 'translocation', energy_compartment, [[energy_reactant]])
                 expression_terms += expressions
                 objects[wc_lang.Species].update(all_species)
                 objects[wc_lang.Parameter].update(all_parameters)
@@ -1037,119 +1040,4 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         wc_lang.Compartment: init_compartment_volumes,
                         })
                 else:          
-                    model_kcat.value = 0.                
-        
-    def gen_response_functions(self, reaction_id, reaction_class, compartment, reaction_factors):
-        """ Generate a list of response function expression string for each factor or 
-            group of factors (F) in the form of:
-                       
-                        F/(Km + F)
-
-        Args:
-            reaction_id (:obj:`str`): identifier of reaction whose rate law will use the function expressions
-            reaction_class (:obj:`str`): generic class that the reaction belongs to which 
-                share the same observables in their rate laws 
-            compartment (:obj:`wc_lang.Compartment`): compartment where the reaction occurs
-            reaction_factors (:obj:`list` of `list`): list of lists of the name of
-                (initiation/elongation/translocation) factors, grouped based on similar functions or classes
-            
-        Returns:
-            :obj:`list`: list of response function expression string for each factor/group of factors
-            :obj:`dict`: IDs of species (keys) and their species objects (values)
-            :obj:`dict`: IDs of parameters (keys) and their parameter objects (values)
-            :obj:`dict`: IDs of volume density functions (keys) and their function objects (values)
-            :obj:`dict`: IDs of observables (keys) and their observable objects (values)
-        """
-        model = self.model
-        beta = self.options.get('beta')
-
-        all_species = {}
-        all_parameters = {}
-        all_volumes = {}
-        all_observables = {}
-
-        Avogadro = model.parameters.get_or_create(
-            id='Avogadro',
-            type=None,
-            value=scipy.constants.Avogadro,
-            units=unit_registry.parse_units('molecule mol^-1'))
-        all_parameters[Avogadro.id] = Avogadro
-
-        volume = compartment.init_density.function_expressions[0].function
-        all_volumes[volume.id] = volume
-
-        factor_exp = []
-        for factors in reaction_factors:
-            
-            if len(factors) == 1:
-
-                factor_species_type = model.species_types.get_one(name=factors[0]) 
-                if not factor_species_type:
-                    factor_species_type = model.species_types.get_one(id=factors[0])
-                factor_species = factor_species_type.species.get_one(compartment=compartment)                
-                all_species[factor_species.gen_id()] = factor_species
-
-                model_k_m = model.parameters.create(
-                    id='K_m_{}_{}'.format(reaction_id, factor_species.species_type.id),
-                    value = beta * factor_species.distribution_init_concentration.mean \
-                        / Avogadro.value / compartment.init_volume.mean,
-                    type=wc_ontology['WC:K_m'],
-                    units=unit_registry.parse_units('M'),
-                    comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, factor_species_type.id, compartment.name)
-                    )
-                all_parameters[model_k_m.id] = model_k_m                    
-
-                factor_exp.append('({} / ({} + {} * {} * {}))'.format(
-                    factor_species.gen_id(),
-                    factor_species.gen_id(),
-                    model_k_m.id, 
-                    Avogadro.id,
-                    volume.id))
-
-            else:
-                
-                obs_exp = []
-                obs_total = 0                    
-                for factor in factors:                  
-                    factor_species_type = model.species_types.get_one(name=factor)
-                    if not factor_species_type:
-                        factor_species_type = model.species_types.get_one(id=factor)
-                    factor_species = factor_species_type.species.get_one(compartment=compartment)
-                    all_species[factor_species.gen_id()] = factor_species
-                    obs_exp.append(factor_species.gen_id())
-                    obs_total += factor_species.distribution_init_concentration.mean
-                
-                observable_exp, error = wc_lang.ObservableExpression.deserialize(
-                ' + '.join(obs_exp),
-                {wc_lang.Species: all_species})            
-                assert error is None, str(error)                
-                
-                n = len(model.observables.get(name='factor for {} in {}'.format(
-                    reaction_class, compartment.name)))
-
-                factor_observable = model.observables.get_or_create(
-                    id='{}_factors_{}_{}'.format(reaction_class, compartment.id, n+1), 
-                    name='factor for {} in {}'.format(reaction_class, compartment.name), 
-                    units=unit_registry.parse_units('molecule'), 
-                    expression=observable_exp)
-                all_observables[factor_observable.id] = factor_observable
-
-                model_k_m = model.parameters.create(
-                    id='K_m_{}_{}'.format(reaction_class, factor_observable.id),
-                    value = beta * obs_total / Avogadro.value / compartment.init_volume.mean,
-                    type=wc_ontology['WC:K_m'],
-                    units=unit_registry.parse_units('M'),
-                    comments = 'The value was assumed to be {} times the value of {}'.format(
-                        beta, factor_observable.id)  
-                    )
-                all_parameters[model_k_m.id] = model_k_m
-
-                factor_exp.append('({} / ({} + {} * {} * {}))'.format(
-                    factor_observable.id,
-                    factor_observable.id,
-                    model_k_m.id, 
-                    Avogadro.id,
-                    volume.id))
-
-        return factor_exp, all_species, all_parameters, all_volumes, all_observables            
+                    model_kcat.value = 0.            

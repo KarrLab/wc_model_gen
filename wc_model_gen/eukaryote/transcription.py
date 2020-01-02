@@ -33,6 +33,31 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 'tRNA': 'DNA-directed RNA Polymerase III complex',
                 'rRNA5S': 'DNA-directed RNA Polymerase III complex'
                 }
+        * init_factors (:obj:`dict`, optional): a dictionary of generic init factor name as key and 
+            list of lists of the id or name of initiation factors, grouped based on similar functions or classes,
+            e.g. {'pol1_init_factors': [['factor1_variant1', 'factor1_variant2'], ['factor2']]} where the keys must start with
+            the substring 'pol1_', 'pol2_', 'pol3_', and 'polm_' if factors for the polymerase exists, 
+            the default is an empty dictionary
+        * elongation_termination_factors (:obj:`dict`, optional): a dictionary of generic elongation and 
+            termination factor name as key and list of lists of the id or name of elongation and termination factors, 
+            grouped based on similar functions or classes, 
+            e.g. {'pol1_elongation_termination_factors': [['factor1_variant1', 'factor1_variant2'], ['factor2']]},
+            where the keys must start with the substring 'pol1_', 'pol2_', 'pol3_', and 'polm_' if factors for the polymerase exists,
+            the default is an empty dictionary
+        * elongation_negative_factors (:obj:`dict`, optional): a dictionary of generic elongation negative
+            factor name as key and list of lists of the id or name of elongation negative factors, 
+            grouped based on similar functions or classes, 
+            e.g. {'pol2_elongation_negative_factors': [['factor1_variant1', 'factor1_variant2'], ['factor2']]},
+            where the keys must start with the substring 'pol1_', 'pol2_', 'pol3_', and 'polm_' if factors for the polymerase exists,
+            the default is an empty dictionary       
+        * rna_init_factors (:obj:`dict`, optional): a dictionary of RNA id as key and the generic init factor
+            name (the key in init_factors option) as value, the default is an empty dictionary   
+        * rna_elongation_termination_factors (:obj:`dict`, optional): a dictionary of RNA id as key and the 
+            generic elongation and termination factor name (the key in elongation_termination_factors option) 
+            as value, the default is an empty dictionary
+        * rna_elongation_negative_factors (:obj:`dict`, optional): a dictionary of RNA id as key and the 
+            generic elongation negatic factor name (the key in elongation_termination_factors option) as value,
+            the default is an empty dictionary        
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
         * beta_activator (:obj:`float`, optional): ratio of effective equilibrium 
@@ -57,6 +82,48 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             raise ValueError('The dictionary rna_pol_pair has not been provided')
         else:    
             rna_pol_pair = options['rna_pol_pair']
+
+        init_factors = options.get('init_factors', {})
+        options['init_factors'] = init_factors
+        if init_factors:
+            if not any(j in i for i in init_factors.keys() for j in ['pol1_', 'pol2_', 'pol3_', 'polm_']):
+                raise ValueError(
+                    'The keys in init_factors must start with the substrings "pol1_", "pol2_", "pol3_" and/or "polm_"')
+
+        elongation_termination_factors = options.get('elongation_termination_factors', {})
+        options['elongation_termination_factors'] = elongation_termination_factors
+        if elongation_termination_factors:
+            if not any(j in i for i in elongation_termination_factors.keys() for j in ['pol1_', 'pol2_', 'pol3_', 'polm_']):
+                raise ValueError(
+                    'The keys in elongation_termination_factors must start with the substrings "pol1_", "pol2_", "pol3_" and/or "polm_"')
+
+        elongation_negative_factors = options.get('elongation_negative_factors', {})
+        options['elongation_negative_factors'] = elongation_negative_factors
+        if elongation_negative_factors:
+            if not any(j in i for i in elongation_negative_factors.keys() for j in ['pol1_', 'pol2_', 'pol3_', 'polm_']):
+                raise ValueError(
+                    'The keys in elongation_negative_factors must start with the substrings "pol1_", "pol2_", "pol3_" and/or "polm_"')
+
+        rna_init_factors = options.get('rna_init_factors', {})
+        options['rna_init_factors'] = rna_init_factors
+        if rna_init_factors:
+            for i in set(rna_init_factors.values()):
+                if i not in init_factors:
+                    raise ValueError('{} is not a key in init_factors'.format(i))
+
+        rna_elongation_termination_factors = options.get('rna_elongation_termination_factors', {})
+        options['rna_elongation_termination_factors'] = rna_elongation_termination_factors
+        if rna_elongation_termination_factors:
+            for i in set(rna_elongation_termination_factors.values()):
+                if i not in elongation_termination_factors:
+                    raise ValueError('{} is not a key in elongation_termination_factors'.format(i))
+
+        rna_elongation_negative_factors = options.get('rna_elongation_negative_factors', {})
+        options['rna_elongation_negative_factors'] = rna_elongation_negative_factors
+        if rna_elongation_negative_factors:
+            for i in set(rna_elongation_negative_factors.values()):
+                if i and i not in elongation_negative_factors:
+                    raise ValueError('{} is not a key in elongation_negative_factors'.format(i))    
 
         beta = options.get('beta', 1.)
         options['beta'] = beta
@@ -602,8 +669,110 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 type=None,
                 units=unit_registry.parse_units('molecule^-2 s^-1')
                 )                    
+        
+        # Generate response function for initiation, elongation and termination factors for each RNA polymerase
+        init_factors = self.options.get('init_factors')
+        elongation_termination_factors = self.options.get('elongation_termination_factors')
+        elongation_negative_factors = self.options.get('elongation_negative_factors')
+        beta = self.options.get('beta')
+        
+        # Generate response function for each transcription initiation factor group
+        init_factor_functions = {}
+        for rnap, factors in init_factors.items():
+            init_factor_functions[rnap] = {}
+            compartment = mitochondrion if 'polm' in rnap else nucleus
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'transcription_init_{}'.format(rnap[:4]), 'transcription_init_{}'.format(rnap[:4]), 
+                    compartment, [factor])
                 
+                objects = {
+                            wc_lang.Species: all_species,
+                            wc_lang.Parameter: all_parameters,
+                            wc_lang.Observable: all_observables,
+                            wc_lang.Function: all_volumes,            
+                            }                                
+                        
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                init_factor_functions[rnap][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='transcription_init_factor_function_{}_{}'.format(rnap, n),               
+                        name='response function for transcription initiation factor {} for {}'.format(n, rnap),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1
+        
+        # Generate response function for each transcription elongation factor group
+        elongation_termination_factor_functions = {}
+        for rnap, factors in elongation_termination_factors.items():
+            elongation_termination_factor_functions[rnap] = {}
+            compartment = mitochondrion if 'polm' in rnap else nucleus
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'transcription_el_{}'.format(rnap[:4]), 'transcription_el_{}'.format(rnap[:4]), 
+                    compartment, [factor])
+                
+                objects = {
+                            wc_lang.Species: all_species,
+                            wc_lang.Parameter: all_parameters,
+                            wc_lang.Observable: all_observables,
+                            wc_lang.Function: all_volumes,            
+                            }                                
+                        
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                elongation_termination_factor_functions[rnap][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='transcription_el_factor_function_{}_{}'.format(rnap, n),               
+                        name='response function for transcription elongation factor {} for {}'.format(n, rnap),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1
+
+        # Generate response function for each transcription elongation negative factor group (only RNA Pol II has this factor)
+        elongation_negative_factor_functions = {}
+        for rnap, factors in elongation_negative_factors.items():
+            elongation_negative_factor_functions[rnap] = {}
+            compartment = mitochondrion if 'polm' in rnap else nucleus
+            n = 1
+            for factor in factors:
+                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                    model, beta, 'transcription_neg_{}'.format(rnap[:4]), 'transcription_neg_{}'.format(rnap[:4]), 
+                    compartment, [factor])
+                
+                objects = {
+                            wc_lang.Species: all_species,
+                            wc_lang.Parameter: all_parameters,
+                            wc_lang.Observable: all_observables,
+                            wc_lang.Function: all_volumes,            
+                            }                                
+                        
+                expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                assert error is None, str(error)
+
+                elongation_negative_factor_functions[rnap][','.join(factor)] = {
+                    'function': model.functions.create(     
+                        id='transcription_neg_factor_function_{}_{}'.format(rnap, n),               
+                        name='response function for transcription elongation negative factor {} for {}'.format(n, rnap),
+                        expression=expression,
+                        units=unit_registry.parse_units(''),
+                        ),
+                    'objects': objects}
+                n += 1
+
         # Generate rate laws for initiation and elongation & termination
+        rna_init_factors = self.options.get('rna_init_factors')
+        rna_elongation_termination_factors = self.options.get('rna_elongation_termination_factors')
+        rna_elongation_negative_factors = self.options.get('rna_elongation_negative_factors')
         polr_occupancy_width = self.options.get('polr_occupancy_width')
         p_function_exprs = {}
         self._gene_p_function_map = {}
@@ -716,23 +885,39 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 id='k_specific_binding_{}'.format(polr_complex_species.species_type.id))
             reg_parameters[specific_binding_constant.id] = specific_binding_constant
 
-            expression = '{} * {} * {} * max(min({} , {}) , {})'.format(
+            objects = {
+                wc_lang.Species: {},
+                wc_lang.Parameter: {},
+                wc_lang.Observable: {},
+                wc_lang.Function: {},            
+                }
+            expression_terms = []
+            for factor in init_factors[rna_init_factors[rna_kb.id]]:
+                factor_details = init_factor_functions[rna_init_factors[rna_kb.id]][','.join(factor)]
+                expression_terms.append(factor_details['function'].id)
+                for cl, dictionary in objects.items():
+                    dictionary.update(factor_details['objects'][cl])
+                objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
+
+            expression = '{} * {} * {} * max(min({} , {}) , {}) * {} * 2**{}'.format(
                 p_bound_function.id,
                 specific_binding_constant.id,
                 polr_bound_non_specific_species.id,
                 self._allowable_queue_len[rna_kb.id][0].id,
                 max_bool.id,
-                min_bool.id,                
+                min_bool.id,
+                ' * '.join(expression_terms),
+                len(expression_terms),                
                 )
             reg_species[self._allowable_queue_len[rna_kb.id][0].id] = self._allowable_queue_len[rna_kb.id][0]
             reg_parameters[max_bool.id] = max_bool
             reg_parameters[min_bool.id] = min_bool
 
-            init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
-                wc_lang.Species: reg_species,
-                wc_lang.Parameter: reg_parameters,            
-                wc_lang.Function: {p_bound_function.id: p_bound_function},
-                })
+            objects[wc_lang.Species].update(reg_species)
+            objects[wc_lang.Parameter].update(reg_parameters)
+            objects[wc_lang.Function].update({p_bound_function.id: p_bound_function})
+            
+            init_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
             assert error is None, str(error)
 
             init_rate_law = model.rate_laws.create(
@@ -746,17 +931,65 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             # Generate rate law for the lumped reaction of elongation & termination
             elongation_reaction = model.reactions.get_one(id='transcription_elongation_' + rna_kb.id)
-            rate_law_exp, _ = utils.gen_michaelis_menten_like_propensity_function(
-                self.model, elongation_reaction, substrates_as_modifiers=[
-                    self._elongation_modifier[rna_kb.id]],
-                exclude_substrates=[model.species.get_one(
-                    species_type=model.species_types.get_one(id='h2o'), 
-                    compartment=transcription_compartment)])
+
+            objects = {
+                wc_lang.Species: {},
+                wc_lang.Parameter: {},
+                wc_lang.Observable: {},
+                wc_lang.Function: {},            
+                }
+            expression_terms = []
+            for factor in elongation_termination_factors[rna_elongation_termination_factors[rna_kb.id]]:
+                factor_details = elongation_termination_factor_functions[
+                    rna_elongation_termination_factors[rna_kb.id]][','.join(factor)]
+                expression_terms.append(factor_details['function'].id)
+                for cl, dictionary in objects.items():
+                    dictionary.update(factor_details['objects'][cl])
+                objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
+
+            if elongation_negative_factors.get(rna_elongation_negative_factors[rna_kb.id]):
+                for factor in elongation_negative_factors[rna_elongation_negative_factors[rna_kb.id]]:
+                    factor_details = elongation_negative_factor_functions[
+                        rna_elongation_negative_factors[rna_kb.id]][','.join(factor)]
+                    expression_terms.append(factor_details['function'].id)
+                    for cl, dictionary in objects.items():
+                        dictionary.update(factor_details['objects'][cl])
+                    objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']    
+            
+            polr_gene_bound_species = self._elongation_modifier[rna_kb.id]
+            objects[wc_lang.Species][polr_gene_bound_species.id] = polr_gene_bound_species
+
+            substrates = [[i.species_type.id] for i in elongation_reaction.get_reactants() 
+                if (i.species_type.id!='h2o' and i!=polr_gene_bound_species)]
+            expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                model, beta, elongation_reaction.id, 'transcription_elongation', transcription_compartment, substrates)
+            expression_terms += expressions
+            objects[wc_lang.Species].update(all_species)
+            objects[wc_lang.Parameter].update(all_parameters)
+            objects[wc_lang.Function].update(all_volumes)
+            objects[wc_lang.Observable].update(all_observables)            
+            
+            k_cat_elongation = model.parameters.create(
+                id='k_cat_{}'.format(elongation_reaction.id),
+                type=onto['WC:k_cat'],
+                units=unit_registry.parse_units('molecule^-1 s^-1'),
+                )
+            objects[wc_lang.Parameter][k_cat_elongation.id] = k_cat_elongation
+
+            expression = '{} * {} * {} * 2**{}'.format(
+                k_cat_elongation.id,
+                polr_gene_bound_species.id,
+                ' * '.join(expression_terms),
+                len(expression_terms),
+                )
+
+            el_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, objects)
+            assert error is None, str(error)
             
             rate_law = model.rate_laws.create(
                 direction=wc_lang.RateLawDirection.forward,
                 type=None,
-                expression=rate_law_exp,
+                expression=el_rate_law_expression,
                 reaction=elongation_reaction,
                 )
             rate_law.id = rate_law.gen_id()
@@ -912,18 +1145,23 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species=polr_gene_bound_species).mean = polr_gene_bound_conc
             
             init_species_counts = {}
-            reaction = model.reactions.get_one(id='transcription_elongation_' + rna_kb.id)            
-            for species in reaction.get_reactants():
-                
-                init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-                
+            reaction = model.reactions.get_one(id='transcription_elongation_' + rna_kb.id)
+            for species in reaction.rate_laws[0].expression.species:
+                init_species_counts[species.id] = species.distribution_init_concentration.mean
                 if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
                     model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
                     model_Km.value = beta * species.distribution_init_concentration.mean \
                         / Avogadro.value / species.compartment.init_volume.mean
                     model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, species.species_type.id, species.compartment.name)    
+                        beta, species.species_type.id, species.compartment.name)
+
+            for func in reaction.rate_laws[0].expression.functions:
+                for species in func.expression.species:
+                    init_species_counts[species.id] = species.distribution_init_concentration.mean
+                for obs in func.expression.observables:
+                    for species in obs.expression.species:    
+                        init_species_counts[species.id] = species.distribution_init_concentration.mean            
             
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 

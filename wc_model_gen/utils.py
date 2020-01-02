@@ -339,6 +339,123 @@ def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as
 
     return rate_law_expression, list(parameters.values())    
 
+def gen_response_functions(model, beta, reaction_id, reaction_class, compartment, reaction_factors):
+        """ Generate a list of response function expression string for each factor or 
+            group of factors (F) in the form of:
+                       
+                        F/(Km + F)
+
+        Args:
+            model (:obj:`wc_lang.Model`): model
+            beta (:obj:`float`): ratio of Michaelis-Menten constant to substrate 
+                concentration (Km/[S]) for use when estimating Km values
+            reaction_id (:obj:`str`): identifier of reaction whose rate law will use the function expressions
+            reaction_class (:obj:`str`): generic class that the reaction belongs to which 
+                shares the same observables in their rate laws, e.g. 'translation_initiation' for each gene that 
+                shares the same initiation factors 
+            compartment (:obj:`wc_lang.Compartment`): compartment where the reaction occurs
+            reaction_factors (:obj:`list` of `list`): list of lists of the ID or name of
+                (initiation/elongation/translocation) factors, grouped based on similar functions or classes,
+                e.g. [['factor1 variant1', 'factor1 variant2'], ['factor2']]
+            
+        Returns:
+            :obj:`list`: list of strings of response function expression for each factor/group of factors
+            :obj:`dict`: IDs of species (keys) and their species objects (values)
+            :obj:`dict`: IDs of parameters (keys) and their parameter objects (values)
+            :obj:`dict`: IDs of volume density functions (keys) and their function objects (values)
+            :obj:`dict`: IDs of observables (keys) and their observable objects (values)
+        """
+        
+        all_species = {}
+        all_parameters = {}
+        all_volumes = {}
+        all_observables = {}
+
+        Avogadro = model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))
+        all_parameters[Avogadro.id] = Avogadro
+
+        volume = compartment.init_density.function_expressions[0].function
+        all_volumes[volume.id] = volume
+
+        factor_exp = []
+        for factors in reaction_factors:
+            
+            if len(factors) == 1:
+
+                factor_species_type = model.species_types.get_one(name=factors[0]) 
+                if not factor_species_type:
+                    factor_species_type = model.species_types.get_one(id=factors[0])
+                factor_species = factor_species_type.species.get_one(compartment=compartment)                
+                all_species[factor_species.gen_id()] = factor_species
+
+                model_k_m = model.parameters.create(
+                    id='K_m_{}_{}'.format(reaction_id, factor_species.species_type.id),
+                    value = beta * factor_species.distribution_init_concentration.mean \
+                        / Avogadro.value / compartment.init_volume.mean,
+                    type=wc_ontology['WC:K_m'],
+                    units=unit_registry.parse_units('M'),
+                    comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                        beta, factor_species_type.id, compartment.name)
+                    )
+                all_parameters[model_k_m.id] = model_k_m                    
+
+                factor_exp.append('({} / ({} + {} * {} * {}))'.format(
+                    factor_species.gen_id(),
+                    factor_species.gen_id(),
+                    model_k_m.id, 
+                    Avogadro.id,
+                    volume.id))
+
+            else:
+                
+                obs_exp = []
+                obs_total = 0                    
+                for factor in factors:                  
+                    factor_species_type = model.species_types.get_one(name=factor)
+                    if not factor_species_type:
+                        factor_species_type = model.species_types.get_one(id=factor)
+                    factor_species = factor_species_type.species.get_one(compartment=compartment)
+                    all_species[factor_species.gen_id()] = factor_species
+                    obs_exp.append(factor_species.gen_id())
+                    obs_total += factor_species.distribution_init_concentration.mean
+                
+                observable_exp, error = wc_lang.ObservableExpression.deserialize(
+                ' + '.join(obs_exp),
+                {wc_lang.Species: all_species})            
+                assert error is None, str(error)                
+                
+                n = len(model.observables.get(name='factor for {} in {}'.format(
+                    reaction_class, compartment.name)))
+
+                factor_observable = model.observables.get_or_create(
+                    id='{}_factors_{}_{}'.format(reaction_class, compartment.id, n+1), 
+                    name='factor for {} in {}'.format(reaction_class, compartment.name), 
+                    units=unit_registry.parse_units('molecule'), 
+                    expression=observable_exp)
+                all_observables[factor_observable.id] = factor_observable
+
+                model_k_m = model.parameters.create(
+                    id='K_m_{}_{}'.format(reaction_class, factor_observable.id),
+                    value = beta * obs_total / Avogadro.value / compartment.init_volume.mean,
+                    type=wc_ontology['WC:K_m'],
+                    units=unit_registry.parse_units('M'),
+                    comments = 'The value was assumed to be {} times the value of {}'.format(
+                        beta, factor_observable.id)  
+                    )
+                all_parameters[model_k_m.id] = model_k_m
+
+                factor_exp.append('({} / ({} + {} * {} * {}))'.format(
+                    factor_observable.id,
+                    factor_observable.id,
+                    model_k_m.id, 
+                    Avogadro.id,
+                    volume.id))
+
+        return factor_exp, all_species, all_parameters, all_volumes, all_observables
 
 def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_reactants=None):
     """ Generate a mass action rate law.

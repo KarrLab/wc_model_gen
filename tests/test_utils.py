@@ -234,6 +234,56 @@ class TestCase(unittest.TestCase):
         self.assertEqual(set([i.gen_id() for i in rate_law3.species]), set(['s2[c]', 's3[c]', 's4[c]']))
         self.assertEqual(set(rate_law3.parameters), set(parameters))
 
+    def test_gen_response_functions(self):
+        model = wc_lang.Model()
+        beta = 2
+
+        init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], mean=0.5, std=0)
+        c = wc_lang.Compartment(id='c', name='cytosol', init_volume=init_volume)
+        c.init_density = wc_lang.Parameter(id='density_' + c.id, value=1.)
+
+        volume = wc_lang.Function(id='volume_' + c.id)
+        volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+        assert error is None, str(error)
+
+        reaction = wc_lang.Reaction()
+
+        species_types = {}
+        species = {}
+        for i in range(1,5):
+            Id = 's' + str(i)
+            species_types[Id] = wc_lang.SpeciesType(model=model, id=Id, name='species_type_{}'.format(i))
+            model_species = wc_lang.Species(model=model, species_type=species_types[Id], compartment=c)
+            model_species.id = model_species.gen_id()
+            species[Id + '_c'] = model_species 
+            wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
+
+        factors = [['s1', 'species_type_2'], ['s3'], ['species_type_4']] 
+        factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+            model, beta, 'reaction_id', 'reaction_class', c, factors)    
+
+        self.assertEqual(factor_exp, [
+            '(reaction_class_factors_c_1 / (reaction_class_factors_c_1 + K_m_reaction_class_reaction_class_factors_c_1 * Avogadro * volume_c))', 
+            '(s3[c] / (s3[c] + K_m_reaction_id_s3 * Avogadro * volume_c))', 
+            '(s4[c] / (s4[c] + K_m_reaction_id_s4 * Avogadro * volume_c))'])
+        self.assertEqual(all_species, {'s1[c]': species['s1_c'], 's2[c]': species['s2_c'], 's3[c]': species['s3_c'], 's4[c]': species['s4_c']})
+        self.assertEqual(len(all_parameters), 4)
+        self.assertEqual(all_parameters['Avogadro'].value, scipy.constants.Avogadro)
+        self.assertEqual(all_parameters['Avogadro'].units, unit_registry.parse_units('molecule mol^-1'))
+        self.assertEqual(all_parameters['K_m_reaction_class_reaction_class_factors_c_1'].value, beta * 1. / scipy.constants.Avogadro / c.init_volume.mean)
+        self.assertEqual(all_parameters['K_m_reaction_class_reaction_class_factors_c_1'].comments, 'The value was assumed to be 2 times the value of reaction_class_factors_c_1')
+        self.assertEqual(all_parameters['K_m_reaction_id_s3'].value, beta * 0.5 / scipy.constants.Avogadro / c.init_volume.mean)
+        self.assertEqual(all_parameters['K_m_reaction_id_s4'].type, wc_ontology['WC:K_m'])
+        self.assertEqual(all_parameters['K_m_reaction_id_s4'].units, unit_registry.parse_units('M'))
+        self.assertEqual(all_parameters['K_m_reaction_id_s4'].comments, 'The value was assumed to be 2 times the concentration of s4 in cytosol')
+        self.assertEqual(all_volumes, {'volume_c': volume})
+        self.assertEqual(len(all_observables), 1)
+        self.assertEqual(all_observables['reaction_class_factors_c_1'].name, 'factor for reaction_class in cytosol')
+        self.assertEqual(all_observables['reaction_class_factors_c_1'].units, unit_registry.parse_units('molecule'))
+        self.assertEqual(all_observables['reaction_class_factors_c_1'].expression.expression, 's1[c] + s2[c]')
 
     def test_gen_mass_action_rate_law(self):
         model = wc_lang.Model()
