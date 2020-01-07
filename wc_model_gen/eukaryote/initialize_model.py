@@ -6,7 +6,8 @@
 :License: MIT
 """
 
-from wc_utils.util.chem import EmpiricalFormula, get_major_micro_species, OpenBabelUtils
+from wc_utils.util.chem import EmpiricalFormula, OpenBabelUtils
+from wc_utils.util.chem.marvin import get_major_micro_species
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_utils.util import chem
