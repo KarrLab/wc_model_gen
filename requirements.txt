@@ -1,4 +1,3 @@
-conv_opt
 setuptools
 six
 wc_kb
