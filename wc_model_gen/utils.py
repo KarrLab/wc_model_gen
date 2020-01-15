@@ -128,7 +128,8 @@ def simple_activator (model, reaction_id, activator):
     
     f = model.parameters.get_or_create(
         id='f_{}_{}'.format(reaction_id, activator.species_type.id),
-        type=None)
+        type=None,
+        units=unit_registry.parse_units(''))
     parameters[f.id] = f
 
     volume = activator.compartment.init_density.function_expressions[0].function

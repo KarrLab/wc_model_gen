@@ -699,7 +699,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 init_factor_functions[rnap][','.join(factor)] = {
                     'function': model.functions.create(     
-                        id='transcription_init_factor_function_{}_{}'.format(rnap, n),               
+                        id='transcription_init_function_{}_{}'.format(rnap, n),               
                         name='response function for transcription initiation factor {} for {}'.format(n, rnap),
                         expression=expression,
                         units=unit_registry.parse_units(''),
@@ -730,7 +730,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 elongation_termination_factor_functions[rnap][','.join(factor)] = {
                     'function': model.functions.create(     
-                        id='transcription_el_factor_function_{}_{}'.format(rnap, n),               
+                        id='transcription_el_function_{}_{}'.format(rnap, n),               
                         name='response function for transcription elongation factor {} for {}'.format(n, rnap),
                         expression=expression,
                         units=unit_registry.parse_units(''),
@@ -761,7 +761,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 elongation_negative_factor_functions[rnap][','.join(factor)] = {
                     'function': model.functions.create(     
-                        id='transcription_neg_factor_function_{}_{}'.format(rnap, n),               
+                        id='transcription_neg_function_{}_{}'.format(rnap, n),               
                         name='response function for transcription elongation negative factor {} for {}'.format(n, rnap),
                         expression=expression,
                         units=unit_registry.parse_units(''),

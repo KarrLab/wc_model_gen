@@ -314,11 +314,11 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             self.assertEqual(law.validate(), None)
 
         # factor functions
-        self.assertEqual(model.functions.get_one(id='transcription_init_factor_function_pol1_init_factors_1').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='transcription_init_function_pol1_init_factors_1').expression.expression, 
             '(pol1_init_factor1[n] / (pol1_init_factor1[n] + K_m_transcription_init_pol1_pol1_init_factor1 * Avogadro * volume_n))')
-        self.assertEqual(model.functions.get_one(id='transcription_el_factor_function_polm_el_factors_1').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='transcription_el_function_polm_el_factors_1').expression.expression, 
             '(polm_el_factor1[m] / (polm_el_factor1[m] + K_m_transcription_el_polm_polm_el_factor1 * Avogadro * volume_m))')
-        self.assertEqual(model.functions.get_one(id='transcription_neg_factor_function_pol2_neg_factors_1').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='transcription_neg_function_pol2_neg_factors_1').expression.expression, 
             '(pol2_neg_factor1[n] / (pol2_neg_factor1[n] + K_m_transcription_neg_pol2_pol2_neg_factor1 * Avogadro * volume_n))')        
 
         # binding to non-specific site
@@ -353,24 +353,24 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans1-forward').expression.expression,
             'p_bound_1 * k_specific_binding_complex1 * complex1_bound_non_specific_site[n] * '
             'max(min(gene1_binding_site[n] , max_bool_substance) , min_bool_substance) * '
-            'transcription_init_factor_function_pol1_init_factors_1 * 2**1')
+            'transcription_init_function_pol1_init_factors_1 * 2**1')
         self.assertEqual(model.rate_laws.get_one(id='transcription_initiation_trans2-forward').expression.expression,
             'p_bound_2 * k_specific_binding_complex3 * complex3_bound_non_specific_site[m] * '
             'max(min(gene2_binding_site[m] , max_bool_substance) , min_bool_substance) * '
-            'transcription_init_factor_function_polm_init_factors_1 * 2**1')
+            'transcription_init_function_polm_init_factors_1 * 2**1')
 
         # elongation
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans2-forward').expression.expression,
             'k_cat_transcription_elongation_trans2 * complex3_bound_gene2[m] * '
-            'transcription_el_factor_function_polm_el_factors_1 * '
+            'transcription_el_function_polm_el_factors_1 * '
             '(atp[m] / (atp[m] + K_m_transcription_elongation_trans2_atp * Avogadro * volume_m)) * '
             '(ctp[m] / (ctp[m] + K_m_transcription_elongation_trans2_ctp * Avogadro * volume_m)) * '
             '(gtp[m] / (gtp[m] + K_m_transcription_elongation_trans2_gtp * Avogadro * volume_m)) * '
             '(utp[m] / (utp[m] + K_m_transcription_elongation_trans2_utp * Avogadro * volume_m)) * 2**5')
         self.assertEqual(model.rate_laws.get_one(id='transcription_elongation_trans3-forward').expression.expression,
             'k_cat_transcription_elongation_trans3 * complex2_bound_gene3[n] * '
-            'transcription_el_factor_function_pol2_el_factors_1 * '
-            'transcription_neg_factor_function_pol2_neg_factors_1 * '
+            'transcription_el_function_pol2_el_factors_1 * '
+            'transcription_neg_function_pol2_neg_factors_1 * '
             '(atp[n] / (atp[n] + K_m_transcription_elongation_trans3_atp * Avogadro * volume_n)) * '
             '(ctp[n] / (ctp[n] + K_m_transcription_elongation_trans3_ctp * Avogadro * volume_n)) * '
             '(gtp[n] / (gtp[n] + K_m_transcription_elongation_trans3_gtp * Avogadro * volume_n)) * '
