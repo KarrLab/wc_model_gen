@@ -33,8 +33,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
-
-        nucleus = cell.compartments.create(id='n')
+        
         cytoplasm = cell.compartments.create(id='c')
         mito = cell.compartments.create(id='m')
         
@@ -45,7 +44,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=9)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans1', cell=cell, gene=gene1, exons=[locus1], type=wc_kb.eukaryote.TranscriptType.mRna)
-        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=nucleus)
+        transcript1_spec = wc_kb.core.Species(species_type=transcript1, compartment=cytoplasm)
         transcript1_conc = wc_kb.core.Concentration(cell=cell, species=transcript1_spec, value=10.)
         prot1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot1', name='protein1', transcript=transcript1, coding_regions=[locus1])
         prot1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot1, 
@@ -53,7 +52,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         locus2 = wc_kb.eukaryote.GenericLocus(start=1, end=9)
         transcript2 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans2', cell=cell, gene=gene1, exons=[locus2], type=wc_kb.eukaryote.TranscriptType.mRna)
-        transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=nucleus)
+        transcript2_spec = wc_kb.core.Species(species_type=transcript2, compartment=cytoplasm)
         transcript2_conc = wc_kb.core.Concentration(cell=cell, species=transcript2_spec, value=10.)
         prot2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot2', name='protein2', transcript=transcript2, coding_regions=[locus2])
         prot2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot2, 

@@ -165,13 +165,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for mrna_kb in mrna_kbs:
             
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
-            if mrna_kb_compartment_id == 'n':
-                mrna_compartment = nucleus
+            if mrna_kb_compartment_id == 'c':
                 translation_compartment = cytosol
                 ribosome_complex = model.species_types.get_one(
                     name=cytoplasmic_ribosome).species.get_one(compartment=cytosol)
             else:
-                mrna_compartment = translation_compartment = mitochondrion
+                translation_compartment = mitochondrion
                 ribosome_complex = model.species_types.get_one(
                     name=mitochondrial_ribosome).species.get_one(compartment=mitochondrion)            
 
@@ -595,7 +594,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for mrna_kb in mrna_kbs:
             
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
-            if mrna_kb_compartment_id == 'n':
+            if mrna_kb_compartment_id == 'c':
                 ribosome_complex = model.species_types.get_one(
                     name=cytoplasmic_ribosome).species.get_one(compartment=cytosol)
                 initiation_factors = cytoplasmic_initiation_factors
@@ -889,7 +888,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
             
-            if mrna_kb_compartment_id == 'n':   
+            if mrna_kb_compartment_id == 'c':   
 
                 ribo_bound_conc = polysome_fraction[mrna_kb.id] * \
                     cytoplasmic_ribosome_species.distribution_init_concentration.mean                
@@ -912,7 +911,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for mrna_kb in mrna_kbs:
 
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
-            ribosome_complex = cytoplasmic_ribosome_species if mrna_kb_compartment_id == 'n' else mitochondrial_ribosome_species
+            ribosome_complex = cytoplasmic_ribosome_species if mrna_kb_compartment_id == 'c' else mitochondrial_ribosome_species
 
             protein_model = model.species_types.get_one(id=mrna_kb.protein.id)
             
@@ -1008,7 +1007,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         conc_per_comp[cplx_species.compartment] = stoic * \
                             cplx_species.distribution_init_concentration.mean
             
-            translation_compartment = cytosol if mrna_kb_compartment_id == 'n' else mitochondrion
+            translation_compartment = cytosol if mrna_kb_compartment_id == 'c' else mitochondrion
 
             for compartment, trans_reaction in self._translocation_reactions[mrna_kb].items():
                 trans_species_counts = {}
