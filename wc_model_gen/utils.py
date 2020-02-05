@@ -402,6 +402,10 @@ def gen_response_functions(model, beta, reaction_id, reaction_class, compartment
                     comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
                         beta, factor_species_type.id, compartment.name)
                     )
+                if model_k_m.value == 0.:
+                    model_k_m.value = 1e-05
+                    model_k_m.comments = 'The value was assigned to 1e-05 because the concentration of ' \
+                        '{} in {} was zero'.format(factor_species_type.id, compartment.name)
                 all_parameters[model_k_m.id] = model_k_m                    
 
                 factor_exp.append('({} / ({} + {} * {} * {}))'.format(
@@ -447,6 +451,10 @@ def gen_response_functions(model, beta, reaction_id, reaction_class, compartment
                     comments = 'The value was assumed to be {} times the value of {}'.format(
                         beta, factor_observable.id)  
                     )
+                if model_k_m.value == 0.:
+                    model_k_m.value = 1e-05
+                    model_k_m.comments = 'The value was assigned to 1e-05 because the value of ' \
+                        '{} was zero'.format(factor_observable.id)
                 all_parameters[model_k_m.id] = model_k_m
 
                 factor_exp.append('({} / ({} + {} * {} * {}))'.format(
