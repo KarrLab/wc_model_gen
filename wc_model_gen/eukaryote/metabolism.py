@@ -21,16 +21,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         Options:
         * recycled_metabolites (:obj:`dict`): a dictionary with species IDs of metabolites
-            to be recycled as keys and recycled amounts as values
+            to be recycled as keys and recycled amounts in copy number as values
         * carbohydrate_components (:obj:`dict`): a dictionary with species IDs of carbohydrate
-            metabolite components as keys and the cellular amount per cell as values
+            metabolite components as keys and the cellular amount in copy number per cell as values
         * lipid_components (:obj:`dict`): a dictionary with species IDs of lipid
-            metabolite components as keys and the cellular amount per cell as values          
-        * atp_production (:obj:`float`): ATP requirement in copy number per second; 
+            metabolite components as keys and the cellular amount in copy number per cell as values          
+        * atp_production (:obj:`float`): ATP requirement in copy number per cell cycle per cell; 
             if not provided, it will be calculated from other generated submodels
         * amino_acid_ids (:obj:`list`): amino acid metabolite ids
         * media_fluxes(:obj:`dict`): dictionary with reaction ids as keys and tuples of
-            the lower and upper bounds based on measured fluxes (per second) as values
+            the lower and upper bounds based on measured fluxes (copy number per second) as values
         * exchange_reactions (:obj:`list`): IDs of exchange/demand/sink reactions 
         * scale_factor (:obj:`float`): scaling factor multiplied by the reaction bounds during 
             calibration; the default value is 1.0
