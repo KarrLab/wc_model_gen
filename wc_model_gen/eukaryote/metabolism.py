@@ -11,6 +11,8 @@ import collections
 import conv_opt
 import math
 import numpy
+import wc_kb
+import wc_lang
 import wc_model_gen
 
 
@@ -97,27 +99,39 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     conc.species.species_coefficients.get_or_create(coefficient=conc.mean))
         
         # Add metabolites to be recycled to the LHS of biomass reaction
-        for met_id, amount in self.options['recycled_metabolites'].items():
+        for met_id, amount in self.options['recycled_metabolites'].items():            
             model_species = model.species.get_one(id=met_id)
-            biomass_rxn.participants.add(
-                model_species.species_coefficients.get_or_create(coefficient=-amount))
+            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            if model_species_coefficient:
+                model_species_coefficient.coefficient += -amount
+            else:	
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=-amount))
 
         # Add carbohydrate components to the RHS of biomass reaction
         for met_id, amount in self.options['carbohydrate_components'].items():
             model_species = model.species.get_one(id=met_id)
-            biomass_rxn.participants.add(
-                model_species.species_coefficients.get_or_create(coefficient=amount))
+            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            if model_species_coefficient:
+                model_species_coefficient.coefficient += amount
+            else:	
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=amount))
 
         # Add lipid components to the RHS of biomass reaction
         for met_id, amount in self.options['lipid_components'].items():
             model_species = model.species.get_one(id=met_id)
-            biomass_rxn.participants.add(
-                model_species.species_coefficients.get_or_create(coefficient=amount))                
+            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            if model_species_coefficient:
+                model_species_coefficient.coefficient += amount
+            else:	
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=amount))                    
         
         # Determine the consumption(production) of metabolites in other submodels        
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'amp', 'cmp',
             'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp'] + self.options['amino_acid_ids']
-        met_requirement = {'{}[{}]'.format(i, j): 0 for i in metabolic_participants for j in ['n', 'c', 'm']}	
+        met_requirement = {'{}[{}]'.format(i, j.id): 0 for i in metabolic_participants for j in model.compartments}	
         
         doubling_time = model.parameters.get_one(id='mean_doubling_time').value
 
@@ -128,51 +142,55 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             half_life = rna_kb.properties.get_one(property='half-life').get_value()
             mean_concentration = rna_product.distribution_init_concentration.mean
 
-            # Add ATP hydrolysis requirement for DNA melting and promoter escape by RNA polymerase II
-            transcription_init_reaction = model.reactions.get_one(id='transcription_initiation_{}'.format(rna_kb.id))
-            for part in transcription_init_reaction.participants:
-                if part.species.id in met_requirement:
-                    met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
-                        (1 + doubling_time / half_life)
-            # Transcription elongation
-            transcription_el_reaction = model.reactions.get_one(id='transcription_elongation_{}'.format(rna_kb.id))
-            for part in transcription_el_reaction.participants:
-                if part.species.id in met_requirement:
-                    met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
-                        (1 + doubling_time / half_life)
-            # RNA degradation
-            rna_deg_reaction = model.reactions.get_one(id='degradation_{}'.format(rna_kb.id))
-            for part in rna_deg_reaction.participants:
-                if part.species.id in met_requirement:
-                    met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
-                        doubling_time / half_life
+            if model.submodels.get_one(id='transcription'):
+                # Add ATP hydrolysis requirement for DNA melting and promoter escape by RNA polymerase II
+                transcription_init_reaction = model.reactions.get_one(id='transcription_initiation_{}'.format(rna_kb.id))
+                for part in transcription_init_reaction.participants:
+                    if part.species.id in met_requirement:
+                        met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
+                            (1 + doubling_time / half_life)
+                # Transcription elongation
+                transcription_el_reaction = model.reactions.get_one(id='transcription_elongation_{}'.format(rna_kb.id))
+                for part in transcription_el_reaction.participants:
+                    if part.species.id in met_requirement:
+                        met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
+                            (1 + doubling_time / half_life)
+            
+            if model.submodels.get_one(id='rna_degradation'):
+                # RNA degradation
+                rna_deg_reaction = model.reactions.get_one(id='degradation_{}'.format(rna_kb.id))
+                for part in rna_deg_reaction.participants:
+                    if part.species.id in met_requirement:
+                        met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
+                            doubling_time / half_life
 
             if rna_kb.protein:
                 
                 protein_model = model.species_types.get_one(id=rna_kb.protein.id)
-                translation_compartment = 'c' if rna_kb.species[0].compartment.id=='n' else 'm'
+                translation_compartment = rna_kb.species[0].compartment.id
                 prot_half_life = rna_kb.protein.properties.get_one(property='half-life').get_value()
                 complex_model_stoic = {model.species_types.get_one(id=i.id):j.coefficient for i in cell.species_types.get(
                     __type=wc_kb.core.ComplexSpeciesType) for j in i.subunits if j.species_type==rna_kb.protein}
                 total_concentration = sum([i.distribution_init_concentration.mean for i in protein_model.species]) + \
                     sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species])
             
-	            # Translation initiation
-	            translation_init_reaction = model.reactions.get_one(id='translation_initiation_{}'.format(rna_kb.id))	            
-	            for part in translation_init_reaction.participants:
-	                if part.species.id in met_requirement:
-	                    met_requirement[part.species.id] += -part.coefficient * total_concentration * \
-	                        (1 + doubling_time / prot_half_life)
-                # Translation elongation
-	            translation_el_reaction = model.reactions.get_one(id='translation_elongation_{}'.format(rna_kb.id))	            
-	            for part in translation_el_reaction.participants:
-	                if part.species.id in met_requirement:
-	                    met_requirement[part.species.id] += -part.coefficient * total_concentration * \
-	                        (1 + doubling_time / prot_half_life)
+                if model.submodels.get_one(id='translation_translocation'):
+                    # Translation initiation
+                    translation_init_reaction = model.reactions.get_one(id='translation_initiation_{}'.format(rna_kb.id))	            
+                    for part in translation_init_reaction.participants:
+                        if part.species.id in met_requirement:
+                            met_requirement[part.species.id] += -part.coefficient * total_concentration * \
+                                (1 + doubling_time / prot_half_life)
+                    # Translation elongation
+                    translation_el_reaction = model.reactions.get_one(id='translation_elongation_{}'.format(rna_kb.id))	            
+                    for part in translation_el_reaction.participants:
+                        if part.species.id in met_requirement:
+                            met_requirement[part.species.id] += -part.coefficient * total_concentration * \
+                                (1 + doubling_time / prot_half_life)
                 
                 for protein_sp in protein_model.species:
 
-                	prot_concentration = protein_sp.distribution_init_concentration.mean
+                    prot_concentration = protein_sp.distribution_init_concentration.mean
                     
                     # Translocation
                     translocation_reaction = model.reactions.get_one(
@@ -180,30 +198,33 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         protein_model.id, translation_compartment, protein_sp.compartment.id))
                     if translocation_reaction:
                         for part in translocation_reaction.participants:
-			                if part.species.id in met_requirement:
-			                    met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
-			                        (1 + doubling_time / prot_half_life)
-                	# Protein degradation
-                    prot_deg_reaction = model.reactions.get_one(
-                    	id='{}_{}_degradation'.format(protein_model.id, protein_sp.compartment.id))                    
-                    for part in prot_deg_reaction.participants:
-		                if part.species.id in met_requirement:
-		                    met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
-		                        doubling_time / prot_half_life
-                    	        
-		# Use whole-cell ATP usage instead if provided
-		if self.options['atp_production']:
-			met_requirement['atp[c]'] = self.options['atp_production']
+                            if part.species.id in met_requirement:
+                                met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
+                                    (1 + doubling_time / prot_half_life)
+                    
+                    if model.submodels.get_one(id='protein_degradation'):
+                        # Protein degradation
+                        prot_deg_reaction = model.reactions.get_one(
+                            id='{}_{}_degradation'.format(protein_model.id, protein_sp.compartment.id))                    
+                        for part in prot_deg_reaction.participants:
+                            if part.species.id in met_requirement:
+                                met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
+                                    doubling_time / prot_half_life
+                           
+        # Use whole-cell ATP usage instead if provided
+        if self.options['atp_production']:
+            met_requirement['atp[c]'] = self.options['atp_production']
 		
-		# Add consumption(production) of metabolites in other submodels to the LHS(RHS) of biomass reaction 
-		for met_id, amount in met_requirement.items():
-		    model_species = model.species.get_one(id=met_id)
-		    model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
-		    if model_species_coefficient:
-		    	model_species_coefficient.coefficient += amount
-		    else:	
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=amount))
+        # Add consumption(production) of metabolites in other submodels to the LHS(RHS) of biomass reaction 
+        for met_id, amount in met_requirement.items():
+            if amount:
+                model_species = model.species.get_one(id=met_id)
+                model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+                if model_species_coefficient:
+                    model_species_coefficient.coefficient += amount
+                else:
+                    biomass_rxn.participants.add(
+                        model_species.species_coefficients.get_or_create(coefficient=amount))
 
         # Add biomass reaction as objective function
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
@@ -243,31 +264,31 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 min_constr = 0.
                 max_constr = 0.
             # Set the bounds of exchange reactions for media components to the measured fluxes
-            elif reaction.id in media_fluxes:
+            if reaction.id in media_fluxes:
                 min_constr = media_fluxes[reaction.id][0]*scale_factor
                 max_constr = media_fluxes[reaction.id][1]*scale_factor            
             # Set the bounds of reactions with measured kinetic constants
             elif reaction.rate_laws:
 
-                if all(param.value for param in reaction.rate_laws[0].expression.parameters):                    
+                if not any(numpy.isnan(p.value) for p in reaction.rate_laws[0].expression.parameters):                    
                     max_constr = reaction.rate_laws[0].expression._parsed_expression.eval({
-				                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-				                        for i in reaction.rate_laws[0].expression.species}
-				                	}) * scale_factor                    
+                                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                        for i in reaction.rate_laws[0].expression.species}
+                                    }) * scale_factor                    
                     upper_bound_adjustable.append(reaction.id)
                 elif all(i.distribution_init_concentration.mean==0. \
-                	for i in reaction.rate_laws[0].expression.species):                	
-                	max_constr = 0.                
+                    for i in reaction.rate_laws[0].expression.species):                	
+                    max_constr = 0.                
                 else:
                     max_constr = None
                 
                 if len(reaction.rate_laws) > 1:
-                    if all(param.value for param in reaction.rate_laws[1].expression.parameters):
+                    if not any(numpy.isnan(p.value) for p in reaction.rate_laws[1].expression.parameters):
                         min_constr = -reaction.rate_laws[1].expression._parsed_expression.eval({
-					                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-					                        for i in reaction.rate_laws[1].expression.species}
-					                	}) * scale_factor
-					    lower_bound_adjustable.append(reaction.id)					                	  
+                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                            for i in reaction.rate_laws[1].expression.species}
+                                        }) * scale_factor
+                        lower_bound_adjustable.append(reaction.id)					                	  
                     else:
                         min_constr = None
                 elif reaction.reversible:
@@ -276,33 +297,34 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     min_constr = 0.
             # Set other reactions to be unbounded                
             else:
-            	max_constr = None
-            	if reaction.reversible:
-	            	min_constr = None	                
-	            else:
-	                min_constr = 0.    
+                if reaction.id not in exchange_reactions:
+                    max_constr = None
+                    if reaction.reversible:
+                        min_constr = None	                
+                    else:
+                        min_constr = 0.    
             
             self._reaction_bounds[reaction.id] = (min_constr, max_constr)
-            
+
         # Formulate the optimization problem using the conv_opt package
         conv_model = conv_opt.Model(name='model')
         conv_variables = {}
         conv_metabolite_matrices = collections.defaultdict(list)
         for reaction in submodel.reactions:
             conv_variables[reaction.id] = conv_opt.Variable(
-            	name=reaction.id, type=conv_opt.VariableType.continuous,
+                name=reaction.id, type=conv_opt.VariableType.continuous,
                 lower_bound=self._reaction_bounds[reaction.id][0], 
                 upper_bound=self._reaction_bounds[reaction.id][1])
             conv_model.variables.append(conv_variables[reaction.id])
             for part in reaction.participants:
-            	if reaction.id == 'biomass_reaction':
-	            	conv_metabolite_matrices[part.species.id].append(
-	            		conv_opt.LinearTerm(conv_variables[reaction.id], 
-	                        part.coefficient*coef_scale_factor))
-	            else:
-	                conv_metabolite_matrices[part.species.id].append(
-	            		conv_opt.LinearTerm(conv_variables[reaction.id], 
-	                        part.coefficient))	
+                if reaction.id == 'biomass_reaction':
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_variables[reaction.id], 
+                            part.coefficient*coef_scale_factor))
+                else:
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_variables[reaction.id], 
+                            part.coefficient))	
 
         for met_id, expression in conv_metabolite_matrices.items():
             conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
@@ -310,15 +332,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         if optimization_type:
             conv_model.objective_terms = [conv_opt.LinearTerm(
-            	conv_variables['biomass_reaction'], 1.),]
+                conv_variables['biomass_reaction'], 1.),]
         else:
             conv_model.objective_terms.append(conv_opt.QuadraticTerm(
-            	conv_variables['biomass_reaction'], conv_variables['biomass_reaction'], 1.))     
+                conv_variables['biomass_reaction'], conv_variables['biomass_reaction'], 1.))     
         
         conv_model.objective_direction = conv_opt.ObjectiveDirection.maximize
 
         options = conv_opt.SolveOptions(
-        	solver=conv_opt.Solver.cplex,
+            solver=conv_opt.Solver.cplex,
             presolve=conv_opt.Presolve.on,
             solver_options={
                 'cplex': {
@@ -337,16 +359,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
         # Relax bounds if necessary
         if growth < measured_growth:
-        	target = {'biomass_reaction': measured_growth}
+            target = {'biomass_reaction': measured_growth}
             lower, upper = self.relax_bounds(target, lower_bound_adjustable, upper_bound_adjustable)
-            for reaction_id, adjustment in lower_bound_adjustable.items():
+            for reaction_id, adjustment in lower.items():
                 conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
-            for reaction_id, adjustment in upper_bound_adjustable.items():
+            for reaction_id, adjustment in upper.items():
                 conv_variables[reaction_id].upper_bound += adjustment*scale_factor
-
-        # Flux Variability Analysis
+        
+        # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
         flux_range = self.flux_variability_analysis(conv_model)
-
+        self.impute_kinetic_constant(flux_range)
     
     def relax_bounds(self, target, lower_bound_adjustable, upper_bound_adjustable):
         """ Relax bounds to achieve set target flux(es) while minimizing the total necessary adjustment
@@ -382,52 +404,52 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if reaction.id in adjusted:                                                    
                 if reaction.id in lower_bound_adjustable and reaction.id in upper_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(
-                    	                        name=reaction.id, type=conv_opt.VariableType.continuous)
+                                                name=reaction.id, type=conv_opt.VariableType.continuous)
+                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
+                                                        type=conv_opt.VariableType.continuous,
+                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
                                                     conv_opt.LinearTerm(conv_alpha['alpha_upper_'+reaction.id], -1)], 
                                                     name=reaction.id+'_max', 
-                                                    upper_bound=max_constr))
-                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
-						                                type=conv_opt.VariableType.continuous,
-						                                lower_bound=0.0)
+                                                    upper_bound=max_constr))                    
                     conv_model.variables.append(conv_alpha['alpha_upper_' + reaction.id])
+                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
+                                                        type=conv_opt.VariableType.continuous,
+                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
                                                     conv_opt.LinearTerm(conv_alpha['alpha_lower_'+reaction.id], 1)], 
                                                     name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))
-                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
-						                                type=conv_opt.VariableType.continuous,
-						                                lower_bound=0.0)
+                                                    lower_bound=min_constr))                    
                     conv_model.variables.append(conv_alpha['alpha_lower_' + reaction.id])                                                                      
                 elif reaction.id in lower_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, 
                     											type=conv_opt.VariableType.continuous,
                                                                 upper_bound=max_constr)
+                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
+                                                        type=conv_opt.VariableType.continuous,
+                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1)], 
                                                     name=reaction.id+'_max', 
                                                     upper_bound=max_constr))
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
                                                     conv_opt.LinearTerm(conv_alpha['alpha_lower_' + reaction.id], 1)], 
                                                     name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))
-                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
-						                                type=conv_opt.VariableType.continuous,
-						                                lower_bound=0.0)
+                                                    lower_bound=min_constr))                    
                     conv_model.variables.append(conv_alpha['alpha_lower_' + reaction.id])                                                                        
                 elif reaction.id in upper_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, 
                     	 										type=conv_opt.VariableType.continuous,
                                                                 lower_bound=min_constr)
+                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
+                                                        type=conv_opt.VariableType.continuous,
+                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1), 
                                                     conv_opt.LinearTerm(conv_alpha['alpha_upper_' + reaction.id], -1)], 
                                                     name=reaction.id+'_max', 
                                                     upper_bound=max_constr))
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1)], 
                                                     name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))
-                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
-						                                type=conv_opt.VariableType.continuous,
-						                                lower_bound=0.0)
+                                                    lower_bound=min_constr))                    
                     conv_model.variables.append(conv_alpha['alpha_upper_' + reaction.id])                                                  
                 else:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, type=conv_opt.VariableType.continuous,
@@ -438,30 +460,30 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             conv_model.variables.append(conv_fluxes[reaction.id])
 
             for part in reaction.participants:
-            	if reaction.id == 'biomass_reaction':
-	            	conv_metabolite_matrices[part.species.id].append(
-	            		conv_opt.LinearTerm(conv_fluxes[reaction.id], 
-	                        part.coefficient*coef_scale_factor))
-	            else:
-	                conv_metabolite_matrices[part.species.id].append(
-	            		conv_opt.LinearTerm(conv_fluxes[reaction.id], 
-	                        part.coefficient))	
+                if reaction.id == 'biomass_reaction':
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_fluxes[reaction.id], 
+                            part.coefficient*coef_scale_factor))
+                else:
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_fluxes[reaction.id], 
+                            part.coefficient))	
 
         for met_id, expression in conv_metabolite_matrices.items():
             conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
                 upper_bound=0.0, lower_bound=0.0))
 
         for variable_id, val in target.items():
-        	if variable_id == 'biomass_reaction':
-            	conv_model.constraints.append(
-            		conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[variable], 1)], 
-                                        name=variable+'_target', 
+            if variable_id == 'biomass_reaction':
+                conv_model.constraints.append(
+            		conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[variable_id], 1)], 
+                                        name=variable_id+'_target', 
                                         lower_bound=val*scale_factor/coef_scale_factor, 
                                         upper_bound=val*scale_factor/coef_scale_factor))
             else:
                 conv_model.constraints.append(
-            		conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[variable], 1)], 
-                                        name=variable+'_target', 
+            		conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[variable_id], 1)], 
+                                        name=variable_id+'_target', 
                                         lower_bound=val*scale_factor, 
                                         upper_bound=val*scale_factor))                           
         
@@ -500,8 +522,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         return alpha_lower, alpha_upper
 
-     def flux_variability_analysis(self, conv_model, fraction_of_objective=1.0, 
-     	    target_reactions=None):
+    def flux_variability_analysis(self, conv_model, fraction_of_objective=1.0, 
+            target_reactions=None):
         """ Conduct flux variability analysis by:
             1) Optimizing the model by maximizing the objective function
             2) Setting the objective function to the optimal value
@@ -518,7 +540,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
         Returns:
             :obj:`dict`: a dictionary with reaction ids as keys and tuples containing the 
-                maximum and minimum fluxes as values
+                minimum and maximum fluxes as values
         """
         scale_factor = self.options['scale_factor']
         coef_scale_factor = self.options['coef_scale_factor']
@@ -544,7 +566,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         flux_range = {}
         cplex_model.objective.set_sense(cplex_model.objective.sense.maximize)
-        cplex_model.objective.set_linear(objective, 0.0)
+        cplex_model.objective.set_linear('biomass_reaction', 0.0)
         for reaction in reaction_list:
             cplex_model.objective.set_linear(reaction, 1.0)
             cplex_model.solve()
@@ -571,9 +593,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 flux_range[reaction] += (min_val,)
             cplex_model.objective.set_linear(reaction, 0.0)
 
+        flux_range = {k: (v[1], v[0]) for k,v in flux_range.items()}    
+
         return flux_range    
 
-	def impute_kinetic_constant(self, bound_values):
+    def impute_kinetic_constant(self, bound_values):
         """ Impute the values of kcat that have not been measured.
 
         Args:
@@ -582,13 +606,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """
         submodel = self.submodel
 
-        median_kcat = numpy.median([k.value for i in submodel.reactions \
-        	for j in i.rate_laws for k in j.expression.parameters if k.values])
-
+        median_kcat = numpy.median([k.value for i in submodel.reactions for j in i.rate_laws \
+            for k in j.expression.parameters if k.value and not numpy.isnan(k.value)])
+        
         law_bound_pairs = {}
         for reaction in submodel.reactions:
             if reaction.rate_laws:
-            	bounds = bound_values[reaction.id]
+                bounds = bound_values[reaction.id]
                 if len(reaction.rate_laws)==1:
                     law_bound_pairs[reaction.rate_laws[0]] = bounds[1]
                 else:
@@ -610,32 +634,32 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     kcat = law.expression.parameters[0]
                     conc = comp.distribution_init_concentration.mean
                     if conc != 0.0: 
-                        if not kcat.value:                    
+                        if numpy.isnan(kcat.value):                    
                             kcat.value = value/conc
                             kcat.comments = 'Value imputed based on FVA bound value'
                         elif (value - kcat.value*conc)/value > 0.01:
                             kcat.value = value/conc
                             kcat.comments = 'Measured value adjusted to relax bound'        
                     else:
-                        if not kcat.value:
+                        if numpy.isnan(kcat.value):
                             kcat.value = median_kcat
                             kcat.comments = 'Value imputed as the median of measured k_cat values'         
-                elif all(kcat.value for kcat in law.expression.parameters):
-                	effective_vmax = 0
-                	for comp in complexes:
-                    	kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.id][0]
-                	    effective_vmax += kcat.value*comp.distribution_init_concentration.mean
+                elif not any(numpy.isnan(kcat.value) for kcat in law.expression.parameters):
+                    effective_vmax = 0
+                    for comp in complexes:
+                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]
+                        effective_vmax += kcat.value*comp.distribution_init_concentration.mean
                     if (value - effective_vmax)/value > 0.01:
                         for kcat in law.expression.parameters:                                                     
                             kcat.value = kcat.value*value/effective_vmax
                             kcat.comments = 'Measured value adjusted to relax bound'
-                elif not any(kcat.value for kcat in law.expression.parameters):
-                	expressed_comp = [comp for comp in complexes if \
-                	    comp.distribution_init_concentration.mean!=0.0]
+                elif all(numpy.isnan(kcat.value) for kcat in law.expression.parameters):
+                    expressed_comp = [comp for comp in complexes if \
+                        comp.distribution_init_concentration.mean!=0.0]
                     if len(expressed_comp) > 0:
                         shared_vmax = value/len(expressed_comp)
                     for comp in complexes:
-                    	kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.id][0]  
+                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]  
                         if comp.distribution_init_concentration.mean!=0.0:
                             kcat.value = shared_vmax/comp.distribution_init_concentration.mean                                    
                             kcat.comments = 'Value imputed based on FVA bound value' 
@@ -643,17 +667,17 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             kcat.value = median_kcat
                             kcat.comments = 'Value imputed as the median of measured k_cat values'                        
                 else:
-                	known_vmax = 0
-                	comp_kcat = {}
+                    known_vmax = 0
+                    comp_kcat = {}
                     for comp in complexes:
-                    	kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.id][0]                    	
-                    	if kcat.value:
-                	        known_vmax += kcat.value*comp.distribution_init_concentration.mean
-                	    else:
-                	        comp_kcat[comp] = kcat    
+                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]                    	
+                        if not numpy.isnan(kcat.value):
+                            known_vmax += kcat.value*comp.distribution_init_concentration.mean
+                        else:
+                            comp_kcat[comp] = kcat    
                     if known_vmax < value and (value - known_vmax)/value > 0.01:
-                    	unknown_vmax_count = len([comp for comp, kcat in comp_kcat.items() if \
-                    		comp.distribution_init_concentration.mean!=0.0])
+                        unknown_vmax_count = len([comp for comp, kcat in comp_kcat.items() if \
+                            comp.distribution_init_concentration.mean!=0.0])
                         if unknown_vmax_count > 0:
                             shared_vmax = (value - known_vmax)/unknown_vmax_count
                         for comp, kcat in comp_kcat.items():                            
@@ -669,8 +693,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             kcat.comments = 'Value imputed as the median of measured k_cat values'
             else:
                 for comp in complexes:
-                    kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.id][0]        
-                    if not kcat.value:
+                    kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]        
+                    if numpy.isnan(kcat.value):
                         kcat.value = median_kcat
                         kcat.comments = 'Value imputed as the median of measured k_cat values'
-                        
