@@ -6,10 +6,13 @@
 :License: MIT
 """
 
-from .initialize_model import InitializeModel
 from .complexation import ComplexationSubmodelGenerator
-from .transcription import TranscriptionSubmodelGenerator
+from .initialize_model import InitializeModel
+from .metabolism import MetabolismSubmodelGenerator
+from .protein_degradation import ProteinDegradationSubmodelGenerator
 from .rna_degradation import RnaDegradationSubmodelGenerator
+from .transcription import TranscriptionSubmodelGenerator
+from .translation_translocation import TranslationTranslocationSubmodelGenerator
 import wc_model_gen
 
 
@@ -33,6 +36,9 @@ class EukaryoteModelGenerator(wc_model_gen.ModelGenerator):
         ComplexationSubmodelGenerator,
         TranscriptionSubmodelGenerator,
         RnaDegradationSubmodelGenerator,
+        TranslationTranslocationSubmodelGenerator,
+        ProteinDegradationSubmodelGenerator,
+        MetabolismSubmodelGenerator,
     )
 
     def clean_and_validate_options(self):
