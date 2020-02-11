@@ -129,7 +129,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_species.species_coefficients.get_or_create(coefficient=amount))                    
         
         # Determine the consumption(production) of metabolites in other submodels        
-        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'amp', 'cmp',
+        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp',
             'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp'] + self.options['amino_acid_ids']
         met_requirement = {'{}[{}]'.format(i, j.id): 0 for i in metabolic_participants for j in model.compartments}	
         
@@ -210,6 +210,43 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             if part.species.id in met_requirement:
                                 met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
                                     doubling_time / prot_half_life
+
+        # DNA replication
+        chromosomes = cell.species_types.get(__type=wc_kb.core.DnaSpeciesType)
+        for chrom in chromosomes:
+            
+            seq = chrom.get_seq()
+            l = len(seq)            
+            n_a = seq.upper().count('A')
+            n_c = seq.upper().count('C')
+            n_g = seq.upper().count('G')
+            n_t = seq.upper().count('T')
+            n_n = seq.upper().count('N')
+        
+            known_bases = n_a + n_c + n_g + n_t
+            n_a += round(n_a / known_bases * n_n)
+            n_c += round(n_c / known_bases * n_n)
+            n_g += round(n_g / known_bases * n_n)
+            n_t = l - (n_a + n_c + n_g)
+
+            if chrom.double_stranded:
+                n_a = n_a + n_t
+                n_t = n_a
+                n_c = n_c + n_g
+                n_g = n_c
+                strand_no = 2
+            else:
+                strand_no = 1    
+                            
+            dntp_count = {
+                    'datp[n]': n_a * chrom.ploidy,
+                    'dctp[n]': n_c * chrom.ploidy,
+                    'dgtp[n]': n_g * chrom.ploidy,
+                    'dttp[n]': n_t * chrom.ploidy,
+                    }
+            for base, count in dntp_count.items():
+                met_requirement[base] += count
+            met_requirement['ppi[n]'] += -((l-1) * strand_no * chrom.ploidy)
                            
         # Use whole-cell ATP usage instead if provided
         if self.options['atp_production']:

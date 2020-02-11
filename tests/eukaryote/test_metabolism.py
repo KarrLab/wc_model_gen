@@ -10,6 +10,9 @@ from wc_onto import onto as wc_ontology
 import collections
 import conv_opt
 import math
+import os
+import shutil
+import tempfile
 import unittest
 import wc_lang
 import wc_kb
@@ -18,6 +21,9 @@ import wc_kb
 class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
     def setUp(self):
+
+        self.tmp_dirname = tempfile.mkdtemp()
+
         kb = self.kb = wc_kb.KnowledgeBase()
         model = self.model = wc_lang.Model()
 
@@ -127,6 +133,9 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         biomass_rxn = submodel.reactions.create(id='biomass_reaction', reversible=False, model=model)           
         biomass_rxn.participants.append(model.species.get_one(id='m3[c]').species_coefficients.get_or_create(coefficient=-1))
 
+    def tearDown(self):
+        shutil.rmtree(self.tmp_dirname)
+
     def test_gen_reactions(self):
 
         # Create KB content
@@ -135,6 +144,16 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         mito = cell.compartments.create(id='m')
         cytoplasm = cell.compartments.create(id='c')
+        nucleus = cell.compartments.create(id='n')
+
+        sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
+        with open(sequence_path, 'w') as f:
+            f.write('>chr1\nATGCATGACTCTAGTTTAT\n'
+                    '>chrM\nTTTatgaCTCTAGTTTACNNN\n')
+        chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=sequence_path, 
+            ploidy=2, circular=False, double_stranded=True)
+        chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=sequence_path,
+            ploidy=300, circular=False, double_stranded=True)    
 
         trans1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans1')
         trans1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=trans1, 
@@ -191,7 +210,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                     conc_model = model.distribution_init_concentrations.create(species=model_species, mean=2.)
                     conc_model.id = conc_model.gen_id()
 		            
-        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
+        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
             'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
@@ -419,8 +438,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         
         self.assertEqual(model.reactions.get_one(id='biomass_reaction').reversible, False)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants},
-            {'pool[c]': 25, 'rec[m]': -100, 'g6p[c]': 1000, 'chsterol[c]': 500, 
-            'atp[n]': 180, 'ctp[n]': 120, 'gtp[n]': 124, 'utp[n]': 120, 'ppi[n]': -420, 'amp[n]': -120, 'cmp[n]': -120, 'gmp[n]': -120, 
+            {'pool[c]': 25, 'rec[m]': -100, 'g6p[c]': 1000, 'chsterol[c]': 500, 'datp[n]': 4826, 'dttp[n]': 4826, 'dctp[n]': 1512, 'dgtp[n]': 1512,
+            'atp[n]': 180, 'ctp[n]': 120, 'gtp[n]': 124, 'utp[n]': 120, 'ppi[n]': -12492, 'amp[n]': -120, 'cmp[n]': -120, 'gmp[n]': -120, 
             'ump[n]': -120, 'h2o[n]': 244, 'h[n]': -244, 'adp[n]': -60, 'pi[n]': -64, 'gdp[n]': -4, 
             'atp[m]': 136, 'ctp[m]': 120, 'gtp[m]': 140, 'utp[m]': 120, 'ppi[m]': -420, 'amp[m]': -172, 'cmp[m]': -160, 'gmp[m]': -160, 
             'ump[m]': -160, 'h2o[m]': 340, 'h[m]': -332, 'adp[m]': -4, 'pi[m]': -48, 'gdp[m]': -20, 'ala_L[m]': 12, 'met_L[m]': 4,
@@ -462,7 +481,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model = model.distribution_init_concentrations.create(species=model_species, mean=2.)
         conc_model.id = conc_model.gen_id() 
                             
-        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
+        metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
             'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])            
