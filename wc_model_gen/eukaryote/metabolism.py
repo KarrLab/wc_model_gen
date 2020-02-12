@@ -7,10 +7,13 @@
 """
 
 from wc_onto import onto as wc_ontology
+from wc_utils.util.units import unit_registry
+import wc_model_gen.utils as utils
 import collections
 import conv_opt
 import math
 import numpy
+import scipy.constants
 import wc_kb
 import wc_lang
 import wc_model_gen
@@ -23,9 +26,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * recycled_metabolites (:obj:`dict`): a dictionary with species IDs of metabolites
             to be recycled as keys and recycled amounts in copy number as values
         * carbohydrate_components (:obj:`dict`): a dictionary with species IDs of carbohydrate
-            metabolite components as keys and the cellular amount in copy number per cell as values
+            metabolite components as keys and their relative compositions as values
         * lipid_components (:obj:`dict`): a dictionary with species IDs of lipid
-            metabolite components as keys and the cellular amount in copy number per cell as values          
+            metabolite components as keys and their relative compositions as values          
         * atp_production (:obj:`float`): ATP requirement in copy number per cell cycle per cell; 
             if not provided, it will be calculated from other generated submodels
         * amino_acid_ids (:obj:`list`): amino acid metabolite ids
@@ -37,7 +40,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * coef_scale_factor (:obj:`float`): scaling factor multiplied by the species coefficients 
             in the objective function during calibration; the default value is 1.0
         * optimization_type (:obj:`bool`): if True, linear optimization is used during submodel
-            calibration, else a quadratic optimization is used; default is True                
+            calibration, else a quadratic optimization is used; default is True
+        * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
+            concentration (Km/[S]) for use when estimating Km values, the default value is 1                    
     """
 
     def clean_and_validate_options(self):
@@ -72,7 +77,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         options['coef_scale_factor'] = coef_scale_factor
 
         optimization_type = options.get('optimization_type', True)
-        options['optimization_type'] = optimization_type        
+        options['optimization_type'] = optimization_type
+
+        beta = options.get('beta', 1.)
+        options['beta'] = beta        
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel 
@@ -84,6 +92,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell     
         model = self.model
         submodel = self.submodel
+        macro_submodel = model.submodels.get_or_create(id='macromolecular_formation', 
+            framework=wc_ontology['WC:stochastic_simulation_algorithm'])
+
+        cytosol = model.compartments.get_one(id='c')
         
         biomass_rxn = model.reactions.create(
             submodel=submodel,
@@ -108,25 +120,100 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=-amount))
 
-        # Add carbohydrate components to the RHS of biomass reaction
-        for met_id, amount in self.options['carbohydrate_components'].items():
+        # Add carbohydrate components to the RHS of biomass reaction and create carbohydrate formation reaction        
+        carbohydrate_st = model.species_types.create(id='carbohydrate', name='carbohydrate', 
+            type = wc_ontology['WC:pseudo_species'], structure = wc_lang.ChemicalStructure())
+        carbohydrate_species = model.species.create(species_type=carbohydrate_st, compartment=cytosol)
+        carbohydrate_species.id = carbohydrate_species.gen_id()     
+        conc_model = model.distribution_init_concentrations.create(
+                species=carbohydrate_species,
+                mean=1,
+                units=unit_registry.parse_units('molecule'),
+                )
+        conc_model.id = conc_model.gen_id()
+
+        carb_rxn = model.reactions.create(
+                    submodel=macro_submodel,
+                    id='carbohydrate_formation',
+                    name='carbohydrate formation',
+                    reversible=False)
+        carb_rxn.participants.add(carbohydrate_species.species_coefficients.create(coefficient=1))
+
+        unscaled_mass = 0
+        for met_id, rel_amount in self.options['carbohydrate_components'].items():            
             model_species = model.species.get_one(id=met_id)
+            unscaled_mass += model_species.species_type.structure.molecular_weight * rel_amount
+        scale_factor = cell.parameters.get_one(id='total_carbohydrate_mass').value / unscaled_mass 
+                    
+        charge = 0
+        weight = 0
+        for met_id, rel_amount in self.options['carbohydrate_components'].items():
+            
+            amount = rel_amount * scale_factor * scipy.constants.Avogadro
+            
+            model_species = model.species.get_one(id=met_id)
+            
+            charge += model_species.species_type.structure.charge * amount
+            weight += model_species.species_type.structure.molecular_weight * amount
+            
+            carb_rxn.participants.add(model_species.species_coefficients.create(coefficient=-amount))
+            
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
                 model_species_coefficient.coefficient += amount
-            else:	
+            else:   
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=amount))
+            
+        carbohydrate_st.structure.molecular_weight = weight
+        carbohydrate_st.structure.charge = round(charge)
 
-        # Add lipid components to the RHS of biomass reaction
-        for met_id, amount in self.options['lipid_components'].items():
+        # Add lipid components to the RHS of biomass reaction and create lipid formation reaction
+        lipid_st = model.species_types.create(id='lipid', name='lipid', 
+            type = wc_ontology['WC:pseudo_species'], structure = wc_lang.ChemicalStructure())
+        lipid_species = model.species.create(species_type=lipid_st, compartment=cytosol)
+        lipid_species.id = lipid_species.gen_id()     
+        conc_model = model.distribution_init_concentrations.create(
+                species=lipid_species,
+                mean=1,
+                units=unit_registry.parse_units('molecule'),
+                )
+        conc_model.id = conc_model.gen_id()
+
+        lipid_rxn = model.reactions.create(
+                    submodel=macro_submodel,
+                    id='lipid_formation',
+                    name='lipid formation',
+                    reversible=False)
+        lipid_rxn.participants.add(lipid_species.species_coefficients.create(coefficient=1))
+
+        unscaled_mass = 0
+        for met_id, rel_amount in self.options['lipid_components'].items():            
             model_species = model.species.get_one(id=met_id)
+            unscaled_mass += model_species.species_type.structure.molecular_weight * rel_amount
+        scale_factor = cell.parameters.get_one(id='total_lipid_mass').value / unscaled_mass 
+                    
+        charge = 0
+        weight = 0
+        for met_id, rel_amount in self.options['lipid_components'].items():
+            amount = rel_amount * scale_factor * scipy.constants.Avogadro
+            
+            model_species = model.species.get_one(id=met_id)
+            
+            charge += model_species.species_type.structure.charge * amount
+            weight += model_species.species_type.structure.molecular_weight * amount
+            
+            lipid_rxn.participants.add(model_species.species_coefficients.create(coefficient=-amount))
+            
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
                 model_species_coefficient.coefficient += amount
-            else:	
+            else:   
                 biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=amount))                    
+                    model_species.species_coefficients.get_or_create(coefficient=amount))
+            
+        lipid_st.structure.molecular_weight = weight
+        lipid_st.structure.charge = round(charge)
         
         # Determine the consumption(production) of metabolites in other submodels        
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp',
@@ -273,9 +360,50 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel.dfba_obj.expression = dfba_obj_expression
 
     def gen_rate_laws(self):
-        """ Generate rate laws for the reactions in the submodel """
-        pass
-        
+        """ Generate rate laws for carbohydrate and lipid formation reactions. High
+            rates are assumed so that the macromolecules are formed as soon as the
+            components are available.        
+        """
+        model = self.model
+        cytosol = model.compartments.get_one(id='c')
+        beta = self.options['beta']        
+
+        # Rate law for carbohydrate formation
+        for reaction in model.submodels.get_one(id='macromolecular_formation').reactions:
+            substrates = [[i.species_type.id] for i in reaction.get_reactants()]
+            expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                model, beta, reaction.id, 'macromolecular', cytosol, substrates)
+
+            k_cat = model.parameters.create(
+                id='k_cat_{}'.format(reaction.id),
+                value=2e06,
+                type=wc_ontology['WC:k_cat'],
+                units=unit_registry.parse_units('s^-1'),
+                comments = 'A high rate constant was assigned so that the simulated ' \
+                    'rate of macromolecular formation will be within the higher range'
+                )
+            all_parameters[k_cat.id] = k_cat
+                                            
+            expression = '{} * {} * 2**{}'.format(
+                k_cat.id,
+                ' * '.join(expressions),
+                len(expressions),
+                )
+            rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
+                wc_lang.Species: all_species,
+                wc_lang.Parameter: all_parameters,
+                wc_lang.Function: all_volumes,
+                })
+            assert error is None, str(error)
+            
+            rate_law = model.rate_laws.create(
+                direction=wc_lang.RateLawDirection.forward,
+                type=None,
+                expression=rate_law_expression,
+                reaction=reaction,
+                )
+            rate_law.id = rate_law.gen_id()
+
     def calibrate_submodel(self):
         """ Calibrate the submodel by adjusting measured kinetic constants to achieve 
             the measured growth rate while minimizing the total necessary adjustment. 

@@ -7,10 +7,13 @@
 
 from wc_model_gen.eukaryote import metabolism
 from wc_onto import onto as wc_ontology
+from wc_utils.util.units import unit_registry
 import collections
 import conv_opt
 import math
+import numpy
 import os
+import scipy.constants
 import shutil
 import tempfile
 import unittest
@@ -136,7 +139,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
 
-    def test_gen_reactions(self):
+    def test_gen_reactions_and_rate_laws(self):
 
         # Create KB content
         kb = wc_kb.KnowledgeBase()
@@ -145,6 +148,9 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
         cytoplasm = cell.compartments.create(id='c')
         nucleus = cell.compartments.create(id='n')
+
+        cell.parameters.create(id='total_carbohydrate_mass', value=2000)
+        cell.parameters.create(id='total_lipid_mass', value=4700)
 
         sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(sequence_path, 'w') as f:
@@ -210,16 +216,39 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                     conc_model = model.distribution_init_concentrations.create(species=model_species, mean=2.)
                     conc_model.id = conc_model.gen_id()
 		            
+        compartment_list = ['n', 'm', 'c', 'l']
+        for i in compartment_list:
+            c = model.compartments.get_or_create(id=i)
+            c.init_density = model.parameters.get_or_create(id='density_' + c.id, units=unit_registry.parse_units('g l^-1'))
+            c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
+                mean=0.5, std=0)
+            volume = model.functions.create(id='volume_' + c.id, units=unit_registry.parse_units('l'))
+            volume.expression, error = wc_lang.FunctionExpression.deserialize(f'{c.id} / {c.init_density.id}', {
+                wc_lang.Compartment: {c.id: c},
+                wc_lang.Parameter: {c.init_density.id: c.init_density},
+                })
+            assert error is None, str(error)      
+                        
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
-            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol']
+            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
             for j in ['n', 'm', 'c', 'l']:
-                model_compartment = model.compartments.get_or_create(id=j)
+                model_compartment = model.compartments.get_or_create(id=j)                
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
-        conc_model.id = conc_model.gen_id()        
+        conc_model.id = conc_model.gen_id()
+
+        structure_info = {'g6p': ('C6H13O9P', 200., 1, 15.), 'chsterol': ('C27H46O4S', 350., 0, 17.), 'pail_hs': ('C41H78O13P', 500., -1, 18.)}
+        for k, v in structure_info.items():
+            model_species_type = model.species_types.get_one(id=k)
+            model_species_type.structure = wc_lang.ChemicalStructure()
+            model_species_type.structure.empirical_formula = v[0]
+            model_species_type.structure.molecular_weight = v[1]
+            model_species_type.structure.charge = v[2]
+            conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='{}[c]'.format(k)), mean=v[3])
+            conc_model.id = conc_model.gen_id()        
 	            
         others = ['polr2', 'ribosome', 'polr_bound_non_specific_species', 
             'polr_binding_site_species', 'polr_bound_species', 'polr_non_specific_binding_site_species', 
@@ -429,16 +458,18 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 
         gen = metabolism.MetabolismSubmodelGenerator(kb, model, options={
             'recycled_metabolites': {'rec[m]': 100},
-            'carbohydrate_components': {'g6p[c]': 1000},
-            'lipid_components': {'chsterol[c]': 500},
+            'carbohydrate_components': {'g6p[c]': 1.},
+            'lipid_components': {'chsterol[c]': 0.2, 'pail_hs[c]': 0.8},
             'amino_acid_ids': ['ala_L', 'met_L'],
             })
         gen.clean_and_validate_options()
         gen.gen_reactions()
+        gen.gen_rate_laws()
         
         self.assertEqual(model.reactions.get_one(id='biomass_reaction').reversible, False)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants},
-            {'pool[c]': 25, 'rec[m]': -100, 'g6p[c]': 1000, 'chsterol[c]': 500, 'datp[n]': 4826, 'dttp[n]': 4826, 'dctp[n]': 1512, 'dgtp[n]': 1512,
+            {'pool[c]': 25, 'rec[m]': -100, 'datp[n]': 4826, 'dttp[n]': 4826, 'dctp[n]': 1512, 'dgtp[n]': 1512,
+            'g6p[c]': 10*scipy.constants.Avogadro, 'chsterol[c]': 2*scipy.constants.Avogadro, 'pail_hs[c]': 8*scipy.constants.Avogadro, 
             'atp[n]': 180, 'ctp[n]': 120, 'gtp[n]': 124, 'utp[n]': 120, 'ppi[n]': -12492, 'amp[n]': -120, 'cmp[n]': -120, 'gmp[n]': -120, 
             'ump[n]': -120, 'h2o[n]': 244, 'h[n]': -244, 'adp[n]': -60, 'pi[n]': -64, 'gdp[n]': -4, 
             'atp[m]': 136, 'ctp[m]': 120, 'gtp[m]': 140, 'utp[m]': 120, 'ppi[m]': -420, 'amp[m]': -172, 'cmp[m]': -160, 'gmp[m]': -160, 
@@ -446,11 +477,46 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'atp[c]': 48, 'gtp[c]': 60, 'amp[c]': -76, 'cmp[c]': -40, 'gmp[c]': -40, 'ump[c]': -40, 'h2o[c]': 240, 'h[c]': -216, 
             'adp[c]': -12, 'pi[c]': -144, 'gdp[c]': -60, 'ala_L[c]': 36, 'met_L[c]': 12, 'h2o[l]': 24, 'ala_L[l]': -24, 'met_L[l]': -8,
             })
+        self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro)
+        self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.charge, 10*scipy.constants.Avogadro)
+        self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.mean, 1.)
+        self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.id, 'macromolecular_formation')
+        self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.framework, wc_ontology['WC:stochastic_simulation_algorithm'])
+        self.assertEqual({i.species.id:i.coefficient for i in model.reactions.get_one(id='carbohydrate_formation').participants}, 
+            {'g6p[c]': -10*scipy.constants.Avogadro, 'carbohydrate[c]': 1.})        
+        self.assertEqual(model.species_types.get_one(id='lipid').structure.charge, -8*scipy.constants.Avogadro)
+        self.assertEqual(model.species.get_one(id='lipid[c]').distribution_init_concentration.mean, 1.)
+        self.assertEqual(model.species.get_one(id='lipid[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.reactions.get_one(id='lipid_formation').submodel.id, 'macromolecular_formation')
+        self.assertEqual({i.species.id:i.coefficient for i in model.reactions.get_one(id='lipid_formation').participants}, 
+            {'chsterol[c]': -2*scipy.constants.Avogadro, 'pail_hs[c]': -8*scipy.constants.Avogadro, 'lipid[c]': 1.})
 
+        numpy.testing.assert_allclose(model.species_types.get_one(id='lipid').structure.molecular_weight, (2*350.+8*500.)*scipy.constants.Avogadro, rtol=1e-8)
+
+        self.assertEqual(model.parameters.get_one(id='k_cat_carbohydrate_formation').value, 2e06)
+        self.assertEqual(model.parameters.get_one(id='k_cat_carbohydrate_formation').units, unit_registry.parse_units('s^-1'))
+        self.assertEqual(model.parameters.get_one(id='k_cat_carbohydrate_formation').comments,
+            'A high rate constant was assigned so that the simulated rate of macromolecular formation will be within the higher range')
+        self.assertEqual(model.parameters.get_one(id='k_cat_lipid_formation').value, 2e06)
+        self.assertEqual(model.parameters.get_one(id='K_m_carbohydrate_formation_g6p').value, 15/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_chsterol').value, 17/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').value, 18/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').rate_laws[0].expression.expression, 
+            'k_cat_carbohydrate_formation * (g6p[c] / (g6p[c] + K_m_carbohydrate_formation_g6p * Avogadro * volume_c)) * 2**1')
+        self.assertEqual(model.reactions.get_one(id='lipid_formation').rate_laws[0].expression.expression, 
+            'k_cat_lipid_formation * '
+            '(chsterol[c] / (chsterol[c] + K_m_lipid_formation_chsterol * Avogadro * volume_c)) * '
+            '(pail_hs[c] / (pail_hs[c] + K_m_lipid_formation_pail_hs * Avogadro * volume_c)) * '
+            '2**2')
+        
     def test_input_atp_production(self):
         # Create KB content
         kb = wc_kb.KnowledgeBase()
         cell = kb.cell = wc_kb.Cell()
+
+        cell.parameters.create(id='total_carbohydrate_mass', value=2000)
+        cell.parameters.create(id='total_lipid_mass', value=4700)
 
         cytoplasm = cell.compartments.create(id='c')
 
@@ -482,14 +548,22 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model.id = conc_model.gen_id() 
                             
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
-            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol']
+            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])            
             model_compartment = model.compartments.get_or_create(id='c')
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
             model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
-        conc_model.id = conc_model.gen_id()        
+        conc_model.id = conc_model.gen_id()
+
+        structure_info = {'g6p': ('C6H13O9P', 200., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1)}
+        for k, v in structure_info.items():
+            model_species_type = model.species_types.get_one(id=k)
+            model_species_type.structure = wc_lang.ChemicalStructure()
+            model_species_type.structure.empirical_formula = v[0]
+            model_species_type.structure.molecular_weight = v[1]
+            model_species_type.structure.charge = v[2]        
                 
         others = ['ribosome', 'ribo_binding_site_species', 'ribo_bound_species']
         for i in others:
@@ -559,6 +633,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             id='h[{}]'.format(translation_compartment)).species_coefficients.get_or_create(coefficient=3))
 
         gen = metabolism.MetabolismSubmodelGenerator(kb, model, options={
+            'carbohydrate_components': {'g6p[c]': 1.},
+            'lipid_components': {'chsterol[c]': 0.2, 'pail_hs[c]': 0.8},
             'amino_acid_ids': ['ala_L', 'met_L'],
             'atp_production': 2000,
             })
