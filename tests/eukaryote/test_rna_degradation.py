@@ -181,9 +181,9 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans1').value, math.log(2)/36000*10/(0.5*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans2').value, math.log(2)/15000*10/(0.5*100))
 
-        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans4_trans4').value, 10/scipy.constants.Avogadro/2.5E-14)
+        self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans4_trans4').value, 1e-05)
         self.assertEqual(self.model.parameters.get_one(id='K_m_degradation_trans4_trans4').comments, 
-            'Set to the median value because transcript concentration was zero')
+            'The value was assigned to 1e-05 because the concentration of trans4 in mitochondria was zero')
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans4').value, math.log(2)/36000*10/(0.5*100))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_degradation_trans4').comments, 
             'Set to the median value because it could not be determined from data')

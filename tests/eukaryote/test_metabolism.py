@@ -216,9 +216,10 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                     conc_model = model.distribution_init_concentrations.create(species=model_species, mean=2.)
                     conc_model.id = conc_model.gen_id()
 		            
-        compartment_list = ['n', 'm', 'c', 'l']
-        for i in compartment_list:
+        compartment_list = {'n': 'nucleus', 'm': 'mitochondria', 'c': 'cytosol', 'l': 'lysosome'}
+        for i,v in compartment_list.items():
             c = model.compartments.get_or_create(id=i)
+            c.name = v
             c.init_density = model.parameters.get_or_create(id='density_' + c.id, units=unit_registry.parse_units('g l^-1'))
             c.init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                 mean=0.5, std=0)
@@ -234,13 +235,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
             for j in ['n', 'm', 'c', 'l']:
-                model_compartment = model.compartments.get_or_create(id=j)                
+                model_compartment = model.compartments.get_one(id=j)                
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
         conc_model.id = conc_model.gen_id()
 
-        structure_info = {'g6p': ('C6H13O9P', 200., 1, 15.), 'chsterol': ('C27H46O4S', 350., 0, 17.), 'pail_hs': ('C41H78O13P', 500., -1, 18.)}
+        structure_info = {'g6p': ('C6H13O9P', 200., 1, 15.), 'chsterol': ('C27H46O4S', 350., 0, 17.), 'pail_hs': ('C41H78O13P', 500., -1, 0.)}
         for k, v in structure_info.items():
             model_species_type = model.species_types.get_one(id=k)
             model_species_type.structure = wc_lang.ChemicalStructure()
@@ -256,7 +257,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         for i in others:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:pseudo_species'])
             for j in ['n', 'm', 'c']:
-                model_compartment = model.compartments.get_or_create(id=j)
+                model_compartment = model.compartments.get_one(id=j)
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()                        	
 
@@ -500,8 +501,12 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'A high rate constant was assigned so that the simulated rate of macromolecular formation will be within the higher range')
         self.assertEqual(model.parameters.get_one(id='k_cat_lipid_formation').value, 2e06)
         self.assertEqual(model.parameters.get_one(id='K_m_carbohydrate_formation_g6p').value, 15/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.parameters.get_one(id='K_m_carbohydrate_formation_g6p').comments, 
+            'The value was assumed to be 1.0 times the concentration of g6p in cytosol')
         self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_chsterol').value, 17/scipy.constants.Avogadro/0.5)
-        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').value, 18/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').comments, 
+            'The value was assigned to 1e-05 because the concentration of pail_hs in cytosol was zero')
         self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').rate_laws[0].expression.expression, 
             'k_cat_carbohydrate_formation * (g6p[c] / (g6p[c] + K_m_carbohydrate_formation_g6p * Avogadro * volume_c)) * 2**1')
         self.assertEqual(model.reactions.get_one(id='lipid_formation').rate_laws[0].expression.expression, 

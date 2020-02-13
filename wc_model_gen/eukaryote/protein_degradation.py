@@ -233,23 +233,18 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             units=unit_registry.parse_units('molecule mol^-1'))       
 
         undetermined_model_kcat = []
-        undetermined_model_km = []
         determined_kcat = []
-        determined_km = []
         for reaction in self.submodel.reactions:
 
             init_species_counts = {}
             compartment_volumes = {}            
         
-            modifier = self._rxn_species_modifier[reaction.id][1]
-            modifier_total = 0      
+            modifier = self._rxn_species_modifier[reaction.id][1]            
             if type(modifier) == wc_lang.Species:
                 init_species_counts[modifier.gen_id()] = modifier.distribution_init_concentration.mean
-                modifier_total += modifier.distribution_init_concentration.mean
             else:
                 for species in modifier.expression.species:
                     init_species_counts[species.gen_id()] = species.distribution_init_concentration.mean
-                    modifier_total += species.distribution_init_concentration.mean    
         
             protein_sp = self._rxn_species_modifier[reaction.id][0]
             mean_concentration = protein_sp.distribution_init_concentration.mean           
@@ -278,28 +273,28 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_Km.comments = 'The value was assumed to be ' +\
                         '{} times the concentration of {} in {} before transport to {}'.format(
                         beta, protein_sp.species_type.id, protein_sp.compartment.name, degradation_comp.name)
-                determined_km.append(model_Km.value)
             else:
-                undetermined_model_km.append(model_Km)            
+                model_Km.value = 1e-05
+                model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                    '{} in {} was zero'.format(protein_sp.species_type.id, protein_sp.compartment.name)              
 
             init_species_counts[protein_sp.gen_id()] = mean_concentration
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 
-            if average_rate and modifier_total:
+            if average_rate:
                 model_kcat.value = 1.
-                model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                eval_rate_law = reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: init_species_counts,
                     wc_lang.Compartment: compartment_volumes,
-                })       
-                determined_kcat.append(model_kcat.value)
+                    })
+                if eval_rate_law:                    
+                    model_kcat.value = average_rate / eval_rate_law       
+                    determined_kcat.append(model_kcat.value)
+                else:
+                    undetermined_model_kcat.append(model_kcat)    
             else:          
                 undetermined_model_kcat.append(model_kcat)
-        
-        median_km = numpy.median(determined_km)
-        for model_Km in undetermined_model_km:
-            model_Km.value = median_km
-            model_Km.comments = 'Set to the median value because protein concentration was zero'
         
         median_kcat = numpy.median(determined_kcat)
         for model_kcat in undetermined_model_kcat:

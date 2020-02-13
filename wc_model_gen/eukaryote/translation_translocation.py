@@ -908,6 +908,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mitochondrial_ribosome_species.distribution_init_concentration.mean -= mitochondrial_bound_ribosomes
              
         # Calibrate initiation and elongation reactions
+        determined_init_kcat = []
+        undetermined_init_kcat = []
+        determined_el_kcat = []
+        undetermined_el_kcat = []
+        determined_transloc_kcat = []
+        undetermined_transloc_kcat = []
         for mrna_kb in mrna_kbs:
 
             mrna_kb_compartment_id = mrna_kb.species[0].compartment.id
@@ -935,13 +941,18 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             for species in init_reaction.rate_laws[0].expression.species:
                 init_species_counts[species.id] = species.distribution_init_concentration.mean
-                if model.parameters.get(id='K_m_{}_{}'.format(init_reaction.id, species.species_type.id)):
-                    model_Km = model.parameters.get_one(
+                model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(init_reaction.id, species.species_type.id))
-                    model_Km.value = beta * species.distribution_init_concentration.mean \
-                        / Avogadro.value / species.compartment.init_volume.mean
-                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, species.species_type.id, species.compartment.name)
+                if model_Km:
+                    if species.distribution_init_concentration.mean:                    
+                        model_Km.value = beta * species.distribution_init_concentration.mean \
+                            / Avogadro.value / species.compartment.init_volume.mean
+                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta, species.species_type.id, species.compartment.name)
+                    else:
+                        model_Km.value = 1e-05
+                        model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                            '{} in {} was zero'.format(species.species_type.id, species.compartment.name)    
 
             for func in init_reaction.rate_laws[0].expression.functions:
                 for species in func.expression.species:
@@ -954,10 +965,15 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             if average_rate:            
                 model_kcat.value = 1.
-                model_kcat.value = average_rate / init_reaction.rate_laws[0].expression._parsed_expression.eval({
+                eval_rate_law = init_reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: init_species_counts,
                     wc_lang.Compartment: init_compartment_volumes,
                 })
+                if eval_rate_law:
+                    model_kcat.value = average_rate / eval_rate_law
+                    determined_init_kcat.append(model_kcat.value)
+                else:
+                    undetermined_init_kcat.append(model_kcat)    
             else:          
                 model_kcat.value = 0.
 
@@ -970,11 +986,16 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 el_species_counts[species.id] = species.distribution_init_concentration.mean
                 model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(el_reaction.id, species.species_type.id))
-                if model_Km:                    
-                    model_Km.value = beta * species.distribution_init_concentration.mean \
-                        / Avogadro.value / species.compartment.init_volume.mean
-                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, species.species_type.id, species.compartment.name)
+                if model_Km:
+                    if species.distribution_init_concentration.mean:                     
+                        model_Km.value = beta * species.distribution_init_concentration.mean \
+                            / Avogadro.value / species.compartment.init_volume.mean
+                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta, species.species_type.id, species.compartment.name)
+                    else:
+                        model_Km.value = 1e-05
+                        model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                        '{} in {} was zero'.format(species.species_type.id, species.compartment.name)    
                     
             for func in el_reaction.rate_laws[0].expression.functions:                
                 for species in func.expression.species:
@@ -987,10 +1008,15 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             if average_rate:            
                 model_kcat.value = 1.
-                model_kcat.value = average_rate / el_reaction.rate_laws[0].expression._parsed_expression.eval({
+                eval_rate_law = el_reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: el_species_counts,
                     wc_lang.Compartment: init_compartment_volumes,
-                })
+                    })
+                if eval_rate_law:
+                    model_kcat.value = average_rate / eval_rate_law
+                    determined_el_kcat.append(model_kcat.value)
+                else:
+                    undetermined_el_kcat.append(model_kcat)     
             else:          
                 model_kcat.value = 0.
 
@@ -1016,11 +1042,16 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     trans_species_counts[species.id] = species.distribution_init_concentration.mean
                     model_Km = model.parameters.get_one(
                             id='K_m_{}_{}'.format(trans_reaction.id, species.species_type.id))
-                    if model_Km:                        
-                        model_Km.value = beta * species.distribution_init_concentration.mean \
-                            / Avogadro.value / species.compartment.init_volume.mean
-                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                            beta, species.species_type.id, species.compartment.name)
+                    if model_Km:
+                        if species.distribution_init_concentration.mean:                        
+                            model_Km.value = beta * species.distribution_init_concentration.mean \
+                                / Avogadro.value / species.compartment.init_volume.mean
+                            model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                                beta, species.species_type.id, species.compartment.name)
+                        else:
+                            model_Km.value = 1e-05
+                            model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                                '{} in {} was zero'.format(species.species_type.id, species.compartment.name)    
                             
                 for func in trans_reaction.rate_laws[0].expression.functions:
                     for species in func.expression.species:
@@ -1033,10 +1064,30 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
                 if average_rate:            
                     model_kcat.value = 1.
-                    model_kcat.value = conc_per_comp[compartment] / conc_per_comp[translation_compartment] * \
-                        average_rate / trans_reaction.rate_laws[0].expression._parsed_expression.eval({
+                    eval_rate_law = trans_reaction.rate_laws[0].expression._parsed_expression.eval({
                         wc_lang.Species: trans_species_counts,
                         wc_lang.Compartment: init_compartment_volumes,
                         })
+                    if eval_rate_law:
+                        model_kcat.value = conc_per_comp[compartment] / conc_per_comp[translation_compartment] * \
+                            average_rate / eval_rate_law
+                        determined_transloc_kcat.append(model_kcat.value)
+                    else:
+                        undetermined_transloc_kcat.append(model_kcat)         
                 else:          
                     model_kcat.value = 0.            
+            
+        median_init_kcat = numpy.median(determined_init_kcat)
+        for model_kcat in undetermined_init_kcat:
+            model_kcat.value = median_init_kcat
+            model_kcat.comments = 'Set to the median value because it could not be determined from data'          
+
+        median_el_kcat = numpy.median(determined_el_kcat)
+        for model_kcat in undetermined_el_kcat:
+            model_kcat.value = median_el_kcat
+            model_kcat.comments = 'Set to the median value because it could not be determined from data'
+
+        median_transloc_kcat = numpy.median(determined_transloc_kcat)
+        for model_kcat in undetermined_transloc_kcat:
+            model_kcat.value = median_transloc_kcat
+            model_kcat.comments = 'Set to the median value because it could not be determined from data'

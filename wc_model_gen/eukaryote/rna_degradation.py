@@ -192,9 +192,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
         undetermined_model_kcat = []
-        undetermined_model_km = []
         determined_kcat = []
-        determined_km = [] 
         for rna_kb, reaction in zip(rnas_kb, self.submodel.reactions):
 
             init_species_counts = {}
@@ -229,28 +227,30 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             / Avogadro.value / species.compartment.init_volume.mean
                         model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
                             beta, species.species_type.id, species.compartment.name)
-                        determined_km.append(model_Km.value)
                     else:
-                        undetermined_model_km.append(model_Km)    
+                        model_Km.value = 1e-05
+                        model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                            '{} in {} was zero'.format(species.species_type.id, species.compartment.name)
 
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 
-            if average_rate and modifier_species.distribution_init_concentration.mean:            
+            if average_rate:            
                 model_kcat.value = 1.
-                model_kcat.value = average_rate / reaction.rate_laws[0].expression._parsed_expression.eval({
+                eval_rate_law = reaction.rate_laws[0].expression._parsed_expression.eval({
                     wc_lang.Species: init_species_counts,
                     wc_lang.Compartment: {
-                        rna_compartment.id: rna_compartment.init_volume.mean * rna_compartment.init_density.value,
-                        degradation_compartment.id: degradation_compartment.init_volume.mean * degradation_compartment.init_density.value}
-                })
-                determined_kcat.append(model_kcat.value)
+                        rna_compartment.id: rna_compartment.init_volume.mean * \
+                            rna_compartment.init_density.value,
+                        degradation_compartment.id: degradation_compartment.init_volume.mean * \
+                            degradation_compartment.init_density.value}
+                    })
+                if eval_rate_law:
+                    model_kcat.value = average_rate / eval_rate_law
+                    determined_kcat.append(model_kcat.value)
+                else:
+                    undetermined_model_kcat.append(model_kcat)    
             else:          
                 undetermined_model_kcat.append(model_kcat)
-        
-        median_km = numpy.median(determined_km)
-        for model_Km in undetermined_model_km:
-            model_Km.value = median_km
-            model_Km.comments = 'Set to the median value because transcript concentration was zero'
         
         median_kcat = numpy.median(determined_kcat)
         for model_kcat in undetermined_model_kcat:

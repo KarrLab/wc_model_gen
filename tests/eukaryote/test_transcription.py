@@ -410,10 +410,12 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10)
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/2)
         self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0001444056626166553, places=16)
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
             'Set to the median value because it could not be determined from data')
 
     def test_global_vars(self):
+
+        self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='utp[m]')).mean = 0.
         
         gvar.transcript_ntp_usage = {'trans1': {'A': 2, 'U': 2, 'G': 2, 'C': 2, 'len': 8}}
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
@@ -453,3 +455,9 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 'trans2_ribosome_binding_site[m]': 3,
             'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})
+
+        self.assertEqual(self.model.parameters.get_one(id='K_m_transcription_elongation_trans2_utp').value, 1e-05)
+        self.assertEqual(self.model.parameters.get_one(id='K_m_transcription_elongation_trans2_utp').comments, 
+            'The value was assigned to 1e-05 because the concentration of utp in mitochondria was zero')
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_transcription_elongation_trans2').comments, 
+            'Set to the median value because it could not be determined from data')

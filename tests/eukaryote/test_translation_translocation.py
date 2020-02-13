@@ -356,6 +356,10 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
     def test_global_vars(self):
         gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1}}
+
+        self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='atp[m]')).mean = 0.
+        self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='Met[m]')).mean = 0.
+
         gen = translation_translocation.TranslationTranslocationSubmodelGenerator(self.kb, self.model, options={
             'cytoplasmic_ribosome': 'ribosome',
             'mitochondrial_ribosome': 'ribosome',
@@ -387,3 +391,20 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
             {'ribo_bound_transM[m]': -1, 'gtp[m]': -3, 'atp[m]': -2, 'h2o[m]': -5, 'Asp[m]': -2, 
             'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 2, 'gdp[m]': 3, 'pi[m]': 7, 'h[m]': 3})
+
+        self.assertEqual(model.parameters.get_one(id='transM_ribosome_binding_constant').comments,
+            'Set to the median value because it could not be determined from data')
+        self.assertEqual(model.parameters.get_one(id='K_m_translation_m_Met').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_translation_m_Met').comments, 
+            'The value was assigned to 1e-05 because the concentration of Met in mitochondria was zero')
+        self.assertEqual(model.parameters.get_one(id='K_m_translation_elongation_transM_atp').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_translation_elongation_transM_atp').comments, 
+            'The value was assigned to 1e-05 because the concentration of atp in mitochondria was zero')
+        self.assertEqual(model.parameters.get_one(id='k_cat_translation_elongation_transM').comments, 
+            'Set to the median value because it could not be determined from data')
+        self.assertEqual(model.parameters.get_one(id='K_m_translocation_prot1_c_to_m_atp').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_translocation_prot1_c_to_m_atp').comments, 
+            'The value was assigned to 1e-05 because the concentration of atp in mitochondria was zero')        
+        self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_m').comments, 
+            'Set to the median value because it could not be determined from data')
+        

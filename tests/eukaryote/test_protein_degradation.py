@@ -195,9 +195,9 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(self.model.parameters.get_one(id='k_cat_prot1_n_degradation').value, math.log(2)/40000*10/(0.5*2))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_c_m_degradation').value, math.log(2)/25000*10/(0.5*4))
 
-        self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').value, 0.5*(10/scipy.constants.Avogadro/5E-14 + 10/scipy.constants.Avogadro/1.5E-14))
+        self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').value, 1e-05)
         self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').comments, 
-            'Set to the median value because protein concentration was zero')
+            'The value was assigned to 1e-05 because the concentration of protM in mitochondria was zero')
         self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').value, 0.5*(math.log(2)/40000*10/(0.5*4) + math.log(2)/25000*10/(0.5*4)))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').comments, 
             'Set to the median value because it could not be determined from data')

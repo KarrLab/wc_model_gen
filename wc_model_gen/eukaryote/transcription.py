@@ -1148,13 +1148,18 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reaction = model.reactions.get_one(id='transcription_elongation_' + rna_kb.id)
             for species in reaction.rate_laws[0].expression.species:
                 init_species_counts[species.id] = species.distribution_init_concentration.mean
-                if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
-                    model_Km = model.parameters.get_one(
+                model_Km = model.parameters.get_one(
                         id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
-                    model_Km.value = beta * species.distribution_init_concentration.mean \
-                        / Avogadro.value / species.compartment.init_volume.mean
-                    model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
-                        beta, species.species_type.id, species.compartment.name)
+                if model_Km:
+                    if species.distribution_init_concentration.mean:                    
+                        model_Km.value = beta * species.distribution_init_concentration.mean \
+                            / Avogadro.value / species.compartment.init_volume.mean
+                        model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                            beta, species.species_type.id, species.compartment.name)
+                    else:
+                        model_Km.value = 1e-05
+                        model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                            '{} in {} was zero'.format(species.species_type.id, species.compartment.name)    
 
             for func in reaction.rate_laws[0].expression.functions:
                 for species in func.expression.species:
@@ -1165,16 +1170,19 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
 
-            if polr_gene_bound_conc and average_rate[rna_kb.id]:
+            if average_rate[rna_kb.id]:
                 model_kcat.value = 1.
-                model_kcat.value = average_rate[rna_kb.id] / \
-                    reaction.rate_laws[0].expression._parsed_expression.eval({
-                        wc_lang.Species: init_species_counts,
-                        wc_lang.Compartment: {
-                            transcription_compartment.id: transcription_compartment.init_volume.mean * \
-                                transcription_compartment.init_density.value},
+                eval_rate_law = reaction.rate_laws[0].expression._parsed_expression.eval({
+                    wc_lang.Species: init_species_counts,
+                    wc_lang.Compartment: {
+                        transcription_compartment.id: transcription_compartment.init_volume.mean * \
+                            transcription_compartment.init_density.value},
                     })
-                determined_kcat.append(model_kcat.value)
+                if eval_rate_law:
+                    model_kcat.value = average_rate[rna_kb.id] / eval_rate_law                    
+                    determined_kcat.append(model_kcat.value)
+                else:
+                    undetermined_model_kcat.append(model_kcat)    
             else:
                 undetermined_model_kcat.append(model_kcat)
         
