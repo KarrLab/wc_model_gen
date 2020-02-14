@@ -269,7 +269,7 @@ class TestCase(unittest.TestCase):
             'The value was assigned to 1e-05 because the concentration of prot2 in nucleus was zero')
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1}}
+        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'A', 'start_codon': 'GCG'}}
         amino_acid_id_conversion = {
             'A': 'Ala',
             'C': 'Cys',

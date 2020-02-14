@@ -206,7 +206,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model
 
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 1, 'U': 2, 'G': 4, 'C': 2, 'len': 9})
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'len': 3, '*': 0})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'len': 3, '*': 0, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['translation_translocation'])
@@ -355,7 +355,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_c_m').value, math.log(2)*(1/(20*3600) + 1/40000)*55/10*5/10)
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1}}
+        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'}}
 
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='atp[m]')).mean = 0.
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='Met[m]')).mean = 0.
@@ -383,7 +383,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         model = self.model
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -7, 'atp[c]': -6, 'h2o[c]': -13, 'Ala[c]': -4, 'Cys[c]': -2, 'Asp[c]': -1, 'Met[c]': -1,

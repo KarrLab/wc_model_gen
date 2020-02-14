@@ -462,8 +462,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
             cds = self.options['cds']
-            seq = kb_species_type.get_seq(table=table, cds=cds)
-            self.populate_protein_aa_usage(model_species_type.id, seq)                        
+            seq, start_codon = kb_species_type.get_seq_and_start_codon(table=table, cds=cds)            
+            self.populate_protein_aa_usage(model_species_type.id, seq)
+            gvar.protein_aa_usage[model_species_type.id]['start_codon'] = str(start_codon).upper()                        
             _, _, _, determined = self.determine_protein_structure_from_aa(
                 model_species_type.id, gvar.protein_aa_usage[model_species_type.id])
             if not determined:    
@@ -875,6 +876,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 'Y': seq.count('Y'),  # Tyr: Tyrosine (C9 H11 N O3)
                 'V': seq.count('V'),  # Val: Valine (C5 H11 N O2)
                 'U': seq.count('U'),  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+                'start_aa': seq[0] if seq[0]!='*' else seq[1] # Amino acid at start codon
             }
 
     def determine_protein_structure_from_aa(self, 

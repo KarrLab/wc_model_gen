@@ -225,7 +225,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             # Adding participants to LHS 
             # Include 2 GTP hydrolysis and 1 ATP hydrolysis at the initiation factors
-            # Include 1 ATP hydrolysis for the charging of tRNA-met            
+            # Include 1 ATP hydrolysis for the charging of tRNA-met (or other start amino acid)            
             init_reaction.participants.append(
                 ribosome_complex.species_coefficients.get_or_create(
                 coefficient=-1))
@@ -277,7 +277,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     codon_id = 1
                 else:
                     codon_id = codon_table[mrna_kb.protein.id]
-                raw_seq = mrna_kb.protein.get_seq(table=codon_id, cds=cds)                                            
+                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)                                            
                 protein_seq = ''.join(i for i in raw_seq if i!='*')
                 for aa in protein_seq:
                     aa_id = amino_acid_id_conversion[aa]
@@ -288,9 +288,11 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         aa_content[aa_id] += 1
                         gvar.protein_aa_usage[mrna_kb.protein.id][aa] += 1
                 gvar.protein_aa_usage[mrna_kb.protein.id]['*'] = raw_seq.count('*')
-                gvar.protein_aa_usage[mrna_kb.protein.id]['len'] = len(protein_seq)        
+                gvar.protein_aa_usage[mrna_kb.protein.id]['len'] = len(protein_seq)
+                gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa'] = protein_seq[0]
+                gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon'] = str(start_codon).upper()        
             
-            aa_content[amino_acid_id_conversion['M']] -= 1
+            aa_content[amino_acid_id_conversion[gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']]] -= 1
 
             # Adding participants to LHS
             # Include 1 ATP hydrolysis for each tRNA-aa charging
@@ -630,7 +632,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
 
-            codon_info = trna_functions[translation_compartment.id]['AUG']
+            codon_info = trna_functions[translation_compartment.id][gvar.protein_aa_usage[
+                mrna_kb.protein.id]['start_codon']]
             expression_terms.append(codon_info['function'].id)
             objects[wc_lang.Function][codon_info['function'].id] = codon_info['function'] 
             

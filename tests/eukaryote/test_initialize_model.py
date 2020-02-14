@@ -393,6 +393,8 @@ class TestCase(unittest.TestCase):
                 'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
                 'V': 1,  # Val: Valine (C5 H11 N O2)
                 'U': 0,  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+                'start_aa': 'M', # Amino acid at start codon
+                'start_codon': 'AUG',
             })
 
         self.assertEqual(prot1_model.name, 'protein1')

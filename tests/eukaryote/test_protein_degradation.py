@@ -140,7 +140,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'len': 2, '*': 0})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'len': 2, '*': 0, 'start_aa': 'A', 'start_codon': 'GCG'})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['protein_degradation'])
@@ -203,7 +203,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             'Set to the median value because it could not be determined from data')
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1}}
+        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'}}
         gen = protein_degradation.ProteinDegradationSubmodelGenerator(self.kb, self.model, options={
             'compartment_proteasomes': {
                 'n': ['26S proteasome'], 
@@ -220,7 +220,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'})
 
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='prot1_n_degradation').participants}, 
             {'prot1[n]': -1, 'h2o[n]': -6, 'Ala[n]': 4, 'Cys[n]': 2, 'Asp[n]':1})
