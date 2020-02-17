@@ -24,9 +24,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         Translation, protein folding and translocation processes are 
         modeled as three reaction steps in this submodel:
 
-        1. Translation initiation where ribosomes and methionine bind to the mRNA. 
-           For nuclear mRNAs, transport from the nucleus to the cytoplasm are lumped with
-           this reaction. The energetic of met-tRNA charging is included;
+        1. Translation initiation where ribosomes and methionine (or other start amino acid) 
+           bind to the mRNA. For nuclear mRNAs, transport from the nucleus to the cytoplasm 
+           are lumped with this reaction. The energetic of met-tRNA charging is included;
         2. Translation elongation and termination are lumped into one reaction that produces
            nascent polypeptides. The energetic of amino-acid-tRNA charging is included;
         3. Protein folding and translocation to each organelle/compartment are lumped into 
@@ -175,8 +175,6 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     name=mitochondrial_ribosome).species.get_one(compartment=mitochondrion)            
 
             # Create initiation reaction
-            methionine = model.species_types.get_one(id=amino_acid_id_conversion['M'])            
-
             if mrna_kb.id in gvar.transcript_ntp_usage:
                 mrna_len = gvar.transcript_ntp_usage[mrna_kb.id]['len']
             else:
@@ -189,6 +187,35 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     'U': seq.upper().count('U'),
                     'len': mrna_len
                     }
+
+            aa_content = {}
+            if mrna_kb.protein.id in gvar.protein_aa_usage:                                        
+                for aa, aa_id in amino_acid_id_conversion.items():
+                    if gvar.protein_aa_usage[mrna_kb.protein.id][aa]:
+                        aa_content[aa_id] = gvar.protein_aa_usage[mrna_kb.protein.id][aa]
+            else:
+                gvar.protein_aa_usage[mrna_kb.protein.id] = {i:0 for i in list(amino_acid_id_conversion.keys())}
+                if codon_table == 1:
+                    codon_id = 1
+                else:
+                    codon_id = codon_table[mrna_kb.protein.id]
+                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)                                            
+                protein_seq = ''.join(i for i in raw_seq if i!='*')
+                for aa in protein_seq:
+                    aa_id = amino_acid_id_conversion[aa]
+                    if aa_id not in aa_content:
+                        aa_content[aa_id] = 1
+                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] = 1
+                    else:
+                        aa_content[aa_id] += 1
+                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] += 1
+                gvar.protein_aa_usage[mrna_kb.protein.id]['*'] = raw_seq.count('*')
+                gvar.protein_aa_usage[mrna_kb.protein.id]['len'] = len(protein_seq)
+                gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa'] = protein_seq[0]
+                gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon'] = str(start_codon).upper()
+
+            first_aa = model.species_types.get_one(id=amino_acid_id_conversion[
+                gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']])           
             
             ribo_binding_site_species = model.species_types.get_one(
                 id='{}_ribosome_binding_site'.format(mrna_kb.id)).species[0]
@@ -202,11 +229,11 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 )
             ribo_bound_species_type.structure = wc_lang.ChemicalStructure(
                 empirical_formula = ribosome_complex.species_type.structure.empirical_formula +\
-                    methionine.structure.empirical_formula,
+                    first_aa.structure.empirical_formula,
                 molecular_weight = ribosome_complex.species_type.structure.molecular_weight +\
-                    methionine.structure.molecular_weight,
+                    first_aa.structure.molecular_weight,
                 charge = ribosome_complex.species_type.structure.charge +\
-                    methionine.structure.charge,
+                    first_aa.structure.charge,
                 )
             ribo_bound_species = model.species.get_or_create(
                 species_type=ribo_bound_species_type, compartment=translation_compartment)
@@ -232,7 +259,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             init_reaction.participants.append(
                 ribo_binding_site_species.species_coefficients.get_or_create(
                 coefficient=-1))
-            init_reaction.participants.append(methionine.species.get_one(
+            init_reaction.participants.append(first_aa.species.get_one(
                 compartment=translation_compartment).species_coefficients.get_or_create(
                 coefficient=-1))
             init_reaction.participants.append(metabolites['h2o'][
@@ -263,34 +290,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             el_reaction = model.reactions.get_or_create(
                 submodel=self.submodel, id='translation_elongation_' + mrna_kb.id,
                 name='translation elongation of ' + mrna_kb.name,
-                reversible=False, comments='Lumped reaction')
-
-            aa_content = {}
-
-            if mrna_kb.protein.id in gvar.protein_aa_usage:                                        
-                for aa, aa_id in amino_acid_id_conversion.items():
-                    if gvar.protein_aa_usage[mrna_kb.protein.id][aa]:
-                        aa_content[aa_id] = gvar.protein_aa_usage[mrna_kb.protein.id][aa]
-            else:
-                gvar.protein_aa_usage[mrna_kb.protein.id] = {i:0 for i in list(amino_acid_id_conversion.keys())}
-                if codon_table == 1:
-                    codon_id = 1
-                else:
-                    codon_id = codon_table[mrna_kb.protein.id]
-                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)                                            
-                protein_seq = ''.join(i for i in raw_seq if i!='*')
-                for aa in protein_seq:
-                    aa_id = amino_acid_id_conversion[aa]
-                    if aa_id not in aa_content:
-                        aa_content[aa_id] = 1
-                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] = 1
-                    else:
-                        aa_content[aa_id] += 1
-                        gvar.protein_aa_usage[mrna_kb.protein.id][aa] += 1
-                gvar.protein_aa_usage[mrna_kb.protein.id]['*'] = raw_seq.count('*')
-                gvar.protein_aa_usage[mrna_kb.protein.id]['len'] = len(protein_seq)
-                gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa'] = protein_seq[0]
-                gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon'] = str(start_codon).upper()        
+                reversible=False, comments='Lumped reaction')                    
             
             aa_content[amino_acid_id_conversion[gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']]] -= 1
 
@@ -475,7 +475,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             expression=trna_expression,
                             units=unit_registry.parse_units(''),
                             ),
-                    'aa': amino_acid_id_conversion[trnas['aa']],
+                    'aa': trnas['aa'],
                     'objects':objects,
                     }
 

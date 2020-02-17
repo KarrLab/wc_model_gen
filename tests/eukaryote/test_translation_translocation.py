@@ -72,8 +72,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         complexM = wc_kb.core.ComplexSpeciesType(id='complexM', cell=cell, subunits=[wc_kb.core.SpeciesTypeCoefficient(species_type=protM,
             coefficient=2)])
 
-        trnas = {'mt_trnaM': ('M', 'CAT', 'm'), 'mt_trnaA': ('A', 'CGC', 'm'), 'mt_trnaC': ('C', 'GCA', 'm'), 'mt_trnaD': ('D', 'ATC', 'm'), 
-            'trnaM': ('M', 'CAT', 'c'), 'trnaA1': ('A', 'CGC', 'c'), 'trnaA2': ('A', 'CGC', 'c'), 'trnaC': ('C', 'GCA', 'c'), 'trnaD': ('D', 'ATC', 'c')}
+        trnas = {'mt_trnaM': ('Met', 'CAT', 'm'), 'mt_trnaA': ('Ala', 'CGC', 'm'), 'mt_trnaC': ('Cys', 'GCA', 'm'), 'mt_trnaD': ('Asp', 'ATC', 'm'), 
+            'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 'trnaD': ('Asp', 'ATC', 'c')}
         for trna_id, (aa_id, anticodon, comp) in trnas.items():
             trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, type=wc_kb.eukaryote.TranscriptType.tRna)
             trna_compartment = cytoplasm if comp=='c' else mito
