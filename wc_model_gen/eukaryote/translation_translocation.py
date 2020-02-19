@@ -9,6 +9,7 @@ from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
+import Bio.Alphabet
 import Bio.Seq
 import math
 import numpy
@@ -399,6 +400,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         amino_acid_id_conversion = self.options.get('amino_acid_id_conversion')
         beta = self.options.get('beta')
+        codon_table = self.options['codon_table']
+        cds = self.options['cds']
 
         cytoplasmic_ribosome = self.options.get('cytoplasmic_ribosome')
         mitochondrial_ribosome = self.options.get('mitochondrial_ribosome')
@@ -632,23 +635,27 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
 
-            codon_info = trna_functions[translation_compartment.id][gvar.protein_aa_usage[
-                mrna_kb.protein.id]['start_codon']]
-            expression_terms.append(codon_info['function'].id)
-            objects[wc_lang.Function][codon_info['function'].id] = codon_info['function'] 
-            
-            for cl, dictionary in objects.items():
-                dictionary.update(codon_info['objects'][cl])                 
+            start_codon = gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon']
+            start_aa_met = amino_acid_id_conversion[gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']]
+            if start_codon in trna_functions[translation_compartment.id]:
+                matched_trnas = [trna_functions[translation_compartment.id][start_codon]]
+            else:                
+                matched_trnas = [i for i in trna_functions[translation_compartment.id] if i['aa']==start_aa_met]
+                    
+            for codon_info in matched_trnas:
+                expression_terms.append(codon_info['function'].id)
+                objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                
+                for cl, dictionary in objects.items():
+                    dictionary.update(codon_info['objects'][cl])                 
                            
             expression_terms.append(aa_functions[translation_compartment.id][
-                codon_info['aa']]['function'].id)
+                start_aa_met]['function'].id)
             objects[wc_lang.Function][aa_functions[translation_compartment.id][
-                codon_info['aa']]['function'].id] = aa_functions[translation_compartment.id][
-                codon_info['aa']]['function']
-
+                start_aa_met]['function'].id] = aa_functions[translation_compartment.id][
+                start_aa_met]['function']
             for cl, dictionary in objects.items():
                 dictionary.update(aa_functions[translation_compartment.id][
-                    codon_info['aa']]['objects'][cl])    
+                    start_aa_met]['objects'][cl])    
             
             objects[wc_lang.Species][ribosome_complex.id] = ribosome_complex
             objects[wc_lang.Species][self._allowable_queue_len[mrna_kb.id][0].id]= self._allowable_queue_len[mrna_kb.id][0]
@@ -697,28 +704,45 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
             
             mrna_seq = mrna_kb.get_seq()
-            all_codons = sorted(set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )]))
+            all_codons = sorted(set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
-                if len(i)==3 and i in trna_functions[translation_compartment.id] and i!='AUG':
-                    codon_info = trna_functions[translation_compartment.id][i]
-                    expression_terms.append(codon_info['function'].id)
-                    objects[wc_lang.Function][codon_info['function'].id] = codon_info['function'] 
-                    
-                    for cl, dictionary in objects.items():
-                        dictionary.update(codon_info['objects'][cl])                    
-
-                    if aa_functions[translation_compartment.id][codon_info['aa']][
-                        'function'].id not in expression_terms:
+                if len(i)==3:
+                    if i in trna_functions[translation_compartment.id]:
+                        matched_trnas = [trna_functions[translation_compartment.id][i]]
+                    else:
+                        codon_id = 1 if codon_table == 1 else codon_table[mrna_kb.protein.id]
+                        translated_aa = str(Bio.Seq.Seq(i, alphabet=Bio.Alphabet.RNAAlphabet()).translate(
+                            table=codon_id, cds=cds))
+                        if translated_aa in amino_acid_id_conversion:
+                            translated_aa_met = amino_acid_id_conversion[translated_aa]
+                            matched_trnas = [i for i in trna_functions[translation_compartment.id] \
+                                if i['aa']==translated_aa_met]
+                        else:
+                            matched_trnas = []      
                         
-                        expression_terms.append(aa_functions[translation_compartment.id][
-                            codon_info['aa']]['function'].id)
-                        objects[wc_lang.Function][aa_functions[translation_compartment.id][
-                            codon_info['aa']]['function'].id] = aa_functions[translation_compartment.id][
-                            codon_info['aa']]['function']
-
+                    for codon_info in matched_trnas:    
+                        expression_terms.append(codon_info['function'].id)
+                        objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        
                         for cl, dictionary in objects.items():
-                            dictionary.update(aa_functions[translation_compartment.id][
-                                codon_info['aa']]['objects'][cl])
+                            dictionary.update(codon_info['objects'][cl])                    
+
+            for key, value in gvar.protein_aa_usage[mrna_kb.protein.id].items():                
+                if key in amino_acid_id_conversion and value:
+                    aa_met = amino_acid_id_conversion[key]
+                    if aa_met==start_aa_met and value-1==0: 
+                        pass
+                    else:    
+                        if aa_functions[translation_compartment.id][aa_met][
+                            'function'].id not in expression_terms:
+                            
+                            expression_terms.append(aa_functions[translation_compartment.id][
+                                aa_met]['function'].id)
+                            objects[wc_lang.Function][aa_functions[translation_compartment.id][
+                                aa_met]['function'].id] = aa_functions[translation_compartment.id][
+                                aa_met]['function']
+                            for cl, dictionary in objects.items():
+                                dictionary.update(aa_functions[translation_compartment.id][
+                                    aa_met]['objects'][cl])
             
             expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
                 model, beta, elongation_reaction.id, 'translation_elongation', translation_compartment, [['gtp'], ['atp']])

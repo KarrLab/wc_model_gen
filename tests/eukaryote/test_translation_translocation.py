@@ -60,6 +60,14 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         locus3 = wc_kb.eukaryote.GenericLocus(start=4, end=9)
         transcript3 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans3', cell=cell, gene=gene1, exons=[locus3], type=wc_kb.eukaryote.TranscriptType.rRna)
+
+        locus4 = wc_kb.eukaryote.GenericLocus(start=10, end=15)
+        transcript4 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans4', cell=cell, gene=gene1, exons=[locus4], type=wc_kb.eukaryote.TranscriptType.mRna)
+        transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=cytoplasm)
+        transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=10.)
+        prot4 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot4', name='protein4', transcript=transcript4, coding_regions=[locus4])
+        prot4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot4, 
+            value='10000.0', value_type=wc_ontology['WC:float'])
         
         locusM = wc_kb.eukaryote.GenericLocus(start=8, end=16)
         transcriptM = wc_kb.eukaryote.TranscriptSpeciesType(id='transM', cell=cell, gene=geneM, exons=[locusM], type=wc_kb.eukaryote.TranscriptType.mRna)
@@ -101,7 +109,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 })
             assert error is None, str(error)
 
-        transcripts = {'trans1': ('c', [5, 15]), 'trans2': ('c', [5, 15]), 'transM': ('m', [3, 9])}
+        transcripts = {'trans1': ('c', [5, 15]), 'trans2': ('c', [5, 15]), 'trans4': ('c', [5, 15]), 'transM': ('m', [3, 9])}
         for Id, details in transcripts.items():
             model_species_type = model.species_types.create(id=Id)
             model_compartment = model.compartments.get_one(id=details[0])
@@ -118,7 +126,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 mean=details[1][1], units=unit_registry.parse_units('molecule'))
             site_conc.id = site_conc.gen_id()            
 
-        proteins = {'prot1': ['n', 'c', 'x', 'r', 'm', 'c_m'], 'prot2': ['c'], 'protM': ['m']}
+        proteins = {'prot1': ['n', 'c', 'x', 'r', 'm', 'c_m'], 'prot2': ['c'], 'prot4': ['c'], 'protM': ['m']}
         for k, v in proteins.items():
             kb_protein = cell.species_types.get_one(id=k)
             model_species_type = model.species_types.create(id=kb_protein.id, name=kb_protein.name, type=wc_ontology['WC:protein'])
@@ -199,7 +207,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'D': 'Asp',
                 },
             'cds': False,
-            'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'transM': 0.4},
+            'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'transM': 0.4},
             })
         gen.run()
 
@@ -244,7 +252,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='translocation_protM_m_to_m'), None)
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 11)
+        self.assertEqual(len(model.rate_laws), 13)
         self.assertEqual(len(model.observables), 2)
         self.assertEqual(len(model.functions), 30) # 6 volume + 8 trna + 8 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
@@ -282,6 +290,13 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'trna_function_AUG_c * '
             'aminoacid_function_Met_c * ' 
             '2**3')
+        self.assertEqual(model.rate_laws.get_one(id='translation_initiation_trans4-forward').expression.expression,
+            'trans4_ribosome_binding_constant * comp_1[c] * '
+            'max(min(trans4_ribosome_binding_site[c] , max_bool_substance) , min_bool_substance) * '
+            'translation_init_factor_function_c_1 * '
+            'trna_function_GAU_c * '
+            'aminoacid_function_Asp_c * ' 
+            '2**3')
         self.assertEqual(model.rate_laws.get_one(id='translation_initiation_transM-forward').expression.expression,
             'transM_ribosome_binding_constant * comp_1[m] * '
             'max(min(transM_ribosome_binding_site[m] , max_bool_substance) , min_bool_substance) * '
@@ -295,12 +310,20 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'k_cat_translation_elongation_trans1 * ribo_bound_trans1[c] * '
             'translation_el_factor_function_c_1 * '
             'trna_function_GCG_c * '
-            'aminoacid_function_Ala_c * '
             'trna_function_UGC_c * '
+            'aminoacid_function_Ala_c * '            
             'aminoacid_function_Cys_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans1_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_trans1_atp * Avogadro * volume_c)) * '
             '2**7')
+        self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans4-forward').expression.expression,
+            'k_cat_translation_elongation_trans4 * ribo_bound_trans4[c] * '
+            'translation_el_factor_function_c_1 * '
+            'trna_function_GAU_c * '
+            'aminoacid_function_Asp_c * '
+            '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans4_gtp * Avogadro * volume_c)) * '
+            '(atp[c] / (atp[c] + K_m_translation_elongation_trans4_atp * Avogadro * volume_c)) * '
+            '2**5')
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_transM-forward').expression.expression,
             'k_cat_translation_elongation_transM * ribo_bound_transM[m] * '
             'translation_el_factor_function_m_1 * '
@@ -377,7 +400,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'D': 'Asp',
                 },
             'cds': False,
-            'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'transM': 0.4},
+            'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'transM': 0.4},
             })
         gen.run()
 
