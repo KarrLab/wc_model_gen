@@ -96,6 +96,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             framework=wc_ontology['WC:stochastic_simulation_algorithm'])
 
         cytosol = model.compartments.get_one(id='c')
+
+        print('Start generating metabolism submodel...')
         
         biomass_rxn = model.reactions.create(
             submodel=submodel,
@@ -358,6 +360,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             obj_expression, {wc_lang.Reaction: {biomass_rxn.id: biomass_rxn}})
         assert error is None, str(error)
         submodel.dfba_obj.expression = dfba_obj_expression
+
+        print('Biomass reaction has been generated and set as the objective function')
 
     def gen_rate_laws(self):
         """ Generate rate laws for carbohydrate and lipid formation reactions. High
