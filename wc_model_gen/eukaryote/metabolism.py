@@ -303,7 +303,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # DNA replication
         chromosomes = cell.species_types.get(__type=wc_kb.core.DnaSpeciesType)
         for chrom in chromosomes:
-            
+            compartment_id = 'm' if 'M' in chrom.id else 'n'
             seq = chrom.get_seq()
             l = len(seq)            
             n_a = seq.upper().count('A')
@@ -328,14 +328,14 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 strand_no = 1    
                             
             dntp_count = {
-                    'datp[n]': n_a * chrom.ploidy,
-                    'dctp[n]': n_c * chrom.ploidy,
-                    'dgtp[n]': n_g * chrom.ploidy,
-                    'dttp[n]': n_t * chrom.ploidy,
+                    'datp[{}]'.format(compartment_id): n_a * chrom.ploidy,
+                    'dctp[{}]'.format(compartment_id): n_c * chrom.ploidy,
+                    'dgtp[{}]'.format(compartment_id): n_g * chrom.ploidy,
+                    'dttp[{}]'.format(compartment_id): n_t * chrom.ploidy,
                     }
             for base, count in dntp_count.items():
                 met_requirement[base] += count
-            met_requirement['ppi[n]'] += -((l-1) * strand_no * chrom.ploidy)
+            met_requirement['ppi[{}]'.format(compartment_id)] += -((l-1) * strand_no * chrom.ploidy)
                            
         # Use whole-cell ATP usage instead if provided
         if self.options['atp_production']:
