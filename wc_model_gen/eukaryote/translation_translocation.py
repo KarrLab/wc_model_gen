@@ -703,7 +703,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
             
-            mrna_seq = mrna_kb.get_seq()
+            mrna_seq = str(mrna_kb.get_seq())
             all_codons = sorted(set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
