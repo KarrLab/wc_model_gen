@@ -640,7 +640,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if start_codon in trna_functions[translation_compartment.id]:
                 matched_trnas = [trna_functions[translation_compartment.id][start_codon]]
             else:                
-                matched_trnas = [i for i in trna_functions[translation_compartment.id] if i['aa']==start_aa_met]
+                matched_trnas = [v for k,v in trna_functions[translation_compartment.id].items() if v['aa']==start_aa_met]
                     
             for codon_info in matched_trnas:
                 expression_terms.append(codon_info['function'].id)
@@ -715,8 +715,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             table=codon_id, cds=cds))
                         if translated_aa in amino_acid_id_conversion:
                             translated_aa_met = amino_acid_id_conversion[translated_aa]
-                            matched_trnas = [j for j in trna_functions[translation_compartment.id] \
-                                if j['aa']==translated_aa_met]
+                            matched_trnas = [v for k,v in trna_functions[translation_compartment.id].items() \
+                                if v['aa']==translated_aa_met]
                         else:
                             matched_trnas = []      
                         
