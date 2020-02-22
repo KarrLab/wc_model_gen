@@ -288,6 +288,18 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Create elongation reaction
             protein_model = model.species_types.get_one(id=mrna_kb.protein.id).species.get_or_create(
                 compartment=translation_compartment)
+            protein_model.id = protein_model.gen_id()
+            
+            if not protein_model.distribution_init_concentration:
+                conc_model = model.distribution_init_concentrations.create(
+                    species=protein_model,
+                    mean=0.,
+                    units=unit_registry.parse_units('molecule'),
+                    comments='Created and set to zero because the protein is translated ' +\
+                        'but not localized in this compartment'
+                    )
+                conc_model.id = conc_model.gen_id()
+            
             el_reaction = model.reactions.get_or_create(
                 submodel=self.submodel, id='translation_elongation_' + mrna_kb.id,
                 name='translation elongation of ' + mrna_kb.name,

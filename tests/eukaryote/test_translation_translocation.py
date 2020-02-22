@@ -134,7 +134,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 mean=details[1][1], units=unit_registry.parse_units('molecule'))
             site_conc.id = site_conc.gen_id()            
 
-        proteins = {'prot1': ['n', 'c', 'x', 'r', 'm', 'c_m'], 'prot2': ['c'], 'prot4': ['c'], 'prot5': ['c'], 'protM': ['m']}
+        proteins = {'prot1': ['n', 'c', 'x', 'r', 'm', 'c_m'], 'prot2': ['c'], 'prot4': ['c'], 'prot5': ['x'], 'protM': ['m']}
         for k, v in proteins.items():
             kb_protein = cell.species_types.get_one(id=k)
             model_species_type = model.species_types.create(id=kb_protein.id, name=kb_protein.name, type=wc_ontology['WC:protein'])
@@ -242,6 +242,9 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -3, 'atp[c]': -2, 'h2o[c]': -5, 'Ala[c]': -1, 'Cys[c]': -1, 
             'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 3})
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans5').participants}, 
+            {'ribo_bound_trans5[c]': -1, 'gtp[c]': -2, 'atp[c]': -1, 'h2o[c]': -3, 'Cys[c]': -1, 
+            'comp_1[c]': 1, 'trans5_ribosome_binding_site[c]': 1, 'prot5[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 2})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
             {'ribo_bound_transM[m]': -1, 'gtp[m]': -3, 'atp[m]': -2, 'h2o[m]': -5, 'Asp[m]': -2, 
             'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 2, 'gdp[m]': 3, 'pi[m]': 7, 'h[m]': 3})
@@ -258,9 +261,11 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_c_m').participants}, 
             {'prot1[c]': -1, 'gtp[r]': -1, 'h2o[r]': -1, 'prot1[c_m]': 1, 'gdp[r]': 1, 'pi[r]': 1, 'h[r]': 1})
         self.assertEqual(model.reactions.get_one(id='translocation_protM_m_to_m'), None)
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot5_c_to_x').participants}, 
+            {'prot5[c]': -1, 'atp[x]': -1, 'h2o[x]': -1, 'prot5[x]': 1, 'adp[x]': 1, 'pi[x]': 1, 'h[x]': 1})
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 15)
+        self.assertEqual(len(model.rate_laws), 16)
         self.assertEqual(len(model.observables), 2)
         self.assertEqual(len(model.functions), 30) # 6 volume + 8 trna + 8 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
@@ -356,6 +361,10 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'translocation_factor_function_m_1 * '
             '(atp[m] / (atp[m] + K_m_translocation_prot1_c_to_m_atp * Avogadro * volume_m)) * '
             '2**2')
+        self.assertEqual(model.rate_laws.get_one(id='translocation_prot5_c_to_x-forward').expression.expression,
+            'k_cat_translocation_prot5_c_to_x * prot5[c] * '
+            '(atp[x] / (atp[x] + K_m_translocation_prot5_c_to_x_atp * Avogadro * volume_x)) * '
+            '2**1')
         self.assertEqual(model.rate_laws.get_one(id='translocation_prot1_c_to_c_m-forward').expression.expression,
             'k_cat_translocation_prot1_c_to_c_m * prot1[c] * '
             'translocation_factor_function_r_1 * '
@@ -370,6 +379,9 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-ribo_bound_transM[m]').mean, 2)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-comp_1[c]').mean, 2)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-comp_1[m]').mean, 3)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot5[c]').mean, 0)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot5[c]').comments, 
+            'Created and set to zero because the protein is translated but not localized in this compartment')
 
         # Initiation
         self.assertEqual(model.parameters.get_one(id='K_m_translation_init_c_comp_2').value, 5/scipy.constants.Avogadro/1E-13)
