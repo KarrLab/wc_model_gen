@@ -964,7 +964,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 __type=wc_kb.core.ComplexSpeciesType) for j in i.subunits if j.species_type==mrna_kb.protein}
 
             total_concentration = sum([i.distribution_init_concentration.mean for i in protein_model.species]) + \
-                sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species])
+                sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species \
+                    if i.distribution_init_concentration])
             half_life = mrna_kb.protein.properties.get_one(property='half-life').get_value()
 
             average_rate = utils.calc_avg_syn_rate(
@@ -1065,12 +1066,13 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 conc_per_comp[protein.compartment] = protein.distribution_init_concentration.mean
             for cplx_st, stoic in complex_model_stoic.items():
                 for cplx_species in cplx_st.species:
-                    if cplx_species.compartment in conc_per_comp:
-                        conc_per_comp[cplx_species.compartment] += stoic * \
-                            cplx_species.distribution_init_concentration.mean
-                    else:        
-                        conc_per_comp[cplx_species.compartment] = stoic * \
-                            cplx_species.distribution_init_concentration.mean
+                    if cplx_species.distribution_init_concentration:
+                        if cplx_species.compartment in conc_per_comp:
+                            conc_per_comp[cplx_species.compartment] += stoic * \
+                                cplx_species.distribution_init_concentration.mean
+                        else:        
+                            conc_per_comp[cplx_species.compartment] = stoic * \
+                                cplx_species.distribution_init_concentration.mean
             
             translation_compartment = cytosol if mrna_kb_compartment_id == 'c' else mitochondrion
 
