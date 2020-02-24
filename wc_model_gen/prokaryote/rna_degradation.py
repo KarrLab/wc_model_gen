@@ -91,8 +91,7 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
                 model, reaction, modifiers=[modifier])
-            model.parameters += parameters
-
+            
             rate_law = model.rate_laws.create(direction=wc_lang.RateLawDirection.forward,
                                               type=None,
                                               expression=rate_law_exp,

@@ -206,8 +206,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             rate_law_exp, parameters = utils.gen_michaelis_menten_like_rate_law(
                 self.model, reaction, modifiers=[modifier], modifier_reactants=modifier_reactants,
                 exclude_substrates=[h2o_species])
-            self.model.parameters += parameters
-
+            
             rate_law = self.model.rate_laws.create(
                 direction=wc_lang.RateLawDirection.forward,
                 type=None,
