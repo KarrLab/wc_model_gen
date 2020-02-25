@@ -354,6 +354,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_species.species_coefficients.get_or_create(coefficient=amount))
 
         # Add biomass reaction as objective function
+        submodel.dfba_obj = None
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
         submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
         obj_expression = biomass_rxn.id
