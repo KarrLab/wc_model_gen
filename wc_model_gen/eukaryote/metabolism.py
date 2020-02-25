@@ -261,7 +261,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 complex_model_stoic = {model.species_types.get_one(id=i.id):j.coefficient for i in cell.species_types.get(
                     __type=wc_kb.core.ComplexSpeciesType) for j in i.subunits if j.species_type==rna_kb.protein}
                 total_concentration = sum([i.distribution_init_concentration.mean for i in protein_model.species]) + \
-                    sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species])
+                    sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species \
+                        if i.distribution_init_concentration])
             
                 if model.submodels.get_one(id='translation_translocation'):
                     # Translation initiation
