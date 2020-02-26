@@ -374,8 +374,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
         beta = self.options['beta']        
 
-        # Rate law for carbohydrate formation
+        # Rate laws for carbohydrate and lipid formation
         for reaction in model.submodels.get_one(id='macromolecular_formation').reactions:
+            for reactant in reaction.get_reactants():
+                if not reactant.distribution_init_concentration:
+                    conc_model = model.distribution_init_concentrations.create(
+                        species=reactant,
+                        mean=0.,
+                        units=unit_registry.parse_units('molecule'),
+                        comments='Set to zero assuming there is no free pool concentration')
+                    conc_model.id = conc_model.gen_id()
             substrates = [[i.species_type.id] for i in reaction.get_reactants()]
             expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
                 model, beta, reaction.id, 'macromolecular', cytosol, substrates)
