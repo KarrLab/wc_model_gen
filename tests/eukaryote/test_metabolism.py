@@ -241,15 +241,17 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
         conc_model.id = conc_model.gen_id()
 
-        structure_info = {'g6p': ('C6H13O9P', 200., 1, 15.), 'chsterol': ('C27H46O4S', 350., 0, 17.), 'pail_hs': ('C41H78O13P', 500., -1, 0.)}
+        structure_info = {'g6p': ('C6H13O9P', 200., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1)}
         for k, v in structure_info.items():
             model_species_type = model.species_types.get_one(id=k)
             model_species_type.structure = wc_lang.ChemicalStructure()
             model_species_type.structure.empirical_formula = v[0]
             model_species_type.structure.molecular_weight = v[1]
             model_species_type.structure.charge = v[2]
-            conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='{}[c]'.format(k)), mean=v[3])
-            conc_model.id = conc_model.gen_id()        
+        conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='g6p[c]'), mean=15.)
+        conc_model.id = conc_model.gen_id()
+        conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pail_hs[c]'), mean=0.)
+        conc_model.id = conc_model.gen_id()        
 	            
         others = ['polr2', 'ribosome', 'polr_bound_non_specific_species', 
             'polr_binding_site_species', 'polr_bound_species', 'polr_non_specific_binding_site_species', 
@@ -503,7 +505,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_carbohydrate_formation_g6p').value, 15/scipy.constants.Avogadro/0.5)
         self.assertEqual(model.parameters.get_one(id='K_m_carbohydrate_formation_g6p').comments, 
             'The value was assumed to be 1.0 times the concentration of g6p in cytosol')
-        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_chsterol').value, 17/scipy.constants.Avogadro/0.5)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_chsterol').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_chsterol').comments, 
+            'The value was assigned to 1e-05 because the concentration of chsterol in cytosol was zero')
+        self.assertEqual(model.species.get_one(id='chsterol[c]').distribution_init_concentration.mean, 0.)
+        self.assertEqual(model.species.get_one(id='chsterol[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.species.get_one(id='chsterol[c]').distribution_init_concentration.comments, 
+            'Set to zero assuming there is no free pool concentration')
         self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').value, 1e-05)
         self.assertEqual(model.parameters.get_one(id='K_m_lipid_formation_pail_hs').comments, 
             'The value was assigned to 1e-05 because the concentration of pail_hs in cytosol was zero')

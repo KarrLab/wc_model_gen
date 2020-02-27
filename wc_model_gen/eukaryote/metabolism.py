@@ -261,7 +261,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 complex_model_stoic = {model.species_types.get_one(id=i.id):j.coefficient for i in cell.species_types.get(
                     __type=wc_kb.core.ComplexSpeciesType) for j in i.subunits if j.species_type==rna_kb.protein}
                 total_concentration = sum([i.distribution_init_concentration.mean for i in protein_model.species]) + \
-                    sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species])
+                    sum([i.distribution_init_concentration.mean*v for k,v in complex_model_stoic.items() for i in k.species \
+                        if i.distribution_init_concentration])
             
                 if model.submodels.get_one(id='translation_translocation'):
                     # Translation initiation
@@ -353,6 +354,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_species.species_coefficients.get_or_create(coefficient=amount))
 
         # Add biomass reaction as objective function
+        submodel.dfba_obj = None
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
         submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
         obj_expression = biomass_rxn.id
@@ -372,8 +374,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
         beta = self.options['beta']        
 
-        # Rate law for carbohydrate formation
+        # Rate laws for carbohydrate and lipid formation
         for reaction in model.submodels.get_one(id='macromolecular_formation').reactions:
+            for reactant in reaction.get_reactants():
+                if not reactant.distribution_init_concentration:
+                    conc_model = model.distribution_init_concentrations.create(
+                        species=reactant,
+                        mean=0.,
+                        units=unit_registry.parse_units('molecule'),
+                        comments='Set to zero assuming there is no free pool concentration')
+                    conc_model.id = conc_model.gen_id()
             substrates = [[i.species_type.id] for i in reaction.get_reactants()]
             expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
                 model, beta, reaction.id, 'macromolecular', cytosol, substrates)

@@ -129,7 +129,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         coefficient=aa_count))        
 
                 h2o = model.species_types.get_one(id='h2o').species.get_or_create(
-                    compartment=degradation_comp)
+                    model=model, compartment=degradation_comp)
                 h2o.id = h2o.gen_id()
                 model_rxn.participants.add(
                     h2o.species_coefficients.get_or_create(
