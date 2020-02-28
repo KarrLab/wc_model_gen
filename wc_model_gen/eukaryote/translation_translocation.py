@@ -444,7 +444,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             type=None,
             value=0,
             units=unit_registry.parse_units('molecule'),
-            comments='Boolean switch for determining if gene binding site is still available'
+            comments='Boolean switch for determining if binding site is still available'
             )      
 
         # Generate response function for the tRNA(s) of each codon and for each amino acid

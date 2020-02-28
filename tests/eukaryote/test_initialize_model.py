@@ -639,7 +639,6 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='r1_kb').name, 'reaction1')
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.id, 'metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.framework, wc_ontology['WC:dynamic_flux_balance_analysis'])
-        self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.dfba_obj.id, 'dfba-obj-metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
         self.assertEqual(model.reactions.get_one(id='r6_kb'), None)

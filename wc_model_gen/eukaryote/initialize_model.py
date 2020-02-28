@@ -733,15 +733,6 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                             model_rxn.participants.add(
                                 proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
 
-        # Temporary code to be moved to metabolism model gen later
-        submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
-        submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
-        obj_expression = model_rxn.id
-        dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
-            obj_expression, {wc_lang.Reaction: {model_rxn.id: model_rxn}})
-        assert error is None, str(error)
-        submodel.dfba_obj.expression = dfba_obj_expression                    
-
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
         kb = self.knowledge_base
