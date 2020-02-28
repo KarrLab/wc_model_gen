@@ -54,6 +54,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         default is True                    
     * gen_observables (:obj:`bool`): if True, observables will be generated; default is True    
     * gen_kb_reactions (:obj:`bool`): if True, reactions will be generated; default is True
+    * gen_dfba_objective (:obj:`bool`): if True, a dfba objective function will be created; default is False 
     * gen_kb_rate_laws (:obj:`bool`): if True, rate laws will be generated; default is True
     * gen_environment (:obj:`bool`): if True, cell environment will be generated; default is True    
     """
@@ -183,6 +184,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         gen_kb_reactions = options.get('gen_kb_reactions', True)
         assert(isinstance(gen_kb_reactions, bool))
         options['gen_kb_reactions'] = gen_kb_reactions
+
+        gen_dfba_objective = options.get('gen_dfba_objective', False)
+        assert(isinstance(gen_dfba_objective, bool))
+        options['gen_dfba_objective'] = gen_dfba_objective
 
         gen_kb_rate_laws = options.get('gen_kb_rate_laws', True)
         assert(isinstance(gen_kb_rate_laws, bool))
@@ -732,6 +737,16 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                             proton_species.id = proton_species.gen_id()
                             model_rxn.participants.add(
                                 proton_species.species_coefficients.get_or_create(coefficient=-delta_charge))
+
+        # For testing purpose
+        if self.options['gen_dfba_objective']:
+            submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
+            submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
+            obj_expression = model_rxn.id
+            dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
+                obj_expression, {wc_lang.Reaction: {model_rxn.id: model_rxn}})
+            assert error is None, str(error)
+            submodel.dfba_obj.expression = dfba_obj_expression            
 
     def gen_kb_rate_laws(self):
         """ Generate the rate laws for reactions encoded in the knowledge base """
