@@ -216,7 +216,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                     conc_model = model.distribution_init_concentrations.create(species=model_species, mean=2.)
                     conc_model.id = conc_model.gen_id()
 		            
-        compartment_list = {'n': 'nucleus', 'm': 'mitochondria', 'c': 'cytosol', 'l': 'lysosome'}
+        compartment_list = {'n': 'nucleus', 'm': 'mitochondria', 'c': 'cytosol', 'l': 'lysosome', 'e': 'extracellular'}
         for i,v in compartment_list.items():
             c = model.compartments.get_or_create(id=i)
             c.name = v
@@ -234,11 +234,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
-            for j in ['n', 'm', 'c', 'l']:
+            for j in ['n', 'm', 'c', 'l', 'e']:
                 model_compartment = model.compartments.get_one(id=j)                
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
+        conc_model.id = conc_model.gen_id()
+        conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='g6p[e]'), mean=25.)
         conc_model.id = conc_model.gen_id()
 
         structure_info = {'g6p': ('C6H13O9P', 200., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1)}

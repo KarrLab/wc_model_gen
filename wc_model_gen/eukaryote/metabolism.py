@@ -108,7 +108,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Add metabolites in the free pool to the RHS of biomass reaction
         for conc in model.distribution_init_concentrations:
-            if conc.species.species_type.type == wc_ontology['WC:metabolite']: 
+            if conc.species.species_type.type == wc_ontology['WC:metabolite'] and \
+                conc.species.compartment.id!='e': 
                 biomass_rxn.participants.add(
                     conc.species.species_coefficients.get_or_create(coefficient=conc.mean))
         
