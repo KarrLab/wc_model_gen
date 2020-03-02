@@ -448,24 +448,27 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 max_constr = media_fluxes[reaction.id][1]*scale_factor            
             # Set the bounds of reactions with measured kinetic constants
             elif reaction.rate_laws:
-
-                if not any(numpy.isnan(p.value) for p in reaction.rate_laws[0].expression.parameters):                    
-                    max_constr = reaction.rate_laws[0].expression._parsed_expression.eval({
-                                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-                                        for i in reaction.rate_laws[0].expression.species}
-                                    }) * scale_factor                    
-                    upper_bound_adjustable.append(reaction.id)
-                elif all(i.distribution_init_concentration.mean==0. \
-                    for i in reaction.rate_laws[0].expression.species):                	
+                
+                for_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.forward)
+                if all(i.distribution_init_concentration.mean==0. for i in for_ratelaw.expression.species):                   
                     max_constr = 0.                
+                elif not any(numpy.isnan(p.value) for p in for_ratelaw.expression.parameters):                    
+                    max_constr = for_ratelaw.expression._parsed_expression.eval({
+                                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                        for i in for_ratelaw.expression.species}
+                                    }) * scale_factor                    
+                    upper_bound_adjustable.append(reaction.id)                                
                 else:
                     max_constr = None
                 
-                if len(reaction.rate_laws) > 1:
-                    if not any(numpy.isnan(p.value) for p in reaction.rate_laws[1].expression.parameters):
-                        min_constr = -reaction.rate_laws[1].expression._parsed_expression.eval({
+                rev_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.backward)
+                if rev_ratelaw:
+                    if all(i.distribution_init_concentration.mean==0. for i in rev_ratelaw.expression.species):                   
+                        min_constr = 0.
+                    elif not any(numpy.isnan(p.value) for p in rev_ratelaw.expression.parameters):
+                        min_constr = -rev_ratelaw.expression._parsed_expression.eval({
                                         wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-                                            for i in reaction.rate_laws[1].expression.species}
+                                            for i in rev_ratelaw.expression.species}
                                         }) * scale_factor
                         lower_bound_adjustable.append(reaction.id)					                	  
                     else:
@@ -535,7 +538,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             })
         result = conv_model.solve()
         growth = result.value/scale_factor*coef_scale_factor
-        
+        print(growth)
+        print(lower_bound_adjustable)
+        print(upper_bound_adjustable)
         # Relax bounds if necessary
         if growth < measured_growth:
             target = {'biomass_reaction': measured_growth}
