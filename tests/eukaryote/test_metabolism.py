@@ -690,8 +690,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen.options['exchange_reactions'] = ['ex_m1', 'ex_m2', 'ex_m3']
         gen.calibrate_submodel()
 
-        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward_enzyme3').value, 300.) 
-        self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward_enzyme3').comments, 'Measured value adjusted to relax bound')
+        self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').value, 500.) 
+        self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').comments, 'Measured value adjusted to relax bound')
         self.assertEqual(model.parameters.get_one(id='k_cat_r4_forward_enzyme1').value, 600.) 
         self.assertEqual(model.parameters.get_one(id='k_cat_r4_forward_enzyme1').comments, '')
 

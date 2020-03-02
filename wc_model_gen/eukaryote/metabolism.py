@@ -538,9 +538,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             })
         result = conv_model.solve()
         growth = result.value/scale_factor*coef_scale_factor
-        print(growth)
-        print(lower_bound_adjustable)
-        print(upper_bound_adjustable)
+
         # Relax bounds if necessary
         if growth < measured_growth:
             target = {'biomass_reaction': measured_growth}
@@ -549,7 +547,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
             for reaction_id, adjustment in upper.items():
                 conv_variables[reaction_id].upper_bound += adjustment*scale_factor
-        
+
         # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
         flux_range = self.flux_variability_analysis(conv_model)
         self.impute_kinetic_constant(flux_range)
@@ -576,6 +574,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         conv_model = conv_opt.Model(name='temporary_model')
 
+        alpha_lower = {}
+        alpha_upper = {}
         conv_fluxes = {}
         conv_alpha = {}
         conv_metabolite_matrices = collections.defaultdict(list)
@@ -585,56 +585,47 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             min_constr = self._reaction_bounds[reaction.id][0]
             max_constr = self._reaction_bounds[reaction.id][1]            
             
-            if reaction.id in adjusted:                                                    
+            if reaction.id in adjusted:
+                
+                conv_alpha['alpha_' + reaction.id] = conv_opt.Variable(name='alpha_'+reaction.id, 
+                                                        type=conv_opt.VariableType.continuous,
+                                                        lower_bound=0.0)
+                conv_model.variables.append(conv_alpha['alpha_' + reaction.id])
+
                 if reaction.id in lower_bound_adjustable and reaction.id in upper_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(
-                                                name=reaction.id, type=conv_opt.VariableType.continuous)
-                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
-                                                        type=conv_opt.VariableType.continuous,
-                                                        lower_bound=0.0)
+                                                name=reaction.id, type=conv_opt.VariableType.continuous)                    
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
-                                                    conv_opt.LinearTerm(conv_alpha['alpha_upper_'+reaction.id], -1)], 
+                                                    conv_opt.LinearTerm(conv_alpha['alpha_'+reaction.id], -1)], 
                                                     name=reaction.id+'_max', 
                                                     upper_bound=max_constr))                    
-                    conv_model.variables.append(conv_alpha['alpha_upper_' + reaction.id])
-                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
-                                                        type=conv_opt.VariableType.continuous,
-                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
-                                                    conv_opt.LinearTerm(conv_alpha['alpha_lower_'+reaction.id], 1)], 
+                                                    conv_opt.LinearTerm(conv_alpha['alpha_'+reaction.id], 1)], 
                                                     name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))                    
-                    conv_model.variables.append(conv_alpha['alpha_lower_' + reaction.id])                                                                      
+                                                    lower_bound=min_constr))
+                    alpha_lower[reaction.id] = 0.
+                    alpha_upper[reaction.id] = 0.                                         
+                                                                                          
                 elif reaction.id in lower_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, 
                     											type=conv_opt.VariableType.continuous,
                                                                 upper_bound=max_constr)
-                    conv_alpha['alpha_lower_' + reaction.id] = conv_opt.Variable(name='alpha_lower_'+reaction.id, 
-                                                        type=conv_opt.VariableType.continuous,
-                                                        lower_bound=0.0)
-                    conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1)], 
-                                                    name=reaction.id+'_max', 
-                                                    upper_bound=max_constr))
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1),
-                                                    conv_opt.LinearTerm(conv_alpha['alpha_lower_' + reaction.id], 1)], 
+                                                    conv_opt.LinearTerm(conv_alpha['alpha_' + reaction.id], 1)], 
                                                     name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))                    
-                    conv_model.variables.append(conv_alpha['alpha_lower_' + reaction.id])                                                                        
+                                                    lower_bound=min_constr))
+                    alpha_lower[reaction.id] = 0.                                                    
+                                         
                 elif reaction.id in upper_bound_adjustable:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, 
                     	 										type=conv_opt.VariableType.continuous,
                                                                 lower_bound=min_constr)
-                    conv_alpha['alpha_upper_' + reaction.id] = conv_opt.Variable(name='alpha_upper_'+reaction.id, 
-                                                        type=conv_opt.VariableType.continuous,
-                                                        lower_bound=0.0)
                     conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1), 
-                                                    conv_opt.LinearTerm(conv_alpha['alpha_upper_' + reaction.id], -1)], 
+                                                    conv_opt.LinearTerm(conv_alpha['alpha_' + reaction.id], -1)], 
                                                     name=reaction.id+'_max', 
                                                     upper_bound=max_constr))
-                    conv_model.constraints.append(conv_opt.Constraint([conv_opt.LinearTerm(conv_fluxes[reaction.id], 1)], 
-                                                    name=reaction.id+'_min', 
-                                                    lower_bound=min_constr))                    
-                    conv_model.variables.append(conv_alpha['alpha_upper_' + reaction.id])                                                  
+                    alpha_upper[reaction.id] = 0.                                                    
+                                                            
                 else:
                     conv_fluxes[reaction.id] = conv_opt.Variable(name=reaction.id, type=conv_opt.VariableType.continuous,
                                                                 lower_bound=min_constr, upper_bound=max_constr)
@@ -696,13 +687,14 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             })
         result = conv_model.solve()
 
-        alpha_lower = {}
-        alpha_upper = {}
         for i, v in enumerate(conv_model.variables):
-            if v.name[:12] == 'alpha_lower_' and v.primal != 0.0:
-                alpha_lower[v.name[12:]] = v.primal / scale_factor
-            elif v.name[:12] == 'alpha_upper_' and v.primal != 0.0:
-                alpha_upper[v.name[12:]] = v.primal / scale_factor    
+            if v.name[:6] == 'alpha_' and v.primal:
+                if v.name[6:] in alpha_lower:
+                    alpha_lower[v.name[6:]] = v.primal / scale_factor
+                if v.name[6:] in alpha_upper:
+                    alpha_upper[v.name[6:]] = v.primal / scale_factor
+        alpha_lower = {k:v for k,v in alpha_lower.items() if v}
+        alpha_upper = {k:v for k,v in alpha_upper.items() if v}                
 
         return alpha_lower, alpha_upper
 
