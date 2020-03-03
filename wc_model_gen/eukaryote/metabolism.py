@@ -823,9 +823,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 elif not any(numpy.isnan(kcat.value) for kcat in law.expression.parameters):
                     effective_vmax = 0
                     for comp in complexes:
-                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]
+                        kcat = [p for p in law.expression.parameters if comp.species_type.id in p.id][0]
                         effective_vmax += kcat.value*comp.distribution_init_concentration.mean
-                    if (value - effective_vmax)/value > 0.01:
+                    if effective_vmax and (value - effective_vmax)/value > 0.01:
                         for kcat in law.expression.parameters:                                                     
                             kcat.value = kcat.value*value/effective_vmax
                             kcat.comments = 'Measured value adjusted to relax bound'
@@ -835,7 +835,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     if len(expressed_comp) > 0:
                         shared_vmax = value/len(expressed_comp)
                     for comp in complexes:
-                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]  
+                        kcat = [p for p in law.expression.parameters if comp.species_type.id in p.id][0]  
                         if comp.distribution_init_concentration.mean!=0.0:
                             kcat.value = shared_vmax/comp.distribution_init_concentration.mean                                    
                             kcat.comments = 'Value imputed based on FVA bound value' 
@@ -846,7 +846,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     known_vmax = 0
                     comp_kcat = {}
                     for comp in complexes:
-                        kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]                    	
+                        kcat = [p for p in law.expression.parameters if comp.species_type.id in p.id][0]                    	
                         if not numpy.isnan(kcat.value):
                             known_vmax += kcat.value*comp.distribution_init_concentration.mean
                         else:
@@ -869,7 +869,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             kcat.comments = 'Value imputed as the median of measured k_cat values'
             else:
                 for comp in complexes:
-                    kcat = [p for p in law.expression.parameters if p.id.split('_')[-1]==comp.species_type.id][0]        
+                    kcat = [p for p in law.expression.parameters if comp.species_type.id in p.id][0]        
                     if numpy.isnan(kcat.value):
                         kcat.value = median_kcat
                         kcat.comments = 'Value imputed as the median of measured k_cat values'
