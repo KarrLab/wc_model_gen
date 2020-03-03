@@ -27,6 +27,62 @@ class TestCase(unittest.TestCase):
         test_rate = utils.calc_avg_deg_rate(0.5, 300.)
         self.assertAlmostEqual(test_rate, 0.0011552453009332421, places=16)
 
+    def test_test_metabolite_production(self):
+
+        model = wc_lang.Model()
+        submodel = wc_lang.Submodel(model=model, id='metabolism')
+        compartment = model.compartments.create(id='c')
+
+        for i in ['o2', 'h2o', 'atp']:
+            st = model.species_types.create(id=i)
+            species = model.species.create(species_type=st, compartment=compartment)
+            species.id = species.gen_id()
+
+        R1 = model.reactions.create(submodel=submodel, id='Ex_o2')
+        R1.participants.add(model.species.get_one(
+            id='o2[c]').species_coefficients.get_or_create(coefficient=1.0))
+
+        R2 = model.reactions.create(submodel=submodel, id='Ex_h2o')
+        R2.participants.add(model.species.get_one(
+            id='h2o[c]').species_coefficients.get_or_create(coefficient=1.0))
+
+        R3 = model.reactions.create(submodel=submodel, id='Ex_atp')
+        R3.participants.add(model.species.get_one(
+            id='atp[c]').species_coefficients.get_or_create(coefficient=-1.0))
+
+        biomass_reaction = model.reactions.create(submodel=submodel, id='biomass_reaction')
+        biomass_reaction.participants.add(model.species.get_one(
+            id='o2[c]').species_coefficients.get_or_create(coefficient=-1.0))
+        biomass_reaction.participants.add(model.species.get_one(
+            id='h2o[c]').species_coefficients.get_or_create(coefficient=-1.0))
+        biomass_reaction.participants.add(model.species.get_one(
+            id='atp[c]').species_coefficients.get_or_create(coefficient=1.0))
+        
+        submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
+        submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
+        obj_expression = biomass_reaction.id
+        dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
+            obj_expression, {wc_lang.Reaction: {biomass_reaction.id: biomass_reaction}})
+        assert error is None, str(error)
+        submodel.dfba_obj.expression = dfba_obj_expression
+
+        reaction_bounds = {i.id:(0., None) for i in model.reactions}
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, ['biomass_reaction'])
+
+        self.assertEqual(unproducibles, [])
+        self.assertEqual(unrecyclables, [])
+
+        mock1 = model.species.create(id='mock1')
+        mock2 = model.species.create(id='mock2')
+        biomass_reaction.participants.add(mock1.species_coefficients.get_or_create(coefficient=1.0))
+        biomass_reaction.participants.add(mock2.species_coefficients.get_or_create(coefficient=-1.0))
+            
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, ['biomass_reaction'])
+
+        self.assertEqual(unproducibles, ['mock1'])
+        self.assertEqual(unrecyclables, ['mock2'])
+
+
     def test_simple_repressor(self):
         model = wc_lang.Model()
 
