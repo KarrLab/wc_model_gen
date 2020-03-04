@@ -64,6 +64,10 @@ class TestCase(unittest.TestCase):
         prot3_spec1 = wc_kb.core.Species(species_type=prot3, compartment=nucleus)
         prot3_spec2 = wc_kb.core.Species(species_type=prot3, compartment=mito)
         prot3_spec3 = wc_kb.core.Species(species_type=prot3, compartment=membrane)
+
+        met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
+        for i in cell.compartments:
+            met1_species = wc_kb.core.Species(species_type=met1, compartment=i)
         
         complex1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_1', subunits=[
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=1),
@@ -73,6 +77,7 @@ class TestCase(unittest.TestCase):
 
         complex2 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_2', subunits=[
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot3, coefficient=2),
+            wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=2),
             ])            
 
         # Create initial model content
@@ -110,14 +115,19 @@ class TestCase(unittest.TestCase):
         model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model_species, 
             mean=20, units=unit_registry.parse_units('molecule'))
-        conc_model.id = conc_model.gen_id()
-
+        conc_model.id = conc_model.gen_id()        
+        
         model_membrane = model.compartments.get_one(id='c_m')
         model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_membrane)
         model_species.id = model_species.gen_id()
         conc_model = model.distribution_init_concentrations.create(species=model_species, 
             mean=20, units=unit_registry.parse_units('molecule'))
         conc_model.id = conc_model.gen_id()
+
+        model_species_type = model.species_types.get_or_create(id='met1', name='metabolite1', type=wc_ontology['WC:metabolite'])
+        for compartment in model.compartments:
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=compartment)
+            model_species.id = model_species.gen_id()
 
         for compl in [complex1, complex2]:
             model_species_type = model.species_types.create(id=compl.id, type=wc_ontology['WC:pseudo_species'])
@@ -199,15 +209,15 @@ class TestCase(unittest.TestCase):
         self.assertEqual(complex2_assembly.reversible, False)
         self.assertEqual(complex2_assembly.comments, '')
         self.assertEqual([(i.species.id, i.coefficient) for i in complex2_assembly.participants],
-            [('prot3[m]', -2), ('complex_2[m]', 1)])
+            [('prot3[m]', -2), ('met1[m]', -2), ('complex_2[m]', 1)])
 
         c2_dissociate_prot3_m = model.reactions.get_one(id='complex_2_dissociation_in_m_degrade_prot3')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3_m.participants]),
-            sorted([('complex_2[m]', -1), ('h2o[m]', -1), ('Asp[m]', 2),  ('prot3[m]', 1)]))
+            sorted([('complex_2[m]', -1), ('h2o[m]', -1), ('Asp[m]', 2),  ('prot3[m]', 1), ('met1[m]', 2)]))
 
         c2_dissociate_prot3_c_m = model.reactions.get_one(id='complex_2_dissociation_in_c_m_degrade_prot3')
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3_c_m.participants]),
-            sorted([('complex_2[c_m]', -1), ('h2o[l]', -1), ('Asp[l]', 2),  ('prot3[c_m]', 1)]))
+            sorted([('complex_2[c_m]', -1), ('h2o[l]', -1), ('Asp[l]', 2),  ('prot3[c_m]', 1), ('met1[c_m]', 2)]))
 
         # Test gen_rate_laws
         self.assertEqual(complex1_assembly.rate_laws[0].expression.expression, 
@@ -228,7 +238,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').comments, 
-            'The value was assumed to be 1.0 times the concentration of prot3 in nucleus')
+            'The value was assumed to be 1.0 times the concentration of prot3 in nucleus')        
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, 2e06)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').comments, 
             'The rate constant for bimolecular protein-protein association was used '
@@ -267,6 +277,9 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot2').value, 1e-05)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot2').comments, 
             'The value was assigned to 1e-05 because the concentration of prot2 in nucleus was zero')
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_2_association_in_m_met1').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_2_association_in_m_met1').comments, 
+            'The value was assigned to 1e-05 because the concentration of met1 in mitochondria was not known')
 
     def test_global_vars(self):
         gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'A', 'start_codon': 'GCG'}}

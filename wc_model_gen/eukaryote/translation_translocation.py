@@ -1119,16 +1119,31 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     model_kcat.value = 0.            
             
         median_init_kcat = numpy.median(determined_init_kcat)
-        for model_kcat in undetermined_init_kcat:
-            model_kcat.value = median_init_kcat
-            model_kcat.comments = 'Set to the median value because it could not be determined from data'          
+        if not numpy.isnan(median_init_kcat): 
+            for model_kcat in undetermined_init_kcat:
+                model_kcat.value = median_init_kcat
+                model_kcat.comments = 'Set to the median value because it could not be determined from data'
+        else:
+            for model_kcat in undetermined_init_kcat:
+                model_kcat.value = 1.
+                model_kcat.comments = 'Set to 1 because it could not be determined from median value'                 
 
         median_el_kcat = numpy.median(determined_el_kcat)
-        for model_kcat in undetermined_el_kcat:
-            model_kcat.value = median_el_kcat
-            model_kcat.comments = 'Set to the median value because it could not be determined from data'
+        if not numpy.isnan(median_el_kcat):
+            for model_kcat in undetermined_el_kcat:
+                model_kcat.value = median_el_kcat
+                model_kcat.comments = 'Set to the median value because it could not be determined from data'
+        else:
+            for model_kcat in undetermined_el_kcat:
+                model_kcat.value = 1.
+                model_kcat.comments = 'Set to 1 because it could not be determined from median value'       
 
         median_transloc_kcat = numpy.median(determined_transloc_kcat)
-        for model_kcat in undetermined_transloc_kcat:
-            model_kcat.value = median_transloc_kcat
-            model_kcat.comments = 'Set to the median value because it could not be determined from data'
+        if not numpy.isnan(median_transloc_kcat):
+            for model_kcat in undetermined_transloc_kcat:
+                model_kcat.value = median_transloc_kcat
+                model_kcat.comments = 'Set to the median value because it could not be determined from data'
+        else:
+            for model_kcat in undetermined_transloc_kcat:
+                model_kcat.value = 1.
+                model_kcat.comments = 'Set to 1 because it could not be determined from median value'

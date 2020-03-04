@@ -310,7 +310,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             else:
                                 param.value = 1e-05
                                 param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was zero'.format(
-                                    species.species_type.id, compl_compartment.name)        
+                                    species.species_type.id, compl_compartment.name)
+                        else:
+                            param.value = 1e-05
+                            param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was not known'.format(
+                                    species.species_type.id, compl_compartment.name)                    
                     elif 'k_cat_' in param.id:
                         param.value = 2e06
                         param.comments = 'The rate constant for bimolecular protein-protein association was used '\
