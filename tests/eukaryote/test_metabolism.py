@@ -752,11 +752,16 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         
         model = self.model
         gen = self.gen
-        gen.clean_and_validate_options()
+        gen.clean_and_validate_options()        
 
         bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
         gen.impute_kinetic_constant(bound_values)
 
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-forward')], 1)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-backward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-forward')], 3)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-backward')], 2)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r3-forward')], 3)
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward_enzyme3').value, 150.) 
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_forward_enzyme3').comments, 'Value imputed as the median of measured k_cat values')
         self.assertEqual(model.parameters.get_one(id='k_cat_r1_backward_enzyme3').value, 150.) 
@@ -771,3 +776,22 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_r2_backward_enzyme2').comments, 'Value imputed based on FVA bound value') 
         self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').value, 300.) 
         self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').comments, 'Measured value adjusted to relax bound')      
+
+        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (1, 1), 'r2': (-2, -2), 'r3': (1, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        gen.impute_kinetic_constant(bound_values)
+
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-forward')], 1)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-backward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-forward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-backward')], 2)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r3-forward')], 3)
+
+        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 0), 'r2': (-4, -2), 'r3': (3, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        gen.impute_kinetic_constant(bound_values)
+
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-forward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-backward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-forward')], 0)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-backward')], 4)
+        self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r3-forward')], 3)
+        

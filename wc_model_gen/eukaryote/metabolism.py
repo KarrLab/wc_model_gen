@@ -450,16 +450,19 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             elif reaction.rate_laws:
                 
                 for_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.forward)
-                if all(i.distribution_init_concentration.mean==0. for i in for_ratelaw.expression.species):                   
-                    max_constr = 0.                
-                elif not any(numpy.isnan(p.value) for p in for_ratelaw.expression.parameters):                    
-                    max_constr = for_ratelaw.expression._parsed_expression.eval({
-                                    wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-                                        for i in for_ratelaw.expression.species}
-                                    }) * scale_factor                    
-                    upper_bound_adjustable.append(reaction.id)                                
+                if for_ratelaw:
+                    if all(i.distribution_init_concentration.mean==0. for i in for_ratelaw.expression.species):                   
+                        max_constr = 0.                
+                    elif not any(numpy.isnan(p.value) for p in for_ratelaw.expression.parameters):                    
+                        max_constr = for_ratelaw.expression._parsed_expression.eval({
+                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                            for i in for_ratelaw.expression.species}
+                                        }) * scale_factor                    
+                        upper_bound_adjustable.append(reaction.id)                                
+                    else:
+                        max_constr = None
                 else:
-                    max_constr = None
+                    max_constr = None        
                 
                 rev_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.backward)
                 if rev_ratelaw:
@@ -785,24 +788,24 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         median_kcat = numpy.median([k.value for i in submodel.reactions for j in i.rate_laws \
             for k in j.expression.parameters if k.value and not numpy.isnan(k.value)])
         
-        law_bound_pairs = {}
-        for reaction in submodel.reactions:
+        self._law_bound_pairs = {}
+        for reaction in submodel.reactions:            
             if reaction.rate_laws:
                 bounds = bound_values[reaction.id]
-                if len(reaction.rate_laws)==1:
-                    law_bound_pairs[reaction.rate_laws[0]] = bounds[1]
-                else:
-                    if bounds[0]<=0 and bounds[1]>=0:
-                        law_bound_pairs[reaction.rate_laws[0]] = bounds[1]
-                        law_bound_pairs[reaction.rate_laws[1]] = -bounds[0]
-                    elif bounds[0]>=0 and bounds[1]>=0:
-                        law_bound_pairs[reaction.rate_laws[0]] = bounds[1]
-                        law_bound_pairs[reaction.rate_laws[1]] = 0.
+                for_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.forward)
+                rev_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.backward)
+                if for_ratelaw:
+                    if bounds[1] >= 0:
+                        self._law_bound_pairs[for_ratelaw] = bounds[1]
                     else:
-                        law_bound_pairs[reaction.rate_laws[0]] = 0.
-                        law_bound_pairs[reaction.rate_laws[1]] = -bounds[0]
+                        self._law_bound_pairs[for_ratelaw] = 0.
+                if rev_ratelaw:
+                    if bounds[0] <= 0:
+                        self._law_bound_pairs[rev_ratelaw] = -bounds[0]
+                    else:
+                        self._law_bound_pairs[rev_ratelaw] = 0.
                                                    
-        for law, value in law_bound_pairs.items():
+        for law, value in self._law_bound_pairs.items():
             complexes = law.expression.species
             if value!=0.0:                
                 if len(complexes) == 1:                
