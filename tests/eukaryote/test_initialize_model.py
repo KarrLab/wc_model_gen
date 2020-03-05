@@ -190,7 +190,7 @@ class TestCase(unittest.TestCase):
             participants=[met2_substrate], reversible=True) 
         reaction5 = wc_kb.core.Reaction(cell=cell, id='r5', name='reaction5',
             participants=[participant1], reversible=True)
-        reaction6 = wc_kb.core.Reaction(cell=cell, id='r6', name='reaction6',
+        reaction6 = wc_kb.core.Reaction(cell=cell, id='EX_met1_e', name='exchange reaction',
             participants=[participant2], reversible=True)                       
 
         identifier = wc_kb.core.Identifier(namespace='Sabio-RK', id='1234')
@@ -643,7 +643,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='r1_kb').submodel.dfba_obj.id, 'dfba-obj-metabolism')
         self.assertEqual(model.reactions.get_one(id='r1_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='r1_kb').comments, '')
-        self.assertEqual(model.reactions.get_one(id='r6_kb'), None)
+        self.assertEqual(model.reactions.get_one(id='EX_met1_e_kb'), None)
 
         attr = wc_lang.core.ReactionParticipantAttribute()
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r1_kb').participants), 'met1[e] ==> met1[n]')            
@@ -651,6 +651,26 @@ class TestCase(unittest.TestCase):
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r3_kb').participants), '[n]: met2 ==> (3) h')
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r4_kb').participants), '[n]: met2 ==> (3) h')
         self.assertEqual(attr.serialize(model.reactions.get_one(id='r5_kb').participants), '[n]:  ==> met1')
+
+    def test_gen_exchange_reactions(self):
+
+        kb = self.kb
+        cell = kb.cell
+
+        extracellular = cell.compartments.get_one(id='e')
+        met1_e_kb = cell.species_types.get_one(id='met1').species.get_one(compartment=extracellular)
+        met1_e_conc = wc_kb.core.Concentration(cell=cell, species=met1_e_kb, value=0.5)
+
+        model = core.EukaryoteModelGenerator(kb,
+            component_generators=[initialize_model.InitializeModel],
+            options={'component': {'InitializeModel': self.set_options([
+                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()       
+        
+        self.assertEqual(len(model.reactions), 6)
+        self.assertEqual(model.reactions.get_one(id='EX_met1_e_kb').name, 'exchange reaction')
+        
+        attr = wc_lang.core.ReactionParticipantAttribute()
+        self.assertEqual(attr.serialize(model.reactions.get_one(id='EX_met1_e_kb').participants), '[e]: met1 ==> ')
         
     def test_gen_kb_rate_laws(self):
         

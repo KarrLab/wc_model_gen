@@ -689,7 +689,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             framework=wc_ontology['WC:dynamic_flux_balance_analysis'])              
  
         for kb_rxn in kb.cell.reactions:
-            if [part.species.compartment.id for part in kb_rxn.participants]==['e']:
+            if len(kb_rxn.participants)==1 and kb_rxn.participants[0].species.compartment.id=='e' and \
+                not kb_rxn.participants[0].species.concentration:
                 pass
             else:    
                 model_rxn = model.reactions.create(
