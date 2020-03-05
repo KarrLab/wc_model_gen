@@ -148,6 +148,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
         cytoplasm = cell.compartments.create(id='c')
         nucleus = cell.compartments.create(id='n')
+        extracellular = cell.compartments.create(id='e')
 
         cell.parameters.create(id='total_carbohydrate_mass', value=2000)
         cell.parameters.create(id='total_lipid_mass', value=4700)
@@ -189,6 +190,14 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         trans4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=trans4, 
             value='10000.0', value_type=wc_ontology['WC:float'])
         trans4_species = wc_kb.core.Species(species_type=trans4, compartment=mito)
+
+        ala_L = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='ala_L')
+        ala_L_species = wc_kb.core.Species(species_type=ala_L, compartment=extracellular)
+        exchange_rxn_kb = cell.reactions.create(id='EX_ala_L_e', name='exchange ala_L', 
+            reversible=True, comments='random comments')
+        ala_L_coef = wc_kb.core.SpeciesCoefficient(species=ala_L_species, 
+                        coefficient=-1)            
+        exchange_rxn_kb.participants.append(ala_L_coef)
        
         # Create initial model content
         model = wc_lang.Model()
@@ -466,11 +475,17 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'carbohydrate_components': {'g6p[c]': 1.},
             'lipid_components': {'chsterol[c]': 0.2, 'pail_hs[c]': 0.8},
             'amino_acid_ids': ['ala_L', 'met_L'],
+            'media_fluxes': {'EX_ala_L_e': 20.}
             })
         gen.clean_and_validate_options()
         gen.gen_reactions()
         gen.gen_rate_laws()
-        
+
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').submodel, gen.submodel)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').name, 'exchange ala_L')
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').reversible, True)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').comments, 'random comments')
+
         self.assertEqual(model.reactions.get_one(id='biomass_reaction').reversible, False)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants},
             {'pool[c]': 25, 'rec[m]': -100, 'datp[n]': 26, 'dttp[n]': 26, 'dctp[n]': 12, 'dgtp[n]': 12,
