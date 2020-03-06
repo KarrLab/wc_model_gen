@@ -395,7 +395,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         rna_copy_num = []
         for rna in rnas_kb:
-            conc = rna.species.get_one(compartment=cytosol_kb).concentrations.value
+            conc = rna.species.get_one(compartment=cytosol_kb).concentration.value
             rna_copy_num.append(round(conc * volume * Avogadro))
 
         avg_rna_copy_num = numpy.mean(rna_copy_num)
@@ -412,7 +412,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         prot_copy_num = []
         for prot in prots_kb:
-            conc = prot.species.get_one(compartment=cytosol_kb).concentrations.value
+            conc = prot.species.get_one(compartment=cytosol_kb).concentration.value
             prot_copy_num.append(round(conc*volume*Avogadro))
 
         avg_prot_copy_num = numpy.mean(prot_copy_num)
