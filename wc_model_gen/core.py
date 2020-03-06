@@ -10,7 +10,6 @@
 
 import abc
 import os
-import six
 import time
 import wc_kb
 import wc_lang
@@ -173,7 +172,7 @@ class ModelGenerator(object):
         print(df[['atp[c]', 'ctp[c]', 'gtp[c]', 'utp[c]']], '\n')
 
 
-class ModelComponentGenerator(six.with_metaclass(abc.ABCMeta, object)):
+class ModelComponentGenerator(object, metaclass=abc.ABCMeta):
     """ Abstract base class for model component generators
 
     Attributes:
