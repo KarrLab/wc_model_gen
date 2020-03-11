@@ -10,7 +10,6 @@ from wc_model_gen.eukaryote import complexation
 from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
-import collections
 import os
 import scipy.constants
 import shutil
