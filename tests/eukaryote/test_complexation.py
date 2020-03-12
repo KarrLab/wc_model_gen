@@ -239,10 +239,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').comments, 
             'The value was assumed to be 1.0 times the concentration of prot3 in nucleus')        
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, (1/40000 + 2/20000 + 1/25000)/0.1)
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').comments, 
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').comments,
             'The value was assigned so that the ratio of effective dissociation constant to '
             'association constant is the same as the specified ratio of free subunit to subunit in complexes '
-            'at equilibrium')
+            'at equilibrium') 
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot1').value, 1/40000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot2').value, 2/20000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot3').value, 1/25000.)
@@ -268,6 +268,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[m]').mean, 9)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[c_m]').mean, 9)
         
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, (1/40000 + 2/20000 + 1/25000) * 4)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_2_association_in_n').value, 2/25000 * 2.5)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 6/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').comments, 
             'The value was assumed to be 1.0 times the concentration of prot1 in nucleus')

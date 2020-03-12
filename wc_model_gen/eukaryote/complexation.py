@@ -291,6 +291,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 complex_st_id = reaction.id[:reaction.id.index('_association')]
                 compl_compartment_id = reaction.id[reaction.id.index('_in_') + 4:]
                 compl_compartment = model.compartments.get_one(id=compl_compartment_id)
+                model_compl_species = model.species_types.get_one(
+                    id=complex_st_id).species.get_one(compartment=compl_compartment)
 
                 for param in reaction.rate_laws[0].expression.parameters:
                     if 'K_m_' in param.id:
@@ -312,11 +314,15 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was not known'.format(
                                     species.species_type.id, compl_compartment.name)                    
                     elif 'k_cat_' in param.id:
-                        param.value = self._effective_dissociation_constant['{}[{}]'.format(
-                            complex_st_id, compl_compartment_id)] / subunit_equilibrium_fraction
-                        param.comments = 'The value was assigned so that the ratio of effective dissociation constant to ' + \
-                            'association constant is the same as the specified ratio of free subunit to subunit in complexes ' + \
-                            'at equilibrium'
+                        if model_compl_species.distribution_init_concentration:
+                            param.value = self._effective_dissociation_constant['{}[{}]'.format(
+                                complex_st_id, compl_compartment_id)] * model_compl_species.distribution_init_concentration.mean
+                        else:
+                            param.value = self._effective_dissociation_constant['{}[{}]'.format(
+                                complex_st_id, compl_compartment_id)] / subunit_equilibrium_fraction
+                            param.comments = 'The value was assigned so that the ratio of effective dissociation constant to ' + \
+                                'association constant is the same as the specified ratio of free subunit to subunit in complexes ' + \
+                                'at equilibrium'
 
         print('Complexation submodel has been generated')
 
