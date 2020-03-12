@@ -37,7 +37,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the default is True
         * greedy_step_size (:obj:`float`): the extent to which complex copy number is increased
             at each round of reaction selection during initial copy number estimation, 
-            value should be higher than 0 and not more than 1.0, and the default value is 0.1    
+            value should be higher than 0 and not more than 1.0, and the default value is 0.1
+        * subunit_equilibrium_fraction (:obj:`float`): the fraction of total concentration for
+            each protein that stays as free subunits        
     """
 
     def clean_and_validate_options(self):
@@ -64,6 +66,10 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         greedy_step_size = options.get('greedy_step_size', 0.1)
         assert(greedy_step_size > 0 and greedy_step_size <= 1.)
         options['greedy_step_size'] = greedy_step_size
+
+        subunit_equilibrium_fraction = options.get('subunit_equilibrium_fraction', 0.1)
+        assert(subunit_equilibrium_fraction >= 0 and subunit_equilibrium_fraction <= 1.)
+        options['subunit_equilibrium_fraction'] = subunit_equilibrium_fraction
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -239,6 +245,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         
         beta = self.options['beta']
+        subunit_equilibrium_fraction = self.options['subunit_equilibrium_fraction']
 
         Avogadro = model.parameters.get_or_create(
             id='Avogadro',
@@ -277,18 +284,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         if self.options['estimate_initial_state']:
             self.determine_initial_concentration()    
                 
-        # Calibrate the parameter values for the rate laws of complex association reactions 
-        ref_kcat = wc_lang.Reference(
-            model=model,
-            title='Kinetics of protein-protein association explained by Brownian dynamics computer simulation',
-            author='Scott H Northrup, HP Erickson',        
-            year=1992,
-            type=wc_ontology['WC:article'],
-            publication='PNAS',        
-            volume='89',
-            issue='8',
-            pages='3338-3342')
-        ref_kcat.id = 'ref_'+str(len(model.references))
+        # Calibrate the parameter values for the rate laws of complex association reactions
         for reaction in self.submodel.reactions:            
                         
             if 'association' in reaction.id:
@@ -316,10 +312,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             param.comments = 'The value was assigned to 1e-05 because the concentration of {} in {} was not known'.format(
                                     species.species_type.id, compl_compartment.name)                    
                     elif 'k_cat_' in param.id:
-                        param.value = 2e06
-                        param.comments = 'The rate constant for bimolecular protein-protein association was used '\
-                            'so that the simulated rate of complex assembly will be within the higher range'
-                        param.references.append(ref_kcat)        
+                        param.value = self._effective_dissociation_constant['{}[{}]'.format(
+                            complex_st_id, compl_compartment_id)] / subunit_equilibrium_fraction
+                        param.comments = 'The value was assigned so that the ratio of effective dissociation constant to ' + \
+                            'association constant is the same as the specified ratio of free subunit to subunit in complexes ' + \
+                            'at equilibrium'
 
         print('Complexation submodel has been generated')
 
@@ -341,6 +338,11 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         model = self.model
         greedy_step_size = self.options['greedy_step_size']
+        subunit_equilibrium_fraction = self.options['subunit_equilibrium_fraction']
+
+        subunit_equilibrium_level = {i.species: i.mean * subunit_equilibrium_fraction \
+            for i in model.distribution_init_concentrations \
+            if i.species.species_type.type == wc_ontology['WC:protein']}
         
         complexation_reactions = {}
         for reaction in self.submodel.reactions:
@@ -361,7 +363,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 current_availability = []
                 for participant in reaction.participants:
                     if participant.coefficient < 0 and participant.species.species_type.type != wc_ontology['WC:metabolite']:
-                        current_availability.append(- participant.species.distribution_init_concentration.mean / participant.coefficient)
+                        available_conc = participant.species.distribution_init_concentration.mean - \
+                            subunit_equilibrium_level[participant.species]
+                        current_availability.append(- available_conc / participant.coefficient)
                 
                 flux = min(greedy_step_size*self._maximum_possible_amount[complex_species.id], min(current_availability))
                 for participant in reaction.participants:
@@ -380,7 +384,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             conc_model.id = conc_model.gen_id()
 
                     if participant.species.species_type.type == wc_ontology['WC:protein']:
-                        if model.distribution_init_concentrations.get_one(species=participant.species).mean == 0.:
+                        if model.distribution_init_concentrations.get_one(species=participant.species).mean <= \
+                            subunit_equilibrium_level[participant.species]:
                             if reaction not in for_removal:
                                 for_removal.append(reaction)
             

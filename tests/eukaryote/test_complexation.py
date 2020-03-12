@@ -238,13 +238,11 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').value, 10/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot3').comments, 
             'The value was assumed to be 1.0 times the concentration of prot3 in nucleus')        
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, 2e06)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, (1/40000 + 2/20000 + 1/25000)/0.1)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').comments, 
-            'The rate constant for bimolecular protein-protein association was used '
-            'so that the simulated rate of complex assembly will be within the higher range')
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].title, 
-            'Kinetics of protein-protein association explained by Brownian dynamics computer simulation')
-        self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').references[0].id, 'ref_1')
+            'The value was assigned so that the ratio of effective dissociation constant to '
+            'association constant is the same as the specified ratio of free subunit to subunit in complexes '
+            'at equilibrium')
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot1').value, 1/40000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot2').value, 2/20000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot3').value, 1/25000.)
@@ -260,22 +258,19 @@ class TestCase(unittest.TestCase):
             'complex_2[m]': 2/25000, 
             'complex_2[c_m]': 2/25000,
             })
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot1[n]').mean, 5)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot2[n]').mean, 0.)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[n]').mean, 0.)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[m]').mean, 0.)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[c_m]').mean, 0.)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_1[n]').mean, 5)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot1[n]').mean, 6)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot2[n]').mean, 2)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[n]').mean, 1)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[m]').mean, 2)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot3[c_m]').mean, 2)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_1[n]').mean, 4)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[n]').mean, 2.5)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[m]').mean, 10)
-        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[c_m]').mean, 10)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[m]').mean, 9)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[c_m]').mean, 9)
         
-        self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 5/scipy.constants.Avogadro/5E-14)
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').value, 6/scipy.constants.Avogadro/5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot1').comments, 
             'The value was assumed to be 1.0 times the concentration of prot1 in nucleus')
-        self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot2').value, 1e-05)
-        self.assertEqual(model.parameters.get_one(id='K_m_complex_1_association_in_n_prot2').comments, 
-            'The value was assigned to 1e-05 because the concentration of prot2 in nucleus was zero')
         self.assertEqual(model.parameters.get_one(id='K_m_complex_2_association_in_m_met1').value, 1e-05)
         self.assertEqual(model.parameters.get_one(id='K_m_complex_2_association_in_m_met1').comments, 
             'The value was assigned to 1e-05 because the concentration of met1 in mitochondria was not known')
