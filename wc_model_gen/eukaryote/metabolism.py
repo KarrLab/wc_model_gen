@@ -564,19 +564,25 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             })
         result = conv_model.solve()
         growth = result.value/scale_factor*coef_scale_factor
-
-        # Relax bounds if necessary
-        if growth < measured_growth:
-            target = {'biomass_reaction': measured_growth}
-            lower, upper = self.relax_bounds(target, lower_bound_adjustable, upper_bound_adjustable)
-            for reaction_id, adjustment in lower.items():
-                conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
-            for reaction_id, adjustment in upper.items():
-                conv_variables[reaction_id].upper_bound += adjustment*scale_factor
-
-        # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
-        flux_range = self.flux_variability_analysis(conv_model)
-        self.impute_kinetic_constant(flux_range)
+        
+        print('Optimized flux through biomass reaction before calibration is {}'.format(growth))        
+        
+        if not numpy.isnan(growth):
+            # Relax bounds if necessary
+            lower = upper = {}
+            if growth < measured_growth:
+                target = {'biomass_reaction': measured_growth}
+                lower, upper = self.relax_bounds(target, lower_bound_adjustable, upper_bound_adjustable)
+                for reaction_id, adjustment in lower.items():
+                    conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
+                for reaction_id, adjustment in upper.items():
+                    conv_variables[reaction_id].upper_bound += adjustment*scale_factor
+            # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
+            if any(numpy.isnan(i) for i in lower.values()) or any(numpy.isnan(i) for i in upper.values()):
+                pass
+            else:
+                flux_range = self.flux_variability_analysis(conv_model)
+                self.impute_kinetic_constant(flux_range)
     
     def relax_bounds(self, target, lower_bound_adjustable, upper_bound_adjustable):
         """ Relax bounds to achieve set target flux(es) while minimizing the total necessary adjustment
