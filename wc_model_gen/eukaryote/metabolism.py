@@ -462,13 +462,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         upper_bound_adjustable = []
         for reaction in submodel.reactions:
         	# Block all exchange/demand/sink reactions        
-            if reaction.id in exchange_reactions:
+            if reaction.id.rstrip('_kb') in exchange_reactions:
                 min_constr = 0.
                 max_constr = 0.
             # Set the bounds of exchange reactions for media components to the measured fluxes
-            if reaction.id in media_fluxes:
-                min_constr = media_fluxes[reaction.id][0]*scale_factor
-                max_constr = media_fluxes[reaction.id][1]*scale_factor            
+            if reaction.id.rstrip('_kb') in media_fluxes:
+                min_constr = media_fluxes[reaction.id.rstrip('_kb')][0]*scale_factor
+                max_constr = media_fluxes[reaction.id.rstrip('_kb')][1]*scale_factor            
             # Set the bounds of reactions with measured kinetic constants
             elif reaction.rate_laws:
                 
@@ -505,7 +505,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     min_constr = 0.
             # Set other reactions to be unbounded                
             else:
-                if reaction.id not in exchange_reactions:
+                if reaction.id.rstrip('_kb') not in exchange_reactions:
                     max_constr = None
                     if reaction.reversible:
                         min_constr = None	                
