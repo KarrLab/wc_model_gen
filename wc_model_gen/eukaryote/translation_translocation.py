@@ -18,6 +18,62 @@ import wc_kb
 import wc_lang
 import wc_model_gen
 
+ANTICODON_CODON_RECOGNITION_RULES = {
+    'GAA': ['TTT', 'TTC'],
+    'TAA': ['TTA', 'TTG'],
+    'CAA': ['TTG'],
+    'AGA': ['TCT', 'TCC', 'TCA'],
+    'GGA': ['TCT', 'TCC'],
+    'TGA': ['TCA', 'TCG'],
+    'CGA': ['TCG'],
+    'GTA': ['TAT', 'TAC'],
+    'GCA': ['TGT', 'TGC'],
+    'CCA': ['TGG'],
+    'AAG': ['CTT', 'CTC', 'CTA'],
+    'GAG': ['CTT', 'CTC'],
+    'TAG': ['CTA', 'CTG'],
+    'CAG': ['CTG'],
+    'AGG': ['CCT', 'CCC', 'CCA'],
+    'GGG': ['CCT', 'CCC'],
+    'TGG': ['CCA', 'CCG'],
+    'CGG': ['CCG'],
+    'GTG': ['CAT', 'CAC'],
+    'TTG': ['CAA', 'CAG'],
+    'CTG': ['CAG'],
+    'ACG': ['CGT', 'CGC', 'CGA'],
+    'GCG': ['CGT', 'CGC'],
+    'TCG': ['CGA', 'CGG'],
+    'CCG': ['CGG'],
+    'AAT': ['ATT', 'ATC', 'ATA'],
+    'GAT': ['ATT', 'ATC', 'ATA'],
+    'TAT': ['ATA'],
+    'CAT': ['ATG'],
+    'AGT': ['ACT', 'ACC', 'ACA'],
+    'GGT': ['ACT', 'ACC'],
+    'TGT': ['ACA', 'ACG'],
+    'CGT': ['ACG'],
+    'GTT': ['AAT', 'AAC'],
+    'TTT': ['AAA', 'AAG'],
+    'CTT': ['AAG'],
+    'GCT': ['AGT', 'AGC'],
+    'TCT': ['AGA', 'AGG'],
+    'CCT': ['AGG'],
+    'AAC': ['GTT', 'GTC', 'GTA'],
+    'GAC': ['GTT', 'GTC'],
+    'TAC': ['GTA', 'GTG'],
+    'CAC': ['GTG'],
+    'AGC': ['GCT', 'GCC', 'GCA'],
+    'GGC': ['GCT', 'GCC'],
+    'TGC': ['GCA', 'GCG'],
+    'CGC': ['GCG'],
+    'GTC': ['GAT', 'GAC'],
+    'TTC': ['GAA', 'GAG'],
+    'CTC': ['GAG'],
+    'ACC': ['GGT', 'GGC', 'GGA'],
+    'GCC': ['GGT', 'GGC'],
+    'TCC': ['GGA', 'GGG'],
+    'CCC': ['GGG'],        
+}
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for translation, protein folding and translocation submodel
@@ -453,17 +509,18 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         trna_grouping = {'c': {}, 'm': {}}
         for trna in trna_kb:
             anticodon_prop = trna.properties.get_one(property='anticodon:amino_acid').get_value().split(':')
-            codon = Bio.Seq.transcribe(Bio.Seq.reverse_complement(anticodon_prop[0]))
-            if trna.species[0].compartment.id == 'm':
-                if codon in trna_grouping['m']: 
-                    trna_grouping['m'][codon]['trna'].append(trna.id)
+            codons = ANTICODON_CODON_RECOGNITION_RULES[anticodon_prop[0]]
+            for codon in codons:
+                if trna.species[0].compartment.id == 'm':
+                    if codon in trna_grouping['m']: 
+                        trna_grouping['m'][codon]['trna'].append(trna.id)
+                    else:
+                        trna_grouping['m'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
                 else:
-                    trna_grouping['m'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
-            else:
-                if codon in trna_grouping['c']: 
-                    trna_grouping['c'][codon]['trna'].append(trna.id)
-                else:
-                    trna_grouping['c'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
+                    if codon in trna_grouping['c']: 
+                        trna_grouping['c'][codon]['trna'].append(trna.id)
+                    else:
+                        trna_grouping['c'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
 
         trna_functions = {'c': {}, 'm': {}}
         for comp, all_trnas in trna_grouping.items():
@@ -647,13 +704,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
 
-            start_codon = gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon']
+            start_codon = gvar.protein_aa_usage[mrna_kb.protein.id]['start_codon'].replace('U', 'T')
             start_aa_met = amino_acid_id_conversion[gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']]
-            if start_codon in trna_functions[translation_compartment.id]:
-                matched_trnas = [trna_functions[translation_compartment.id][start_codon]]
-            else:                
-                matched_trnas = [v for k,v in trna_functions[translation_compartment.id].items() if v['aa']==start_aa_met]
-                    
+            matched_trnas = [trna_functions[translation_compartment.id][start_codon]]            
             for codon_info in matched_trnas:
                 expression_terms.append(codon_info['function'].id)
                 objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                
@@ -715,23 +768,11 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
             
-            mrna_seq = str(mrna_kb.get_seq())
-            all_codons = sorted(set([mrna_seq[i * 3:(i + 1) * 3] for i in range((len(mrna_seq) + 3 - 1) // 3 )][1:]))
+            codon_seq = str(mrna_kb.get_seq()).replace('U','T')
+            all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
-                    if i in trna_functions[translation_compartment.id]:
-                        matched_trnas = [trna_functions[translation_compartment.id][i]]
-                    else:
-                        codon_id = 1 if codon_table == 1 else codon_table[mrna_kb.protein.id]
-                        translated_aa = str(Bio.Seq.Seq(i, alphabet=Bio.Alphabet.RNAAlphabet()).translate(
-                            table=codon_id, cds=cds))
-                        if translated_aa in amino_acid_id_conversion:
-                            translated_aa_met = amino_acid_id_conversion[translated_aa]
-                            matched_trnas = [v for k,v in trna_functions[translation_compartment.id].items() \
-                                if v['aa']==translated_aa_met]
-                        else:
-                            matched_trnas = []      
-                        
+                    matched_trnas = [trna_functions[translation_compartment.id][i]]
                     for codon_info in matched_trnas:    
                         expression_terms.append(codon_info['function'].id)
                         objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        

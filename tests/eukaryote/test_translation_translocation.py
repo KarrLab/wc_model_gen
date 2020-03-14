@@ -88,8 +88,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         complexM = wc_kb.core.ComplexSpeciesType(id='complexM', cell=cell, subunits=[wc_kb.core.SpeciesTypeCoefficient(species_type=protM,
             coefficient=2)])
 
-        trnas = {'mt_trnaM': ('Met', 'CAT', 'm'), 'mt_trnaA': ('Ala', 'CGC', 'm'), 'mt_trnaC': ('Cys', 'GCA', 'm'), 'mt_trnaD': ('Asp', 'ATC', 'm'), 
-            'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 'trnaD': ('Asp', 'ATC', 'c')}
+        trnas = {'mt_trnaM': ('Met', 'CAT', 'm'), 'mt_trnaA': ('Ala', 'CGC', 'm'), 'mt_trnaC': ('Cys', 'GCA', 'm'), 'mt_trnaD': ('Asp', 'GTC', 'm'), 
+            'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 'trnaD': ('Asp', 'GTC', 'c')}
         for trna_id, (aa_id, anticodon, comp) in trnas.items():
             trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, type=wc_kb.eukaryote.TranscriptType.tRna)
             trna_compartment = cytoplasm if comp=='c' else mito
@@ -267,7 +267,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         # Test gen_rate_laws
         self.assertEqual(len(model.rate_laws), 16)
         self.assertEqual(len(model.observables), 2)
-        self.assertEqual(len(model.functions), 30) # 6 volume + 8 trna + 8 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.functions), 34) # 6 volume + 12 trna + 8 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
         self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'prot2[c] + comp_4[c]')
         self.assertEqual(model.functions.get_one(id='trna_function_GCG_c').expression.expression, 
@@ -300,21 +300,21 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'trans1_ribosome_binding_constant * comp_1[c] * '
             'max(min(trans1_ribosome_binding_site[c] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_c_1 * '
-            'trna_function_AUG_c * '
+            'trna_function_ATG_c * '
             'aminoacid_function_Met_c * ' 
             '2**3')
         self.assertEqual(model.rate_laws.get_one(id='translation_initiation_trans4-forward').expression.expression,
             'trans4_ribosome_binding_constant * comp_1[c] * '
             'max(min(trans4_ribosome_binding_site[c] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_c_1 * '
-            'trna_function_GAU_c * '
+            'trna_function_GAT_c * '
             'aminoacid_function_Asp_c * ' 
             '2**3')
         self.assertEqual(model.rate_laws.get_one(id='translation_initiation_transM-forward').expression.expression,
             'transM_ribosome_binding_constant * comp_1[m] * '
             'max(min(transM_ribosome_binding_site[m] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_m_1 * '
-            'trna_function_AUG_m * '
+            'trna_function_ATG_m * '
             'aminoacid_function_Met_m * ' 
             '2**3')
 
@@ -323,7 +323,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'k_cat_translation_elongation_trans1 * ribo_bound_trans1[c] * '
             'translation_el_factor_function_c_1 * '
             'trna_function_GCG_c * '
-            'trna_function_UGC_c * '
+            'trna_function_TGC_c * '
             'aminoacid_function_Ala_c * '            
             'aminoacid_function_Cys_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans1_gtp * Avogadro * volume_c)) * '
@@ -332,7 +332,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans4-forward').expression.expression,
             'k_cat_translation_elongation_trans4 * ribo_bound_trans4[c] * '
             'translation_el_factor_function_c_1 * '
-            'trna_function_GAU_c * '
+            'trna_function_GAT_c * '
             'aminoacid_function_Asp_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans4_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_trans4_atp * Avogadro * volume_c)) * '
@@ -340,7 +340,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans5-forward').expression.expression,
             'k_cat_translation_elongation_trans5 * ribo_bound_trans5[c] * '
             'translation_el_factor_function_c_1 * '
-            'trna_function_UGC_c * '
+            'trna_function_TGT_c * '
             'aminoacid_function_Cys_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans5_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_trans5_atp * Avogadro * volume_c)) * '
@@ -349,7 +349,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'k_cat_translation_elongation_transM * ribo_bound_transM[m] * '
             'translation_el_factor_function_m_1 * '
             'translation_el_factor_function_m_2 * '
-            'trna_function_GAU_m * '
+            'trna_function_GAT_m * '
             'aminoacid_function_Asp_m * '
             '(gtp[m] / (gtp[m] + K_m_translation_elongation_transM_gtp * Avogadro * volume_m)) * '
             '(atp[m] / (atp[m] + K_m_translation_elongation_transM_atp * Avogadro * volume_m)) * '
