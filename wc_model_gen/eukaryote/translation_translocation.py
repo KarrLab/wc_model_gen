@@ -72,7 +72,8 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'ACC': ['GGT', 'GGC', 'GGA'],
     'GCC': ['GGT', 'GGC'],
     'TCC': ['GGA', 'GGG'],
-    'CCC': ['GGG'],        
+    'CCC': ['GGG'],
+    'TCA': ['TGA'], #selenocysteine        
 }
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
