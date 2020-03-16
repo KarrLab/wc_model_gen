@@ -73,7 +73,13 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'GCC': ['GGT', 'GGC'],
     'TCC': ['GGA', 'GGG'],
     'CCC': ['GGG'],
-    'TCA': ['TGA'], #selenocysteine        
+    'TCA': ['TGA'], #selenocysteine
+    'AAA': ['TTT'], #natural pairing but unlikely according to the rule
+    'ATA': ['TAT'], #natural pairing but unlikely according to the rule
+    'ATG': ['CAT'], #natural pairing but unlikely according to the rule
+    'ATT': ['AAT'], #natural pairing but unlikely according to the rule
+    'ACT': ['AGT'], #natural pairing but unlikely according to the rule
+    'ATC': ['GAT'], #natural pairing but unlikely according to the rule        
 }
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
