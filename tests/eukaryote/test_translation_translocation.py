@@ -28,8 +28,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nATGGCGTGCGATGATTGTTGT\n'
-                    '>chrM\nNGCGTGCATGGATGAT\n')
+            f.write('>chr1\nATGGCGtGCGAtGATTGTtGT\n'
+                    '>chrM\nNGCGTgCATgGATGAT\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
