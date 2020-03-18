@@ -82,6 +82,9 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'ATC': ['GAT'], #natural pairing but unlikely according to the rule        
 }
 
+STOP_CODON = ['TAA', 'TAG']
+
+
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for translation, protein folding and translocation submodel
 
@@ -779,12 +782,15 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
-                    matched_trnas = [trna_functions[translation_compartment.id][i]]
-                    for codon_info in matched_trnas:    
-                        expression_terms.append(codon_info['function'].id)
-                        objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        
-                        for cl, dictionary in objects.items():
-                            dictionary.update(codon_info['objects'][cl])                    
+                    if i in STOP_CODON:
+                        pass
+                    else:    
+                        matched_trnas = [trna_functions[translation_compartment.id][i]]
+                        for codon_info in matched_trnas:    
+                            expression_terms.append(codon_info['function'].id)
+                            objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        
+                            for cl, dictionary in objects.items():
+                                dictionary.update(codon_info['objects'][cl])                    
 
             for key, value in gvar.protein_aa_usage[mrna_kb.protein.id].items():                
                 if key in amino_acid_id_conversion and value:

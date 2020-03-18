@@ -28,8 +28,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nATGGCGtGCGAtGATTGTtGT\n'
-                    '>chrM\nNGCGTgCATgGATGAT\n')
+            f.write('>chr1\nATGGCGtGCGAtGATTGTtGTTAA\n'
+                    '>chrM\nNGCGTgCATgGATGATTAG\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -69,7 +69,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         prot4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot4, 
             value='10000.0', value_type=wc_ontology['WC:float'])
 
-        locus5 = wc_kb.eukaryote.GenericLocus(start=16, end=21)
+        locus5 = wc_kb.eukaryote.GenericLocus(start=16, end=24)
         transcript5 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans5', cell=cell, gene=gene1, exons=[locus5], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=cytoplasm)
         transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=10.)
@@ -77,7 +77,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         prot5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot5, 
             value='10000.0', value_type=wc_ontology['WC:float'])
         
-        locusM = wc_kb.eukaryote.GenericLocus(start=8, end=16)
+        locusM = wc_kb.eukaryote.GenericLocus(start=8, end=19)
         transcriptM = wc_kb.eukaryote.TranscriptSpeciesType(id='transM', cell=cell, gene=geneM, exons=[locusM], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcriptM_spec = wc_kb.core.Species(species_type=transcriptM, compartment=mito)
         transcriptM_conc = wc_kb.core.Concentration(cell=cell, species=transcriptM_spec, value=10.)
