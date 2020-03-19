@@ -357,7 +357,7 @@ def gen_michaelis_menten_like_rate_law(model, reaction, modifiers=None, modifier
 
             all_species[species.gen_id()] = species
 
-            model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
+            model_k_m = model.parameters.get_or_create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
                                                 type=wc_ontology['WC:K_m'],
                                                 units=unit_registry.parse_units('M'))
             all_parameters[model_k_m.id] = model_k_m
@@ -449,7 +449,7 @@ def gen_michaelis_menten_like_propensity_function(model, reaction, substrates_as
 
         if species not in substrates_as_modifiers and species not in excluded_reactants:            
 
-            model_k_m = model.parameters.create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
+            model_k_m = model.parameters.get_or_create(id='K_m_{}_{}'.format(reaction.id, species.species_type.id),
                                                 type=wc_ontology['WC:K_m'],
                                                 units=unit_registry.parse_units('M'))
             parameters[model_k_m.id] = model_k_m
@@ -529,7 +529,7 @@ def gen_response_functions(model, beta, reaction_id, reaction_class, compartment
                 factor_species = factor_species_type.species.get_one(compartment=compartment)                
                 all_species[factor_species.gen_id()] = factor_species
 
-                model_k_m = model.parameters.create(
+                model_k_m = model.parameters.get_or_create(
                     id='K_m_{}_{}'.format(reaction_id, factor_species.species_type.id),
                     value = beta * factor_species.distribution_init_concentration.mean \
                         / Avogadro.value / compartment.init_volume.mean,
@@ -584,7 +584,7 @@ def gen_response_functions(model, beta, reaction_id, reaction_class, compartment
                     factor_observable = [i for i in model.observables if i.expression.expression==obs_exp_string][0]
                     all_observables[factor_observable.id] = factor_observable
 
-                model_k_m = model.parameters.create(
+                model_k_m = model.parameters.get_or_create(
                     id='K_m_{}_{}'.format(reaction_class, factor_observable.id),
                     value = beta * obs_total / Avogadro.value / compartment.init_volume.mean,
                     type=wc_ontology['WC:K_m'],
