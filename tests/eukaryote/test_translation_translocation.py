@@ -273,17 +273,17 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         # Test gen_rate_laws
         self.assertEqual(len(model.rate_laws), 18)
         self.assertEqual(len(model.observables), 3)
-        self.assertEqual(len(model.functions), 38) # 6 volume + 14 trna + 10 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.functions), 34) # 6 volume + 10 trna + 10 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
         self.assertEqual(model.observables.get_one(id='translation_m_factors_m_1').expression.expression, 'mt_trnaD[m] + trnaD[m]')
         self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_4[c] + prot2[c]')
-        self.assertEqual(model.functions.get_one(id='trna_function_GCG_c').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='trna_function_CGC_c').expression.expression, 
         	'(translation_c_factors_c_1 / (translation_c_factors_c_1 + K_m_translation_c_translation_c_factors_c_1 * Avogadro * volume_c))')
-        self.assertEqual(model.functions.get_one(id='trna_function_GAC_m').expression.expression,
+        self.assertEqual(model.functions.get_one(id='trna_function_GTC_m').expression.expression,
             '(translation_m_factors_m_1 / (translation_m_factors_m_1 + K_m_translation_m_translation_m_factors_m_1 * Avogadro * volume_m))')
-        self.assertEqual(model.functions.get_one(id='trna_function_GCG_m').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='trna_function_CGC_m').expression.expression, 
         	'(mt_trnaA[m] / (mt_trnaA[m] + K_m_translation_m_mt_trnaA * Avogadro * volume_m))')
-        self.assertEqual(model.functions.get_one(id='trna_function_TGG_m').expression.expression, 
+        self.assertEqual(model.functions.get_one(id='trna_function_CCA_m').expression.expression, 
             '(trnaW[m] / (trnaW[m] + K_m_translation_m_trnaW * Avogadro * volume_m))')
         self.assertEqual(model.functions.get_one(id='aminoacid_function_Ala_c').expression.expression, 
         	'(Ala[c] / (Ala[c] + K_m_translation_c_Ala * Avogadro * volume_c))')
@@ -311,21 +311,21 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'trans1_ribosome_binding_constant * comp_1[c] * '
             'max(min(trans1_ribosome_binding_site[c] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_c_1 * '
-            'trna_function_ATG_c * '
+            'trna_function_CAT_c * '
             'aminoacid_function_Met_c * ' 
             '2**3')
         self.assertEqual(model.rate_laws.get_one(id='translation_initiation_trans4-forward').expression.expression,
             'trans4_ribosome_binding_constant * comp_1[c] * '
             'max(min(trans4_ribosome_binding_site[c] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_c_1 * '
-            'trna_function_GAT_c * '
+            'trna_function_GTC_c * '
             'aminoacid_function_Asp_c * ' 
             '2**3')
         self.assertEqual(model.rate_laws.get_one(id='translation_initiation_transM-forward').expression.expression,
             'transM_ribosome_binding_constant * comp_1[m] * '
             'max(min(transM_ribosome_binding_site[m] , max_bool_substance) , min_bool_substance) * '
             'translation_init_factor_function_m_1 * '
-            'trna_function_ATG_m * '
+            'trna_function_CAT_m * '
             'aminoacid_function_Met_m * ' 
             '2**3')
 
@@ -333,8 +333,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans1-forward').expression.expression,
             'k_cat_translation_elongation_trans1 * ribo_bound_trans1[c] * '
             'translation_el_factor_function_c_1 * '
-            'trna_function_GCG_c * '
-            'trna_function_TGC_c * '
+            'trna_function_CGC_c * '
+            'trna_function_GCA_c * '
             'aminoacid_function_Ala_c * '            
             'aminoacid_function_Cys_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans1_gtp * Avogadro * volume_c)) * '
@@ -343,7 +343,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans4-forward').expression.expression,
             'k_cat_translation_elongation_trans4 * ribo_bound_trans4[c] * '
             'translation_el_factor_function_c_1 * '
-            'trna_function_GAT_c * '
+            'trna_function_GTC_c * '
             'aminoacid_function_Asp_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans4_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_trans4_atp * Avogadro * volume_c)) * '
@@ -351,7 +351,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_trans5-forward').expression.expression,
             'k_cat_translation_elongation_trans5 * ribo_bound_trans5[c] * '
             'translation_el_factor_function_c_1 * '
-            'trna_function_TGT_c * '
+            'trna_function_GCA_c * '
             'aminoacid_function_Cys_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_trans5_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_trans5_atp * Avogadro * volume_c)) * '
@@ -360,8 +360,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'k_cat_translation_elongation_transM * ribo_bound_transM[m] * '
             'translation_el_factor_function_m_1 * '
             'translation_el_factor_function_m_2 * '
-            'trna_function_GAT_m * '
-            'trna_function_TGG_m * '
+            'trna_function_GTC_m * '
+            'trna_function_CCA_m * '
             'aminoacid_function_Asp_m * '
             'aminoacid_function_Trp_m * '
             '(gtp[m] / (gtp[m] + K_m_translation_elongation_transM_gtp * Avogadro * volume_m)) * '

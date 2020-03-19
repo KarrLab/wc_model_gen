@@ -531,13 +531,23 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 if trna.species[0].compartment.id == 'm':
                     if codon in trna_grouping['m']: 
                         trna_grouping['m'][codon]['trna'].append(trna.id)
+                        trna_grouping['m'][codon]['anticodon'].append(anticodon_prop[0])
                     else:
-                        trna_grouping['m'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
+                        trna_grouping['m'][codon] = {
+                            'trna': [trna.id], 
+                            'anticodon': [anticodon_prop[0]], 
+                            'aa': anticodon_prop[1], 
+                            }
                 else:
                     if codon in trna_grouping['c']: 
                         trna_grouping['c'][codon]['trna'].append(trna.id)
+                        trna_grouping['c'][codon]['anticodon'].append(anticodon_prop[0])
                     else:
-                        trna_grouping['c'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
+                        trna_grouping['c'][codon] = {
+                            'trna': [trna.id],
+                            'anticodon': [anticodon_prop[0]], 
+                            'aa': anticodon_prop[1], 
+                            }
 
         trna_functions = {'c': {}, 'm': {}}
         for comp, all_trnas in trna_grouping.items():
@@ -555,22 +565,31 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     compartment, [trnas['trna']])
 
                 objects = {
-                    wc_lang.Species: all_species,
-                    wc_lang.Parameter: all_parameters,
-                    wc_lang.Observable: all_observables,
-                    wc_lang.Function: all_volumes,            
-                    }
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }
 
-                trna_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
-                assert error is None, str(error)
+                anticodons = '_'.join(sorted(set(trnas['anticodon'])))
+                trna_factor_function = model.functions.get_one(     
+                    id='trna_function_{}_{}'.format(anticodons, compartment.id))
 
+                if not trna_factor_function:                   
+
+                    trna_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                    assert error is None, str(error)
+
+                    trna_factor_function = model.functions.create(     
+                        id='trna_function_{}_{}'.format(anticodons, compartment.id),               
+                        name='tRNA response function for anticodon(s) {} in {}'.format(
+                            anticodons, compartment.name),
+                        expression=trna_expression,
+                        units=unit_registry.parse_units(''),
+                        )
+                
                 trna_functions[comp][codon] = {
-                    'function': model.functions.create(     
-                            id='trna_function_{}_{}'.format(codon, compartment.id),               
-                            name='tRNA response function for codon {} in {}'.format(codon, compartment.name),
-                            expression=trna_expression,
-                            units=unit_registry.parse_units(''),
-                            ),
+                    'function': trna_factor_function,
                     'aa': trnas['aa'],
                     'objects':objects,
                     }
@@ -819,18 +838,26 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                     wc_lang.Function: all_volumes,            
                                     }
 
-                                trna_expression, error = wc_lang.FunctionExpression.deserialize(
-                                    factor_exp[0], added_objects)
-                                assert error is None, str(error)
+                                anticodons = '_'.join(sorted(set(trna_grouping['c'][i]['anticodon'])))
+                                trna_factor_function = model.functions.get_one(     
+                                    id='trna_function_{}_m'.format(anticodons))
+
+                                if not trna_factor_function:
+
+                                    trna_expression, error = wc_lang.FunctionExpression.deserialize(
+                                        factor_exp[0], added_objects)
+                                    assert error is None, str(error)
+                                
+                                    trna_factor_function = model.functions.create(     
+                                        id='trna_function_{}_m'.format(anticodons),               
+                                        name='tRNA response function for anticodon(s) {} in {}'.format(
+                                            anticodons, translation_compartment.name),
+                                        expression=trna_expression,
+                                        units=unit_registry.parse_units(''),
+                                        )
                                 
                                 trna_functions['m'][i] = {
-                                    'function': model.functions.create(     
-                                            id='trna_function_{}_m'.format(i),               
-                                            name='tRNA response function for codon {} in {}'.format(
-                                                i, translation_compartment.name),
-                                            expression=trna_expression,
-                                            units=unit_registry.parse_units(''),
-                                            ),
+                                    'function': trna_factor_function,
                                     'aa': trna_functions['c'][i]['aa'],
                                     'objects': added_objects,
                                     }
