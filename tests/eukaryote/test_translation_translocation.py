@@ -10,6 +10,7 @@ from wc_onto import onto as wc_ontology
 from wc_utils.util.chem import EmpiricalFormula
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
+import wc_model_gen.utils as utils
 import math
 import os
 import scipy.constants
@@ -29,7 +30,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nATGGCGtGCGAtGATTGTtGTTAA\n'
-                    '>chrM\nNGCGTgCATgGATGATTAG\n')
+                    '>chrM\nNGCGTgCATgGATGATtggTAG\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -77,7 +78,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         prot5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot5, 
             value='10000.0', value_type=wc_ontology['WC:float'])
         
-        locusM = wc_kb.eukaryote.GenericLocus(start=8, end=19)
+        locusM = wc_kb.eukaryote.GenericLocus(start=8, end=22)
         transcriptM = wc_kb.eukaryote.TranscriptSpeciesType(id='transM', cell=cell, gene=geneM, exons=[locusM], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcriptM_spec = wc_kb.core.Species(species_type=transcriptM, compartment=mito)
         transcriptM_conc = wc_kb.core.Concentration(cell=cell, species=transcriptM_spec, value=10.)
@@ -89,13 +90,16 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             coefficient=2)])
 
         trnas = {'mt_trnaM': ('Met', 'CAT', 'm'), 'mt_trnaA': ('Ala', 'CGC', 'm'), 'mt_trnaC': ('Cys', 'GCA', 'm'), 'mt_trnaD': ('Asp', 'GTC', 'm'), 
-            'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 'trnaD': ('Asp', 'GTC', 'c')}
+            'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 
+            'trnaD': ('Asp', 'GTC', 'c'), 'trnaW': ('Trp', 'CCA', 'c')}
         for trna_id, (aa_id, anticodon, comp) in trnas.items():
             trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, type=wc_kb.eukaryote.TranscriptType.tRna)
             trna_compartment = cytoplasm if comp=='c' else mito
             trna_spec = wc_kb.core.Species(species_type=trna_species_type, compartment=trna_compartment)            
             trna_property = wc_kb.core.SpeciesTypeProperty(property='anticodon:amino_acid', species_type=trna_species_type, 
                 value='{}:{}'.format(anticodon, aa_id), value_type=wc_ontology['WC:string'])
+            trna_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=trna_species_type, 
+                value='10000.0', value_type=wc_ontology['WC:float'])
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -165,7 +169,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                     mean=5, units=unit_registry.parse_units('molecule'))
                 conc_model.id = conc_model.gen_id()
 
-        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'atp', 'adp', 'amp', 'gtp','gdp','pi', 'h2o', 'h']
+        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'Trp', 'atp', 'adp', 'amp', 'gtp','gdp','pi', 'h2o', 'h']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'],
                 structure = wc_lang.ChemicalStructure(
@@ -181,7 +185,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 conc_model.id = conc_model.gen_id()                    
 
         trna_model = {'mt_trnaM': 'm', 'mt_trnaA':'m', 'mt_trnaC': 'm', 'mt_trnaD': 'm', 
-            'trnaM': 'c','trnaA1': 'c', 'trnaA2': 'c', 'trnaC': 'c', 'trnaD': 'c'}
+            'trnaM': 'c','trnaA1': 'c', 'trnaA2': 'c', 'trnaC': 'c', 'trnaD': 'c', 'trnaW': 'c'}
         for Id, c in trna_model.items():
             model_species_type = model.species_types.create(id=Id)
             model_compartment = model.compartments.get_one(id=c)
@@ -190,6 +194,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=2, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-mt_trnaD[m]').mean = 0.    
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
@@ -213,6 +218,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'A': 'Ala',
                 'C': 'Cys',
                 'D': 'Asp',
+                'W': 'Trp',
                 },
             'cds': False,
             'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 'transM': 0.4},
@@ -222,7 +228,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model
 
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 1, 'U': 2, 'G': 4, 'C': 2, 'len': 9})
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'len': 3, '*': 0, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'W': 0, 'len': 3, '*': 0, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['translation_translocation'])
@@ -246,8 +252,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             {'ribo_bound_trans5[c]': -1, 'gtp[c]': -2, 'atp[c]': -1, 'h2o[c]': -3, 'Cys[c]': -1, 
             'comp_1[c]': 1, 'trans5_ribosome_binding_site[c]': 1, 'prot5[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 2})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
-            {'ribo_bound_transM[m]': -1, 'gtp[m]': -3, 'atp[m]': -2, 'h2o[m]': -5, 'Asp[m]': -2, 
-            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 2, 'gdp[m]': 3, 'pi[m]': 7, 'h[m]': 3})
+            {'ribo_bound_transM[m]': -1, 'gtp[m]': -4, 'atp[m]': -3, 'h2o[m]': -7, 'Asp[m]': -2, 'Trp[m]': -1, 
+            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 4})
         
         # translocation
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_n').participants}, 
@@ -265,15 +271,20 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             {'prot5[c]': -1, 'atp[x]': -1, 'h2o[x]': -1, 'prot5[x]': 1, 'adp[x]': 1, 'pi[x]': 1, 'h[x]': 1})
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 16)
-        self.assertEqual(len(model.observables), 2)
-        self.assertEqual(len(model.functions), 34) # 6 volume + 12 trna + 8 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.rate_laws), 18)
+        self.assertEqual(len(model.observables), 3)
+        self.assertEqual(len(model.functions), 38) # 6 volume + 14 trna + 10 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
-        self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'prot2[c] + comp_4[c]')
+        self.assertEqual(model.observables.get_one(id='translation_m_factors_m_1').expression.expression, 'mt_trnaD[m] + trnaD[m]')
+        self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_4[c] + prot2[c]')
         self.assertEqual(model.functions.get_one(id='trna_function_GCG_c').expression.expression, 
         	'(translation_c_factors_c_1 / (translation_c_factors_c_1 + K_m_translation_c_translation_c_factors_c_1 * Avogadro * volume_c))')
+        self.assertEqual(model.functions.get_one(id='trna_function_GAC_m').expression.expression,
+            '(translation_m_factors_m_1 / (translation_m_factors_m_1 + K_m_translation_m_translation_m_factors_m_1 * Avogadro * volume_m))')
         self.assertEqual(model.functions.get_one(id='trna_function_GCG_m').expression.expression, 
         	'(mt_trnaA[m] / (mt_trnaA[m] + K_m_translation_m_mt_trnaA * Avogadro * volume_m))')
+        self.assertEqual(model.functions.get_one(id='trna_function_TGG_m').expression.expression, 
+            '(trnaW[m] / (trnaW[m] + K_m_translation_m_trnaW * Avogadro * volume_m))')
         self.assertEqual(model.functions.get_one(id='aminoacid_function_Ala_c').expression.expression, 
         	'(Ala[c] / (Ala[c] + K_m_translation_c_Ala * Avogadro * volume_c))')
         self.assertEqual(model.functions.get_one(id='aminoacid_function_Asp_m').expression.expression, 
@@ -350,10 +361,12 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'translation_el_factor_function_m_1 * '
             'translation_el_factor_function_m_2 * '
             'trna_function_GAT_m * '
+            'trna_function_TGG_m * '
             'aminoacid_function_Asp_m * '
+            'aminoacid_function_Trp_m * '
             '(gtp[m] / (gtp[m] + K_m_translation_elongation_transM_gtp * Avogadro * volume_m)) * '
             '(atp[m] / (atp[m] + K_m_translation_elongation_transM_atp * Avogadro * volume_m)) * '
-            '2**6')
+            '2**8')
 
         # Translocation
         self.assertEqual(model.rate_laws.get_one(id='translocation_prot1_c_to_m-forward').expression.expression,
@@ -406,7 +419,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_c_m').value, math.log(2)*(1/(20*3600) + 1/40000)*55/10*5/10)
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'}}
+        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'}}
 
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='atp[m]')).mean = 0.
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='Met[m]')).mean = 0.
@@ -426,6 +439,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'A': 'Ala',
                 'C': 'Cys',
                 'D': 'Asp',
+                'W': 'Trp',
                 },
             'cds': False,
             'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 'transM': 0.4},
@@ -434,14 +448,14 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         model = self.model
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -7, 'atp[c]': -6, 'h2o[c]': -13, 'Ala[c]': -4, 'Cys[c]': -2, 'Asp[c]': -1, 'Met[c]': -1,
             'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 6, 'gdp[c]': 7, 'pi[c]': 19, 'h[c]': 7})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
-            {'ribo_bound_transM[m]': -1, 'gtp[m]': -3, 'atp[m]': -2, 'h2o[m]': -5, 'Asp[m]': -2, 
-            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 2, 'gdp[m]': 3, 'pi[m]': 7, 'h[m]': 3})
+            {'ribo_bound_transM[m]': -1, 'gtp[m]': -4, 'atp[m]': -3, 'h2o[m]': -7, 'Asp[m]': -2, 'Trp[m]': -1, 
+            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 4})
 
         self.assertEqual(model.parameters.get_one(id='transM_ribosome_binding_constant').comments,
             'Set to the median value because it could not be determined from data')
@@ -459,3 +473,53 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_m').comments, 
             'Set to the median value because it could not be determined from data')
         
+    def test_import_cytosolic_trna_into_mitochondria(self):
+
+        model = self.model
+        gen = translation_translocation.TranslationTranslocationSubmodelGenerator(self.kb, model, options={
+            'cytoplasmic_ribosome': 'ribosome',
+            'mitochondrial_ribosome': 'ribosome',
+            'cytoplasmic_initiation_factors': [['init_factor']],
+            'mitochondrial_initiation_factors': [['init_factor']],
+            'cytoplasmic_elongation_factors': [['el_factor1', 'el_factor2']],
+            'mitochondrial_elongation_factors': [['el_factor1'], ['el_factor2']],
+            'cytoplasmic_chaperones': [['chaperone']],
+            'mitochondrial_chaperones': [['chaperone']],
+            'er_chaperones': [['chaperone']],
+            'amino_acid_id_conversion': {
+                'M': 'Met',
+                'A': 'Ala',
+                'C': 'Cys',
+                'D': 'Asp',
+                'W': 'Trp',
+                },
+            'cds': False,
+            'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 'transM': 0.4},
+            })
+        gen._import_cytosolic_trna_into_mitochondria(['trnaA1'])
+
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA1[c]').mean, 2*(1-0.01))
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA1[c]').comments, 
+            'Value is adjusted to account for import into the mitochondria')
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA1[m]').mean, 2*0.01)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA1[m]').units, unit_registry.parse_units('molecule'))
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA1[m]').comments, 
+            'Value is set to 0.01 of the total cellular concentration')
+
+        self.assertEqual(model.reactions.get_one(id='trna_import_trnaA1').name, 'import of trnaA1 into the mitochondria')
+        self.assertEqual(model.reactions.get_one(id='trna_import_trnaA1').reversible, False)
+        self.assertEqual(model.reactions.get_one(id='trna_import_trnaA1').submodel, gen.submodel)
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='trna_import_trnaA1').participants}, 
+            {'trnaA1[c]': -1, 'trnaA1[m]': 1})
+
+        self.assertEqual(model.rate_laws.get_one(id='trna_import_trnaA1-forward').expression.expression,
+            'trnaA1_import_constant * trnaA1[c]')
+        self.assertEqual(model.rate_laws.get_one(id='trna_import_trnaA1-forward').units, unit_registry.parse_units('s^-1'))
+        self.assertEqual(model.parameters.get_one(id='trnaA1_import_constant').units, unit_registry.parse_units('molecule^-1 s^-1'))
+
+        average_rate = utils.calc_avg_syn_rate(2, 10000, 20*3600)
+        self.assertEqual(model.parameters.get_one(id='trnaA1_import_constant').value, 0.01 / (1-0.01) * average_rate / (2*(1-0.01)))
+
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA2[c]').mean = 0.
+        gen._import_cytosolic_trna_into_mitochondria(['trnaA2'])
+        self.assertEqual(model.parameters.get_one(id='trnaA2_import_constant').value, 0.)
