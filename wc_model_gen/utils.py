@@ -563,21 +563,26 @@ def gen_response_functions(model, beta, reaction_id, reaction_class, compartment
                     all_species[factor_species.gen_id()] = factor_species
                     obs_exp.append(factor_species.gen_id())
                     obs_total += factor_species.distribution_init_concentration.mean
+                    obs_exp_string = ' + '.join(sorted(obs_exp))
                 
-                observable_exp, error = wc_lang.ObservableExpression.deserialize(
-                ' + '.join(obs_exp),
-                {wc_lang.Species: all_species})            
-                assert error is None, str(error)                
-                
-                n = len(model.observables.get(name='factor for {} in {}'.format(
-                    reaction_class, compartment.name)))
+                if not any(i.expression.expression==obs_exp_string for i in model.observables):
+                    observable_exp, error = wc_lang.ObservableExpression.deserialize(
+                    obs_exp_string,
+                    {wc_lang.Species: all_species})            
+                    assert error is None, str(error)                
+                    
+                    n = len(model.observables.get(name='factor for {} in {}'.format(
+                        reaction_class, compartment.name)))
 
-                factor_observable = model.observables.get_or_create(
-                    id='{}_factors_{}_{}'.format(reaction_class, compartment.id, n+1), 
-                    name='factor for {} in {}'.format(reaction_class, compartment.name), 
-                    units=unit_registry.parse_units('molecule'), 
-                    expression=observable_exp)
-                all_observables[factor_observable.id] = factor_observable
+                    factor_observable = model.observables.get_or_create(
+                        id='{}_factors_{}_{}'.format(reaction_class, compartment.id, n+1), 
+                        name='factor for {} in {}'.format(reaction_class, compartment.name), 
+                        units=unit_registry.parse_units('molecule'), 
+                        expression=observable_exp)
+                    all_observables[factor_observable.id] = factor_observable
+                else:
+                    factor_observable = [i for i in model.observables if i.expression.expression==obs_exp_string][0]
+                    all_observables[factor_observable.id] = factor_observable
 
                 model_k_m = model.parameters.create(
                     id='K_m_{}_{}'.format(reaction_class, factor_observable.id),
