@@ -360,6 +360,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(all_parameters['K_m_reaction_id_s4'].comments, 'The value was assumed to be 2 times the concentration of s4 in cytosol')
         self.assertEqual(all_volumes, {'volume_c': volume})
         self.assertEqual(len(all_observables), 1)
+        self.assertEqual(len(model.observables), 1)
         self.assertEqual(all_observables['reaction_class_factors_c_1'].name, 'factor for reaction_class in cytosol')
         self.assertEqual(all_observables['reaction_class_factors_c_1'].units, unit_registry.parse_units('molecule'))
         self.assertEqual(all_observables['reaction_class_factors_c_1'].expression.expression, 's1[c] + s2[c]')
@@ -376,11 +377,19 @@ class TestCase(unittest.TestCase):
         factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
             model, beta, 'reaction_id', 'reaction_class', c, factors)
 
+        self.assertEqual(len(model.observables), 2)
         self.assertEqual(all_parameters['K_m_reaction_class_reaction_class_factors_c_2'].value, 1e-05)
         self.assertEqual(all_parameters['K_m_reaction_class_reaction_class_factors_c_2'].comments, 
             'The value was assigned to 1e-05 because the value of reaction_class_factors_c_2 was zero')
         self.assertEqual(all_parameters['K_m_reaction_id_s7'].value, 1e-05)
         self.assertEqual(all_parameters['K_m_reaction_id_s8'].comments, 'The value was assigned to 1e-05 because the concentration of s8 in cytosol was zero')
+
+        factors = [['s5', 'species_type_6']] 
+        factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+            model, beta, 'reaction_id2', 'reaction_class2', c, factors)
+
+        self.assertEqual(len(model.observables), 2)
+        self.assertEqual(all_parameters['K_m_reaction_class2_reaction_class_factors_c_2'].value, 1e-05)
 
     def test_gen_mass_action_rate_law(self):
         model = wc_lang.Model()

@@ -73,8 +73,17 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'GCC': ['GGT', 'GGC'],
     'TCC': ['GGA', 'GGG'],
     'CCC': ['GGG'],
-    'TCA': ['TGA'], #selenocysteine        
+    'TCA': ['TGA'], #selenocysteine
+    'AAA': ['TTT'], #natural pairing but unlikely according to the rule
+    'ATA': ['TAT'], #natural pairing but unlikely according to the rule
+    'ATG': ['CAT'], #natural pairing but unlikely according to the rule
+    'ATT': ['AAT'], #natural pairing but unlikely according to the rule
+    'ACT': ['AGT'], #natural pairing but unlikely according to the rule
+    'ATC': ['GAT'], #natural pairing but unlikely according to the rule        
 }
+
+STOP_CODON = ['TAA', 'TAG']
+
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for translation, protein folding and translocation submodel
@@ -124,7 +133,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
         * polysome_fraction (:obj:`dict`): a dictionary with mRNA ids as keys and
-            fraction of total cellular ribosomes the mRNA is bound to            
+            fraction of total cellular ribosomes the mRNA is bound to
+        * mitochondrial_cytosolic_trna_partition (:obj:`float`, optional): fraction of cellular 
+            tRNA that would be imported into the mitochondrial for codons not covered by the 
+            mitochondrial tRNAs, the default value is 0.01                
     """
 
     def clean_and_validate_options(self):
@@ -180,6 +192,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             raise ValueError('The dictionary polysome_fraction has not been provided')
         else:    
             polysome_fraction = options['polysome_fraction']
+
+        mitochondrial_cytosolic_trna_partition = options.get('mitochondrial_cytosolic_trna_partition', 0.01)
+        assert(0. <= mitochondrial_cytosolic_trna_partition <= 1.) 
+        options['mitochondrial_cytosolic_trna_partition'] = mitochondrial_cytosolic_trna_partition    
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -515,39 +531,65 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 if trna.species[0].compartment.id == 'm':
                     if codon in trna_grouping['m']: 
                         trna_grouping['m'][codon]['trna'].append(trna.id)
+                        trna_grouping['m'][codon]['anticodon'].append(anticodon_prop[0])
                     else:
-                        trna_grouping['m'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
+                        trna_grouping['m'][codon] = {
+                            'trna': [trna.id], 
+                            'anticodon': [anticodon_prop[0]], 
+                            'aa': anticodon_prop[1], 
+                            }
                 else:
                     if codon in trna_grouping['c']: 
                         trna_grouping['c'][codon]['trna'].append(trna.id)
+                        trna_grouping['c'][codon]['anticodon'].append(anticodon_prop[0])
                     else:
-                        trna_grouping['c'][codon] = {'trna': [trna.id], 'aa': anticodon_prop[1]}
+                        trna_grouping['c'][codon] = {
+                            'trna': [trna.id],
+                            'anticodon': [anticodon_prop[0]], 
+                            'aa': anticodon_prop[1], 
+                            }
 
         trna_functions = {'c': {}, 'm': {}}
         for comp, all_trnas in trna_grouping.items():
             for codon, trnas in all_trnas.items():
                 compartment = mitochondrion if comp=='m' else cytosol
+
+                # Import cytosolic tRNAs if mitochondrial tRNAs are not detected
+                if comp=='m' and all(model.distribution_init_concentrations.get_one(
+                  id='dist-init-conc-{}[m]'.format(i)).mean==0 for i in trnas['trna']):
+                    trnas['trna'] += trna_grouping['c'][codon]['trna']
+                    self._import_cytosolic_trna_into_mitochondria(trna_grouping['c'][codon]['trna'])
+
                 factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
                     model, beta, 'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), 
                     compartment, [trnas['trna']])
 
                 objects = {
-                    wc_lang.Species: all_species,
-                    wc_lang.Parameter: all_parameters,
-                    wc_lang.Observable: all_observables,
-                    wc_lang.Function: all_volumes,            
-                    }
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }
 
-                trna_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
-                assert error is None, str(error)
+                anticodons = '_'.join(sorted(set(trnas['anticodon'])))
+                trna_factor_function = model.functions.get_one(     
+                    id='trna_function_{}_{}'.format(anticodons, compartment.id))
 
+                if not trna_factor_function:                   
+
+                    trna_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                    assert error is None, str(error)
+
+                    trna_factor_function = model.functions.create(     
+                        id='trna_function_{}_{}'.format(anticodons, compartment.id),               
+                        name='tRNA response function for anticodon(s) {} in {}'.format(
+                            anticodons, compartment.name),
+                        expression=trna_expression,
+                        units=unit_registry.parse_units(''),
+                        )
+                
                 trna_functions[comp][codon] = {
-                    'function': model.functions.create(     
-                            id='trna_function_{}_{}'.format(codon, compartment.id),               
-                            name='tRNA response function for codon {} in {}'.format(codon, compartment.name),
-                            expression=trna_expression,
-                            units=unit_registry.parse_units(''),
-                            ),
+                    'function': trna_factor_function,
                     'aa': trnas['aa'],
                     'objects':objects,
                     }
@@ -769,16 +811,63 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
             
-            codon_seq = str(mrna_kb.get_seq()).replace('U','T')
+            codon_seq = str(mrna_kb.get_seq()).upper().replace('U','T')
             all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
-                    matched_trnas = [trna_functions[translation_compartment.id][i]]
-                    for codon_info in matched_trnas:    
-                        expression_terms.append(codon_info['function'].id)
-                        objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        
-                        for cl, dictionary in objects.items():
-                            dictionary.update(codon_info['objects'][cl])                    
+                    if i in STOP_CODON:
+                        pass
+                    else:
+                        if translation_compartment.id == 'c':    
+                            matched_trnas = [trna_functions[translation_compartment.id][i]]
+                        else:
+                            if i in trna_functions[translation_compartment.id]:
+                                matched_trnas = [trna_functions[translation_compartment.id][i]]
+                            else:
+                                cytosolic_trna_ids = trna_grouping['c'][i]['trna']
+                                self._import_cytosolic_trna_into_mitochondria(cytosolic_trna_ids)
+
+                                factor_exp, all_species, all_parameters, all_volumes, all_observables = \
+                                    utils.gen_response_functions(model, beta, 'translation_m', 'translation_m', 
+                                    translation_compartment, [cytosolic_trna_ids])
+
+                                added_objects = {
+                                    wc_lang.Species: all_species,
+                                    wc_lang.Parameter: all_parameters,
+                                    wc_lang.Observable: all_observables,
+                                    wc_lang.Function: all_volumes,            
+                                    }
+
+                                anticodons = '_'.join(sorted(set(trna_grouping['c'][i]['anticodon'])))
+                                trna_factor_function = model.functions.get_one(     
+                                    id='trna_function_{}_m'.format(anticodons))
+
+                                if not trna_factor_function:
+
+                                    trna_expression, error = wc_lang.FunctionExpression.deserialize(
+                                        factor_exp[0], added_objects)
+                                    assert error is None, str(error)
+                                
+                                    trna_factor_function = model.functions.create(     
+                                        id='trna_function_{}_m'.format(anticodons),               
+                                        name='tRNA response function for anticodon(s) {} in {}'.format(
+                                            anticodons, translation_compartment.name),
+                                        expression=trna_expression,
+                                        units=unit_registry.parse_units(''),
+                                        )
+                                
+                                trna_functions['m'][i] = {
+                                    'function': trna_factor_function,
+                                    'aa': trna_functions['c'][i]['aa'],
+                                    'objects': added_objects,
+                                    }
+                                matched_trnas = [trna_functions[translation_compartment.id][i]]       
+                            
+                        for codon_info in matched_trnas:    
+                            expression_terms.append(codon_info['function'].id)
+                            objects[wc_lang.Function][codon_info['function'].id] = codon_info['function']                        
+                            for cl, dictionary in objects.items():
+                                dictionary.update(codon_info['objects'][cl])                    
 
             for key, value in gvar.protein_aa_usage[mrna_kb.protein.id].items():                
                 if key in amino_acid_id_conversion and value:
@@ -1189,3 +1278,95 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             for model_kcat in undetermined_transloc_kcat:
                 model_kcat.value = 1.
                 model_kcat.comments = 'Set to 1 because it could not be determined from median value'
+
+    def _import_cytosolic_trna_into_mitochondria(self, cytosolic_trna_ids):
+        """ Create reactions and rate laws for importing cytosolic tRNAs into the mitochondria.
+            The concentrations of imported tRNAs in the mitochondria are set based on
+            the provided fraction and the rates of transport are calibrated accordingly to achieve
+            steady-states
+        """
+        kb = self.knowledge_base            
+        model = self.model
+        submodel = self.submodel
+        mitochondrial_cytosolic_trna_partition = self.options['mitochondrial_cytosolic_trna_partition']
+
+        cytosol = model.compartments.get_one(id='c')
+        mitochondria = model.compartments.get_one(id='m')
+
+        for trna_id in cytosolic_trna_ids:
+
+            trna_species_type = model.species_types.get_one(id=trna_id)
+
+            if not trna_species_type.species.get_one(compartment=mitochondria):
+
+                cyto_trna_species = trna_species_type.species.get_one(compartment=cytosol)
+                total_conc = cyto_trna_species.distribution_init_concentration.mean
+                cyto_trna_species.distribution_init_concentration.mean = total_conc * \
+                    (1 - mitochondrial_cytosolic_trna_partition)
+                cyto_trna_species.distribution_init_concentration.comments = \
+                    'Value is adjusted to account for import into the mitochondria'
+
+                mito_trna_species = model.species.get_or_create(
+                    species_type=trna_species_type, compartment=mitochondria)
+                mito_trna_species.id = mito_trna_species.gen_id()
+
+                conc_model = model.distribution_init_concentrations.create(
+                    species=mito_trna_species,
+                    mean=total_conc * mitochondrial_cytosolic_trna_partition,
+                    units=unit_registry.parse_units('molecule'),
+                    comments='Value is set to {} of the total cellular concentration'.format(
+                        mitochondrial_cytosolic_trna_partition),
+                    )
+                conc_model.id = conc_model.gen_id()
+
+                # Generate import reaction
+                import_reaction = model.reactions.create(
+                    submodel=self.submodel, id='trna_import_{}'.format(trna_id),
+                    name='import of {} into the mitochondria'.format(trna_id),
+                    reversible=False)
+                import_reaction.participants.append(
+                    cyto_trna_species.species_coefficients.get_or_create(coefficient=-1))
+                import_reaction.participants.append(
+                    mito_trna_species.species_coefficients.get_or_create(coefficient=1))
+
+                # Generate rate law for import reaction
+                import_constant = model.parameters.create(
+                    id='{}_import_constant'.format(trna_id),
+                    type=None,
+                    units=unit_registry.parse_units('molecule^-1 s^-1'),
+                    )
+                expression = '{} * {}'.format(import_constant.id, cyto_trna_species.id)
+
+                import_rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
+                    wc_lang.Species: {cyto_trna_species.id: cyto_trna_species},
+                    wc_lang.Parameter: {import_constant.id: import_constant},
+                    })
+                assert error is None, str(error)
+
+                import_rate_law = model.rate_laws.create(
+                    direction=wc_lang.RateLawDirection.forward,
+                    type=None,
+                    expression=import_rate_law_expression,
+                    reaction=import_reaction,
+                    units=unit_registry.parse_units('s^-1'),                
+                    )
+                import_rate_law.id = import_rate_law.gen_id()
+
+                # Caibrate import rate
+                half_life = kb.cell.species_types.get_one(id=trna_id).properties.get_one(
+                    property='half-life').get_value()
+                mean_doubling_time = model.parameters.get_one(id='mean_doubling_time').value
+                average_rate = utils.calc_avg_syn_rate(
+                    total_conc, half_life, mean_doubling_time)
+                
+                import_constant.value = 1.
+                eval_rate_law = import_rate_law_expression._parsed_expression.eval({
+                    wc_lang.Species: {cyto_trna_species.id: total_conc * \
+                    (1 - mitochondrial_cytosolic_trna_partition)}
+                    })
+                if eval_rate_law:
+                    import_constant.value = mitochondrial_cytosolic_trna_partition / \
+                        (1 - mitochondrial_cytosolic_trna_partition) * \
+                        average_rate / eval_rate_law
+                else:        
+                    import_constant.value = 0.
