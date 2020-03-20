@@ -664,7 +664,8 @@ class TestCase(unittest.TestCase):
         model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': self.set_options([
-                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()       
+                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_distribution_init_concentrations', 
+                'gen_kb_reactions'])}}).run()       
         
         self.assertEqual(len(model.reactions), 6)
         self.assertEqual(model.reactions.get_one(id='EX_met1_e_kb').name, 'exchange reaction')
