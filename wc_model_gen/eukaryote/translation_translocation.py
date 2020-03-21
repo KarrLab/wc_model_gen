@@ -81,8 +81,8 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'ACT': ['AGT'], #natural pairing but unlikely according to the rule
     'ATC': ['GAT'], #natural pairing but unlikely according to the rule        
 }
-
-STOP_CODON = ['TAA', 'TAG']
+UNCONDITIONAL_STOP_CODON = ['TAA', 'TAG']
+CONDITIONAL_STOP_CODON = ['TGA']
 
 
 class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
@@ -136,7 +136,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             fraction of total cellular ribosomes the mRNA is bound to
         * mitochondrial_cytosolic_trna_partition (:obj:`float`, optional): fraction of cellular 
             tRNA that would be imported into the mitochondrial for codons not covered by the 
-            mitochondrial tRNAs, the default value is 0.01                
+            mitochondrial tRNAs, the default value is 0.01
+        * selenoproteome (:obj:`list`, optional): list of IDs of genes that translate into 
+            selenoproteins, default is an empty list                    
     """
 
     def clean_and_validate_options(self):
@@ -195,7 +197,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         mitochondrial_cytosolic_trna_partition = options.get('mitochondrial_cytosolic_trna_partition', 0.01)
         assert(0. <= mitochondrial_cytosolic_trna_partition <= 1.) 
-        options['mitochondrial_cytosolic_trna_partition'] = mitochondrial_cytosolic_trna_partition    
+        options['mitochondrial_cytosolic_trna_partition'] = mitochondrial_cytosolic_trna_partition
+
+        selenoproteome = options.get('selenoproteome', [])
+        options['selenoproteome'] = selenoproteome    
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -206,7 +211,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         mitochondrial_ribosome = self.options.get('mitochondrial_ribosome')
         amino_acid_id_conversion = self.options.get('amino_acid_id_conversion')
         codon_table = self.options['codon_table']
-        cds = self.options['cds']        
+        cds = self.options['cds']
+        selenoproteome = self.options['selenoproteome']        
         
         cytosol = model.compartments.get_one(id='c')
         nucleus = model.compartments.get_one(id='n')
@@ -273,8 +279,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     codon_id = 1
                 else:
                     codon_id = codon_table[mrna_kb.protein.id]
-                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)                                            
-                protein_seq = ''.join(i for i in raw_seq if i!='*')
+                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)
+                if mrna_kb.gene.id in selenoproteome:
+                    processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
+                    protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
+                else:                                            
+                    protein_seq = ''.join(i for i in raw_seq if i!='*')
                 for aa in protein_seq:
                     aa_id = amino_acid_id_conversion[aa]
                     if aa_id not in aa_content:
@@ -487,6 +497,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = self.options.get('beta')
         codon_table = self.options['codon_table']
         cds = self.options['cds']
+        selenoproteome = self.options['selenoproteome']
 
         cytoplasmic_ribosome = self.options.get('cytoplasmic_ribosome')
         mitochondrial_ribosome = self.options.get('mitochondrial_ribosome')
@@ -815,8 +826,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
-                    if i in STOP_CODON:
+                    if i in UNCONDITIONAL_STOP_CODON:
                         pass
+                    elif i in CONDITIONAL_STOP_CODON and mrna_kb.gene.id not in selenoproteome:
+                        pass    
                     else:
                         if translation_compartment.id == 'c':    
                             matched_trnas = [trna_functions[translation_compartment.id][i]]
