@@ -710,6 +710,26 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_r4_forward_enzyme1').value, 600.) 
         self.assertEqual(model.parameters.get_one(id='k_cat_r4_forward_enzyme1').comments, '')
 
+    def test_determine_bounds(self):
+        
+        model = self.model        
+        gen = self.gen
+        gen.clean_and_validate_options()
+
+        m1_c = model.species.get_one(id='m1[c]')
+        conc_model = model.distribution_init_concentrations.create(species=m1_c, mean=10.)
+            
+        exchange_reactions = ['ex_m1', 'ex_m2', 'ex_m3']
+        media_fluxes = {'ex_m2': (-1.5, None)}
+        
+        reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = gen.determine_bounds(
+            exchange_reactions, media_fluxes, 10.)
+
+        self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15., None), 'ex_m3': (0., 0.), 
+            'r1': (0, 0), 'r2': (None, None), 'r3': (0, 20.), 'r4': (0, None), 'biomass_reaction': (0., None)})
+        self.assertEqual(sorted(lower_bound_adjustable), [])
+        self.assertEqual(sorted(upper_bound_adjustable), ['r3'])
+
     def test_relax_bounds(self):
         
         gen = self.gen

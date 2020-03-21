@@ -453,66 +453,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         coef_scale_factor = self.options['coef_scale_factor']
         optimization_type = self.options['optimization_type']
         media_fluxes = self.options['media_fluxes']
-        exchange_reactions = self.options['exchange_reactions']
+        exchange_reactions = self.options['exchange_reactions']        
         measured_growth = math.log(2)/model.parameters.get_one(id='mean_doubling_time').value
 
-        # Determine all the reaction bounds
-        self._reaction_bounds = {}
-        lower_bound_adjustable = []
-        upper_bound_adjustable = []
-        for reaction in submodel.reactions:
-        	# Block all exchange/demand/sink reactions        
-            if reaction.id.rstrip('_kb') in exchange_reactions:
-                min_constr = 0.
-                max_constr = 0.
-            # Set the bounds of exchange reactions for media components to the measured fluxes
-            if reaction.id.rstrip('_kb') in media_fluxes:
-                min_constr = media_fluxes[reaction.id.rstrip('_kb')][0]*scale_factor
-                max_constr = media_fluxes[reaction.id.rstrip('_kb')][1]*scale_factor            
-            # Set the bounds of reactions with measured kinetic constants
-            elif reaction.rate_laws:
-                
-                for_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.forward)
-                if for_ratelaw:
-                    if all(i.distribution_init_concentration.mean==0. for i in for_ratelaw.expression.species):                   
-                        max_constr = 0.                
-                    elif not any(numpy.isnan(p.value) for p in for_ratelaw.expression.parameters):                    
-                        max_constr = for_ratelaw.expression._parsed_expression.eval({
-                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-                                            for i in for_ratelaw.expression.species}
-                                        }) * scale_factor                    
-                        upper_bound_adjustable.append(reaction.id)                                
-                    else:
-                        max_constr = None
-                else:
-                    max_constr = None        
-                
-                rev_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.backward)
-                if rev_ratelaw:
-                    if all(i.distribution_init_concentration.mean==0. for i in rev_ratelaw.expression.species):                   
-                        min_constr = 0.
-                    elif not any(numpy.isnan(p.value) for p in rev_ratelaw.expression.parameters):
-                        min_constr = -rev_ratelaw.expression._parsed_expression.eval({
-                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
-                                            for i in rev_ratelaw.expression.species}
-                                        }) * scale_factor
-                        lower_bound_adjustable.append(reaction.id)					                	  
-                    else:
-                        min_constr = None
-                elif reaction.reversible:
-                    min_constr = None
-                else:
-                    min_constr = 0.
-            # Set other reactions to be unbounded                
-            else:
-                if reaction.id.rstrip('_kb') not in exchange_reactions:
-                    max_constr = None
-                    if reaction.reversible:
-                        min_constr = None	                
-                    else:
-                        min_constr = 0.    
-            
-            self._reaction_bounds[reaction.id] = (min_constr, max_constr)
+        self._reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = self.determine_bounds(
+            exchange_reactions, media_fluxes, scale_factor)                
 
         # Formulate the optimization problem using the conv_opt package
         conv_model = conv_opt.Model(name='model')
@@ -584,6 +529,93 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 flux_range = self.flux_variability_analysis(conv_model)
                 self.impute_kinetic_constant(flux_range)
     
+    def determine_bounds(self, exchange_reactions, media_fluxes, scale_factor):
+        """ Determine the minimum and maximum bounds for each reaction based on the provided
+            media fluxes, list of exchange reactions and the rate laws. The bounds will be
+            scaled according to the provided scale factor.
+
+            Args:
+                exchange_reactions (:obj:`list`): list of exchange reaction IDs
+                media_fluxes (:obj:`dict`): dictionary with the IDs of exchange reactions as 
+                    keys and tuples of minimum and maximum bounds to be set as values
+                scale_factor (:obj:`float`): factor to be used for scaling the bounds
+                
+            Returns:
+                :obj:`dict`: dictionary with reaction IDs as keys and tuples of scaled minimum
+                    and maximum bounds as values
+                :obj:`list`: list of IDs of reactions whose lower bounds are fully determined from 
+                    measured kinetic data and enzyme concentrations are not zero
+                :obj:`list`: list of IDs of reactions whose upper bounds are fully determined from 
+                    measured kinetic data and enzyme concentrations are not zero                   
+        """
+        submodel = self.submodel
+        
+        # Determine all the reaction bounds
+        reaction_bounds = {}
+        lower_bound_adjustable = []
+        upper_bound_adjustable = []
+        for reaction in submodel.reactions:
+            # Set the bounds of exchange/demand/sink reactions        
+            if reaction.id.rstrip('_kb') in exchange_reactions:
+                # Set the bounds of exchange reactions for media components to the measured fluxes
+                if reaction.id.rstrip('_kb') in media_fluxes:
+                    bounds = media_fluxes[reaction.id.rstrip('_kb')]
+                    min_constr = bounds[0]*scale_factor if bounds[0] else bounds[0]
+                    max_constr = bounds[1]*scale_factor if bounds[1] else bounds[1]
+                # Set the exchange reactions for other media components to be unbounded    
+                elif reaction.participants[0].species.distribution_init_concentration:
+                    min_constr = None
+                    max_constr = None
+                # Set the bounds of other exchange/demand/sink reactions to zero
+                else:
+                    min_constr = 0.
+                    max_constr = 0.
+            # Set the bounds of reactions with measured kinetic constants
+            elif reaction.rate_laws:
+                
+                for_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.forward)
+                if for_ratelaw:
+                    if all(i.distribution_init_concentration.mean==0. for i in for_ratelaw.expression.species):                   
+                        max_constr = 0.                
+                    elif not any(numpy.isnan(p.value) for p in for_ratelaw.expression.parameters):                    
+                        max_constr = for_ratelaw.expression._parsed_expression.eval({
+                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                            for i in for_ratelaw.expression.species}
+                                        }) * scale_factor                    
+                        upper_bound_adjustable.append(reaction.id)                                
+                    else:
+                        max_constr = None
+                else:
+                    max_constr = None        
+                
+                rev_ratelaw = reaction.rate_laws.get_one(direction=wc_lang.RateLawDirection.backward)
+                if rev_ratelaw:
+                    if all(i.distribution_init_concentration.mean==0. for i in rev_ratelaw.expression.species):                   
+                        min_constr = 0.
+                    elif not any(numpy.isnan(p.value) for p in rev_ratelaw.expression.parameters):
+                        min_constr = -rev_ratelaw.expression._parsed_expression.eval({
+                                        wc_lang.Species: {i.id: i.distribution_init_concentration.mean \
+                                            for i in rev_ratelaw.expression.species}
+                                        }) * scale_factor
+                        lower_bound_adjustable.append(reaction.id)                                        
+                    else:
+                        min_constr = None
+                elif reaction.reversible:
+                    min_constr = None
+                else:
+                    min_constr = 0.
+            # Set other reactions to be unbounded                
+            else:                
+                max_constr = None
+                if reaction.reversible:
+                    min_constr = None                   
+                else:
+                    min_constr = 0.    
+            
+            reaction_bounds[reaction.id] = (min_constr, max_constr)
+
+        return reaction_bounds, lower_bound_adjustable, upper_bound_adjustable    
+
     def relax_bounds(self, target, lower_bound_adjustable, upper_bound_adjustable):
         """ Relax bounds to achieve set target flux(es) while minimizing the total necessary adjustment
             to the flux bounds
