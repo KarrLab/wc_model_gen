@@ -1284,6 +1284,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             The concentrations of imported tRNAs in the mitochondria are set based on
             the provided fraction and the rates of transport are calibrated accordingly to achieve
             steady-states
+
+            Args:
+                cytosolic_trna_ids (:obj:`list`): list of species type IDs of cytosolic tRNAa to be
+                    imported into the mitochondria
         """
         kb = self.knowledge_base            
         model = self.model
