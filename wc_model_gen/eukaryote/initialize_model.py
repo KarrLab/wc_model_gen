@@ -33,7 +33,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     * membrane_density (:obj:`float`): membrane density; default is 1160 g/liter
     * cds (:obj:`bool`): True indicates mRNA sequence is a complete CDS; default is True
     * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
-            as keys and amino acid metabolite ids as values
+        as keys and amino acid metabolite ids as values
+    * selenoproteome (:obj:`list`): list of IDs of genes that translate into 
+        selenoproteins, default is an empty list  
     * environment (:obj:`dict`): dictionary with details for generating cell environment in the model 
     * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
     * media (:obj:`dict`): a dictionary with species type ids as keys and tuples of concentration (M) in the 
@@ -136,6 +138,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         amino_acid_id_conversion = options.get('amino_acid_id_conversion', {})
         assert(isinstance(amino_acid_id_conversion, dict))
         options['amino_acid_id_conversion'] = amino_acid_id_conversion
+
+        selenoproteome = options.get('selenoproteome', [])
+        assert(isinstance(selenoproteome, list))
+        options['selenoproteome'] = selenoproteome
 
         environment = options.get('environment', {})
         assert(isinstance(environment, dict))
@@ -398,7 +404,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         """
 
         model = self.model
-        ph = self.options['ph']        
+        ph = self.options['ph']
+        selenoproteome = self.options['selenoproteome']        
 
         model_species_type = model.species_types.get_or_create(id=kb_species_type.id)
         model_species_type.name = kb_species_type.name
@@ -467,18 +474,24 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
             cds = self.options['cds']
-            seq, start_codon = kb_species_type.get_seq_and_start_codon(table=table, cds=cds)            
-            self.populate_protein_aa_usage(model_species_type.id, seq)
+            raw_seq, start_codon = kb_species_type.get_seq_and_start_codon(table=table, cds=cds)
+            if kb_species_type.transcript.gene.id in selenoproteome:
+                processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
+                protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
+            else:                                            
+                protein_seq = ''.join(i for i in raw_seq if i!='*')            
+            self.populate_protein_aa_usage(model_species_type.id, protein_seq)
+            gvar.protein_aa_usage[model_species_type.id]['start_aa'] = protein_seq[0]
             gvar.protein_aa_usage[model_species_type.id]['start_codon'] = str(start_codon).upper()                        
             _, _, _, determined = self.determine_protein_structure_from_aa(
                 model_species_type.id, gvar.protein_aa_usage[model_species_type.id])
             if not determined:    
                 model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
-                    seq_input=seq)
+                    seq_input=protein_seq)
                 model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
-                    seq_input=seq)
+                    seq_input=protein_seq)
                 model_species_type.structure.charge = kb_species_type.get_charge(
-                    seq_input=seq)       
+                    seq_input=protein_seq)       
 
         elif isinstance(kb_species_type, wc_kb.core.ComplexSpeciesType):
             model_species_type.type = wc_ontology['WC:pseudo_species'] # pseudo specie
@@ -497,15 +510,22 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     else:    
                         table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                         cds = self.options['cds']
-                        seq = subunit.species_type.get_seq(table=table, cds=cds)
-                        self.populate_protein_aa_usage(subunit_id, seq)                        
+                        raw_seq, start_codon = subunit.species_type.get_seq_and_start_codon(table=table, cds=cds)
+                        if subunit.species_type.transcript.gene.id in selenoproteome:
+                            processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
+                            protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
+                        else:                                            
+                            protein_seq = ''.join(i for i in raw_seq if i!='*')
+                        self.populate_protein_aa_usage(subunit_id, protein_seq)
+                        gvar.protein_aa_usage[subunit_id]['start_aa'] = protein_seq[0]
+                        gvar.protein_aa_usage[subunit_id]['start_codon'] = str(start_codon).upper()                        
                         sub_formula, sub_mol_wt, sub_charge, determined = \
                             self.determine_protein_structure_from_aa(
                             subunit_id, gvar.protein_aa_usage[subunit_id])
                         if not determined:
-                            formula += subunit.species_type.get_empirical_formula(seq_input=seq) * coef
-                            charge += subunit.species_type.get_charge(seq_input=seq) * coef
-                            weight += subunit.species_type.get_mol_wt(seq_input=seq) * coef
+                            formula += subunit.species_type.get_empirical_formula(seq_input=protein_seq) * coef
+                            charge += subunit.species_type.get_charge(seq_input=protein_seq) * coef
+                            weight += subunit.species_type.get_mol_wt(seq_input=protein_seq) * coef
                         else:
                             formula += sub_formula * coef 
                             charge += sub_charge * coef

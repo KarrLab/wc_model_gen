@@ -40,6 +40,8 @@ class TestCase(unittest.TestCase):
                         'gen_dfba_objective': True,
                         'gen_kb_rate_laws': False,
                         'gen_environment': False,
+                        'cds': False,
+                        'selenoproteome': ['gene4'],
                         }
 
         for i in options:
@@ -52,9 +54,10 @@ class TestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nTTTatgaARGTNCTCATHAAYAARAAYGARCTCTAGTTTAT\n'
+            f.write('>chr1\nTTTatgaARGTNCTCATHAAYAARAAYGARCTCtgaTTTAT\n'
                     '>chrX\nATGCGTCA\n'
-                    '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n')
+                    '>chrM\nATGAARAARTTYCTCCTCACNCCNCTCTAATTT\n'
+                    '>chrY\nATGtgaGCGtga\n')
     
         self.kb = wc_kb.KnowledgeBase(id='test_kb', version='0.0.1')
         cell = self.kb.cell = wc_kb.Cell(id='test_cell')
@@ -113,6 +116,22 @@ class TestCase(unittest.TestCase):
         prot3_conc = wc_kb.core.Concentration(cell=cell, species=prot3_spec, value=0.1)
         prot3_conc.id = prot3_conc.serialize()
 
+        chrY = wc_kb.core.DnaSpeciesType(cell=cell, id='chrY', name='chromosome Y', ploidy=1, 
+            sequence_path=self.sequence_path, circular=False, double_stranded=False)
+        gene4 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene4', polymer=chrY, start=1, end=12)
+        exon4 = wc_kb.eukaryote.GenericLocus(start=1, end=12)
+        transcript4 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans4',
+            name='transcript4', gene=gene4, exons=[exon4])
+        transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=cytoplasm)
+        transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=0.01)
+        transcript4_conc.id = transcript4_conc.serialize()
+        cds4 = wc_kb.eukaryote.GenericLocus(start=1, end=12)        
+        prot4 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot4', name='protein4', 
+            transcript=transcript4, coding_regions=[cds4])
+        prot4_spec = wc_kb.core.Species(species_type=prot4, compartment=cytoplasm)
+        prot4_conc = wc_kb.core.Concentration(cell=cell, species=prot4_spec, value=0.1)
+        prot4_conc.id = prot3_conc.serialize()
+
         met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
         met1_structure = wc_kb.core.SpeciesTypeProperty(property='structure', species_type=met1, value=
             'InChI=1S'
@@ -155,6 +174,10 @@ class TestCase(unittest.TestCase):
         species_type_coeff5 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot1, coefficient=0)
         complex3 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp3', name='complex3',
             subunits=[species_type_coeff5])
+
+        species_type_coeff6 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot4, coefficient=2)
+        complex4 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp4', name='complex4',
+            subunits=[species_type_coeff6])
 
         expr1 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] + 1.3 * prot3[m]',
             species = [prot1_spec, prot3_spec])
@@ -397,7 +420,33 @@ class TestCase(unittest.TestCase):
                 'start_aa': 'M', # Amino acid at start codon
                 'start_codon': 'AUG',
             })
-
+        self.assertEqual(gvar.protein_aa_usage['prot4'], {
+                'len': 3,
+                '*': 0,  # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': 1,  # Ala: Alanine (C3 H7 N O2)
+                'R': 0,  # Arg: Arginine (C6 H14 N4 O2)
+                'N': 0,  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': 0,  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': 0,  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': 0,  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': 0,  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': 0,  # Gly: Glycine (C2 H5 N O2)
+                'H': 0,  # His: Histidine (C6 H9 N3 O2)
+                'I': 0,  # Ile: Isoleucine (C6 H13 N O2)
+                'L': 0,  # Leu: Leucine (C6 H13 N O2)
+                'K': 0,  # Lys: Lysine (C6 H14 N2 O2)
+                'M': 1,  # Met: Methionine (C5 H11 N O2 S)
+                'F': 0,  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': 0,  # Pro: Proline (C5 H9 N O2)
+                'S': 0,  # Ser: Serine (C3 H7 N O3)
+                'T': 0,  # Thr: Threonine (C4 H9 N O3)
+                'W': 0,  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': 0,  # Val: Valine (C5 H11 N O2)
+                'U': 1,  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+                'start_aa': 'M', # Amino acid at start codon
+                'start_codon': 'AUG',
+            })
         self.assertEqual(prot1_model.name, 'protein1')
         self.assertEqual(prot3_model.type, wc_ontology['WC:protein'])
         self.assertEqual(all(i.compartment.id=='n' for i in model.species.get(species_type=prot1_model)), True)
@@ -509,6 +558,34 @@ class TestCase(unittest.TestCase):
         self.assertEqual(comp3_model.structure.empirical_formula, chem.EmpiricalFormula('C53H96N14O15S1'))
         self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1201.49, delta=0.3)
         self.assertEqual(comp3_model.structure.charge, 1)
+
+        self.assertEqual(gvar.protein_aa_usage['prot4'], {
+                'len': 3,
+                '*': 0,  # Symbol used in Bio.Seq.Seq when cds is set to False  
+                'A': 1,  # Ala: Alanine (C3 H7 N O2)
+                'R': 0,  # Arg: Arginine (C6 H14 N4 O2)
+                'N': 0,  # Asn: Asparagine (C4 H8 N2 O3)
+                'D': 0,  # Asp: Aspartic acid (C4 H7 N O4)
+                'C': 0,  # Cys: Cysteine (C3 H7 N O2 S)
+                'Q': 0,  # Gln: Glutamine (C5 H10 N2 O3)
+                'E': 0,  # Glu: Glutamic acid (C5 H9 N O4)
+                'G': 0,  # Gly: Glycine (C2 H5 N O2)
+                'H': 0,  # His: Histidine (C6 H9 N3 O2)
+                'I': 0,  # Ile: Isoleucine (C6 H13 N O2)
+                'L': 0,  # Leu: Leucine (C6 H13 N O2)
+                'K': 0,  # Lys: Lysine (C6 H14 N2 O2)
+                'M': 1,  # Met: Methionine (C5 H11 N O2 S)
+                'F': 0,  # Phe: Phenylalanine (C9 H11 N O2)
+                'P': 0,  # Pro: Proline (C5 H9 N O2)
+                'S': 0,  # Ser: Serine (C3 H7 N O3)
+                'T': 0,  # Thr: Threonine (C4 H9 N O3)
+                'W': 0,  # Trp: Tryptophan (C11 H12 N2 O2)
+                'Y': 0,  # Tyr: Tyrosine (C9 H11 N O3)
+                'V': 0,  # Val: Valine (C5 H11 N O2)
+                'U': 1,  # Selcys: Selenocysteine (C3 H7 N O2 Se)
+                'start_aa': 'M', # Amino acid at start codon
+                'start_codon': 'AUG',
+            })
 
         # Test the use of determine_protein_structure_from_aa
         amino_acid_id_conversion = {'N': 'met_N', 'E': 'met_E', 'I': 'met_I', 'L': 'met_L', 'K':'met_K', 'M':'met_M', 'V':'met_V'}
