@@ -474,7 +474,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             model_species_type.type = wc_ontology['WC:protein'] # protein
             table = 2 if 'M' in kb_species_type.transcript.gene.polymer.id else 1
             cds = self.options['cds']
-            raw_seq, start_codon = kb_species_type.get_seq_and_start_codon(table=table, cds=cds)
+            _, raw_seq, start_codon = kb_species_type.get_seq_and_start_codon(table=table, cds=cds)
             if kb_species_type.transcript.gene.id in selenoproteome:
                 processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
                 protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
@@ -510,7 +510,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     else:    
                         table = 2 if 'M' in subunit.species_type.transcript.gene.polymer.id else 1
                         cds = self.options['cds']
-                        raw_seq, start_codon = subunit.species_type.get_seq_and_start_codon(table=table, cds=cds)
+                        _, raw_seq, start_codon = subunit.species_type.get_seq_and_start_codon(table=table, cds=cds)
                         if subunit.species_type.transcript.gene.id in selenoproteome:
                             processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
                             protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)

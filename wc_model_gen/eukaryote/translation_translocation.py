@@ -279,7 +279,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     codon_id = 1
                 else:
                     codon_id = codon_table[mrna_kb.protein.id]
-                raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)
+                _, raw_seq, start_codon = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)
                 if mrna_kb.gene.id in selenoproteome:
                     processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
                     protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
@@ -822,7 +822,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     dictionary.update(factor_details['objects'][cl])
                 objects[wc_lang.Function][factor_details['function'].id] = factor_details['function']
             
-            codon_seq = str(mrna_kb.get_seq()).upper().replace('U','T')
+            if codon_table == 1:
+                codon_id = 1
+            else:
+                codon_id = codon_table[mrna_kb.protein.id]
+            coding_rna_seq, _, _ = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)
+            codon_seq = str(coding_rna_seq).upper().replace('U','T')
             all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
             for i in all_codons:
                 if len(i)==3:
