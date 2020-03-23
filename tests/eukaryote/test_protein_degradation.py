@@ -29,7 +29,8 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nGCGTGCGATGAT\n'
-                    '>chrM\nNGCGTGCGATGAT\n')
+                    '>chrM\nNGCGTGCGATGAT\n'
+                    '>chrX\nATGtgaGCGtgatga\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -38,6 +39,9 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=12)
         chrM = wc_kb.core.DnaSpeciesType(cell=cell, id='chrM', sequence_path=self.sequence_path)
         geneM = wc_kb.eukaryote.GeneLocus(cell=cell, id='geneM', polymer=chrM, start=2, end=13)
+        chrX = wc_kb.core.DnaSpeciesType(cell=cell, id='chrX', sequence_path=self.sequence_path)
+        geneX1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='geneX1', polymer=chrX, start=1, end=15)
+        geneX2 = wc_kb.eukaryote.GeneLocus(cell=cell, id='geneX2', polymer=chrX, start=1, end=15)
 
         locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=6)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
@@ -62,7 +66,19 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         protM = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='protM', name='proteinM', transcript=transcriptM, coding_regions=[locusM])
         protM_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=protM, 
             value='25000.0', value_type=wc_ontology['WC:float'])
-                
+
+        locusX1 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
+        transcriptX1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=geneX1, exons=[locusX1])
+        protX1 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='protX1', name='proteinX1', transcript=transcriptX1, coding_regions=[locusX1])
+        protX1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=protX1, 
+            value='25000.0', value_type=wc_ontology['WC:float'])
+        
+        locusX2 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
+        transcriptX2 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=geneX2, exons=[locusX2])
+        protX2 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='protX2', name='proteinX2', transcript=transcriptX2, coding_regions=[locusX2])
+        protX2_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=protX2, 
+            value='25000.0', value_type=wc_ontology['WC:float'])
+
         # Create initial model content
         self.model = model = wc_lang.Model()
         
@@ -84,7 +100,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 })
             assert error is None, str(error)
 
-        proteins = {'prot1': ['n', 'c'], 'prot2': ['c', 'l'], 'prot3': ['l'], 'protM': ['m', 'c_m']}
+        proteins = {'prot1': ['n', 'c'], 'prot2': ['c', 'l'], 'prot3': ['l'], 'protM': ['m', 'c_m'], 'protX1': ['l'], 'protX2': ['l']}
         for k, v in proteins.items():
             kb_protein = cell.species_types.get_one(id=k)
             model_species_type = model.species_types.create(id=kb_protein.id, name=kb_protein.name, type=wc_ontology['WC:protein'])
@@ -109,7 +125,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                     mean=2, units=unit_registry.parse_units('molecule'))
                 conc_model.id = conc_model.gen_id()
 
-        metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'h2o']
+        metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'Met', 'Selcys', 'h2o']
         metabolic_compartments = ['l', 'm']
         for i in metabolic_participants:
             for c in metabolic_compartments:
@@ -135,22 +151,31 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 'A': 'Ala',
                 'C': 'Cys',
                 'D': 'Asp',
+                'M': 'Met',
+                'U': 'Selcys',
                 },
             'cds': False,
+            'selenoproteome': ['geneX2'],
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'len': 2, '*': 0, 'start_aa': 'A', 'start_codon': 'GCG'})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 0, 'U': 0, 
+            'len': 2, '*': 0, 'start_aa': 'A', 'start_codon': 'GCG'})
+        self.assertEqual(gvar.protein_aa_usage['protX1'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'U': 0, 
+            'len': 2, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['protX2'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'U': 2, 
+            'len': 4, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['protein_degradation'])
         self.assertEqual(sorted([i.id for i in self.model.reactions]), 
             sorted(['prot1_n_degradation', 'prot1_c_degradation', 'prot2_c_degradation', 
-                'prot2_l_degradation', 'prot3_l_degradation', 'protM_m_degradation', 'protM_c_m_degradation']))
+                'prot2_l_degradation', 'prot3_l_degradation', 'protM_m_degradation', 
+                'protM_c_m_degradation', 'protX1_l_degradation', 'protX2_l_degradation']))
         self.assertEqual(sorted([i.name for i in self.model.reactions]), 
             sorted(['Degradation of prot1 of nucleus', 'Degradation of prot1 of cytoplasm', 'Degradation of prot2 of cytoplasm', 
                 'Degradation of prot2 of lysosome', 'Degradation of prot3 of lysosome', 'Degradation of protM of mitochondria',
-                'Degradation of protM of membrane']))
+                'Degradation of protM of membrane', 'Degradation of protX1 of lysosome', 'Degradation of protX2 of lysosome']))
         self.assertEqual(set([i.submodel.id for i in self.model.reactions]), set(['protein_degradation']))
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='prot1_n_degradation').participants}, 
             {'prot1[n]': -1, 'h2o[n]': -1, 'Ala[n]': 1, 'Cys[n]': 1})
@@ -166,9 +191,13 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             {'protM[m]': -1, 'h2o[m]': -1, 'Asp[m]': 2})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='protM_c_m_degradation').participants}, 
             {'protM[c_m]': -1, 'h2o[l]': -1, 'Asp[l]': 2})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='protX1_l_degradation').participants}, 
+            {'protX1[l]': -1, 'h2o[l]': -1, 'Met[l]': 1, 'Ala[l]': 1})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='protX2_l_degradation').participants}, 
+            {'protX2[l]': -1, 'h2o[l]': -3, 'Met[l]': 1, 'Ala[l]': 1, 'Selcys[l]': 2})
         
         # Test gen_rate_laws
-        self.assertEqual(len(self.model.rate_laws), 7)
+        self.assertEqual(len(self.model.rate_laws), 9)
         self.assertEqual(len(self.model.observables), 2)
         self.assertEqual(self.model.observables.get_one(id='total_proteasomes_l').expression.expression, 'comp_4[l] + comp_5[l]')
         self.assertEqual(self.model.observables.get_one(id='total_proteasomes_m').expression.expression, 'comp_2[m] + protM[m]')
@@ -198,12 +227,13 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').value, 1e-05)
         self.assertEqual(self.model.parameters.get_one(id='K_m_protM_m_degradation_protM').comments, 
             'The value was assigned to 1e-05 because the concentration of protM in mitochondria was zero')
-        self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').value, 0.5*(math.log(2)/40000*10/(0.5*4) + math.log(2)/25000*10/(0.5*4)))
+        self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').value, math.log(2)/25000*10/(0.5*4))
         self.assertEqual(self.model.parameters.get_one(id='k_cat_protM_m_degradation').comments, 
             'Set to the median value because it could not be determined from data')
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'}}
+        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'M': 0, 'U': 0, 
+            'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'}}
         gen = protein_degradation.ProteinDegradationSubmodelGenerator(self.kb, self.model, options={
             'compartment_proteasomes': {
                 'n': ['26S proteasome'], 
@@ -215,12 +245,16 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
                 'A': 'Ala',
                 'C': 'Cys',
                 'D': 'Asp',
+                'M': 'Met',
+                'U': 'Selcys',
                 },
             'cds': False,
+            'selenoproteome': ['geneX2'],
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 4, 'C': 2, 'D': 1, 'M': 0, 'U': 0,
+            'len': 7, '*': 1, 'start_aa':'A', 'start_codon': 'GCG'})
 
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='prot1_n_degradation').participants}, 
             {'prot1[n]': -1, 'h2o[n]': -6, 'Ala[n]': 4, 'Cys[n]': 2, 'Asp[n]':1})

@@ -32,7 +32,9 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the default is True     
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
-            Km values, the default value is 1      
+            Km values, the default value is 1
+        * selenoproteome (:obj:`list`, optional): list of IDs of genes that translate into 
+            selenoproteins, default is an empty list         
     """
 
     def clean_and_validate_options(self):
@@ -56,7 +58,10 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         options['cds'] = cds
 
         beta = options.get('beta', 1.)
-        options['beta'] = beta        
+        options['beta'] = beta
+
+        selenoproteome = options.get('selenoproteome', [])
+        options['selenoproteome'] = selenoproteome         
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel """
@@ -67,6 +72,7 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         amino_acid_id_conversion = self.options['amino_acid_id_conversion']
         codon_table = self.options['codon_table']
         cds = self.options['cds']
+        selenoproteome = self.options['selenoproteome']
                 
         print('Start generating protein degradation submodel...')
         protein_kbs = cell.species_types.get(__type=wc_kb.eukaryote.ProteinSpeciesType)
@@ -86,8 +92,12 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     codon_id = 1
                 else:
                     codon_id = codon_table[protein_kb.id]                                        
-                raw_seq, start_codon = protein_kb.get_seq_and_start_codon(table=codon_id, cds=cds)                                            
-                protein_seq = ''.join(i for i in raw_seq if i!='*')
+                _, raw_seq, start_codon = protein_kb.get_seq_and_start_codon(table=codon_id, cds=cds)
+                if protein_kb.transcript.gene.id in selenoproteome:
+                    processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
+                    protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
+                else:                                            
+                    protein_seq = ''.join(i for i in raw_seq if i!='*')
                 for aa in protein_seq:
                     aa_id = amino_acid_id_conversion[aa]
                     if aa_id not in aa_content:
