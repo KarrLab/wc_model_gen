@@ -82,14 +82,14 @@ class TestCase(unittest.TestCase):
         unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
             pseudo_reactions=['biomass_reaction'])
 
-        self.assertEqual(unproducibles, ['mock1'])
-        self.assertEqual(unrecyclables, ['mock2'])
-
-        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
-            test_products=['mock2'], test_reactants=['mock1'])
-
         self.assertEqual(unproducibles, ['mock2'])
         self.assertEqual(unrecyclables, ['mock1'])
+
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
+            test_producibles=['mock1'], test_recyclables=['mock2'])
+
+        self.assertEqual(unproducibles, ['mock1'])
+        self.assertEqual(unrecyclables, ['mock2'])
 
         R4 = model.reactions.create(submodel=submodel, id='Ex_mock1')
         R4.participants.add(mock1.species_coefficients.get_or_create(coefficient=-1.0))
@@ -100,7 +100,7 @@ class TestCase(unittest.TestCase):
         reaction_bounds = {i.id:(0., 1000.) for i in model.reactions}
         
         unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
-            test_products=['mock2'], test_reactants=['mock1'])
+            test_producibles=['mock1'], test_recyclables=['mock2'])
 
         self.assertEqual(unproducibles, [])
         self.assertEqual(unrecyclables, [])

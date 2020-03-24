@@ -48,13 +48,13 @@ def calc_avg_deg_rate(mean_concentration, half_life):
 
 
 def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None, 
-    test_products=None, test_reactants=None):
-    """ Test that an FBA metabolism submodel can produce each product component and 
-        recycle each reactant component in each reaction in the objective function
-        individually. For each product (reactant), a sink (source) reaction is added 
-        as objective function to be maximized. If the solution returns a zero 
+    test_producibles=None, test_recyclables=None):
+    """ Test that an FBA metabolism submodel can produce each reactant component (producible) 
+        and recycle each product component (recyclable) in each reaction in the objective 
+        function individually. For each reactant (product) component, a source (sink) reaction 
+        is added as objective function to be maximized. If the solution returns a zero 
         objective function, that indicates the submodel cannot produce (recycle) the
-        product (reactant).
+        reactant (product) component.
 
         Args:
             submodel (:obj:`wc_lang.Submodel`): FBA metabolism submodel
@@ -62,36 +62,36 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
                 and tuples of (lower bound, upper bound) as values
             pseudo_reactions (:obj:`list` of :obj:`str`, optional): list of IDs of 
                 pseudo-reactions that will be excluded from the optimization formulation
-            test_products (:obj:`list` of :obj:`str`, optional): list of IDs of species 
+            test_producibles (:obj:`list` of :obj:`str`, optional): list of IDs of species 
                 to be tested for producibility in the submodel; if nothing is provided, 
-                the species will be extracted from the products in objective reactions
-            test_reactants (:obj:`list` of :obj:`str`, optional): list of IDs of species 
+                the species will be extracted from the reactants in the objective reactions
+            test_recyclables (:obj:`list` of :obj:`str`, optional): list of IDs of species 
                 to be tested for recyclability in the submodel; if nothing is provided, 
-                the species will be extracted from the reactants in objective reactions
+                the species will be extracted from the products in the objective reactions
             
         Returns:
-            :obj:`list`: list of metabolite species IDs that cannot be produced 
+            :obj:`list`: list of species IDs of metabolites that cannot be produced 
                 in the metabolism submodel
-            :obj:`list`: list of metabolite species IDs that cannot be recycled 
+            :obj:`list`: list of species IDs of metabolites that cannot be recycled 
                 in the metabolism submodel         
     """
-    if test_products:
-        products = test_products
-    else:    
-        products = []
-        for reaction in submodel.dfba_obj.expression.reactions:
-            for product in reaction.get_products():
-                if product.id not in products:
-                    products.append(product.id)
-    
-    if test_reactants:
-        reactants = test_reactants
+    if test_producibles:
+        reactants = test_producibles
     else:    
         reactants = []
         for reaction in submodel.dfba_obj.expression.reactions:
             for reactant in reaction.get_reactants():
                 if reactant.id not in reactants:
                     reactants.append(reactant.id)
+    
+    if test_recyclables:
+        products = test_recyclables
+    else:    
+        products = []
+        for reaction in submodel.dfba_obj.expression.reactions:
+            for product in reaction.get_products():
+                if product.id not in products:
+                    products.append(product.id)
 
     if pseudo_reactions:
         excluded_rxns = pseudo_reactions
@@ -136,27 +136,6 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
         })
 
     unproducibles = []
-    for product in products:
-        temp_model = copy.deepcopy(conv_model)        
-        obj_reaction = conv_opt.Variable(name=product + '_test_reaction', 
-                                        type=conv_opt.VariableType.continuous,
-                                        lower_bound=0.0)
-        temp_model.variables.append(obj_reaction)        
-        
-        expression = [i for i in temp_model.constraints if i.name==product]
-        if expression:
-            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, 1.))
-        else:
-            temp_model.constraints.append(conv_opt.Constraint(
-                [conv_opt.LinearTerm(obj_reaction, 1.)], name=product, 
-                upper_bound=0.0, lower_bound=0.0))
-        
-        temp_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
-        result = temp_model.solve()
-        if result.value == 0.0:
-            unproducibles.append(product)            
-
-    unrecyclables = []
     for reactant in reactants:
         temp_model = copy.deepcopy(conv_model)
         obj_reaction = conv_opt.Variable(name=reactant + '_test_reaction', 
@@ -175,7 +154,28 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
         temp_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
         result = temp_model.solve()
         if result.value == 0.0:
-            unrecyclables.append(reactant) 
+            unproducibles.append(reactant)
+
+    unrecyclables = []
+    for product in products:
+        temp_model = copy.deepcopy(conv_model)        
+        obj_reaction = conv_opt.Variable(name=product + '_test_reaction', 
+                                        type=conv_opt.VariableType.continuous,
+                                        lower_bound=0.0)
+        temp_model.variables.append(obj_reaction)        
+        
+        expression = [i for i in temp_model.constraints if i.name==product]
+        if expression:
+            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, 1.))
+        else:
+            temp_model.constraints.append(conv_opt.Constraint(
+                [conv_opt.LinearTerm(obj_reaction, 1.)], name=product, 
+                upper_bound=0.0, lower_bound=0.0))
+        
+        temp_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
+        result = temp_model.solve()
+        if result.value == 0.0:
+            unrecyclables.append(product)    
 
     return unproducibles, unrecyclables                 
 
