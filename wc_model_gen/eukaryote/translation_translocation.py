@@ -218,7 +218,6 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
         peroxisome = model.compartments.get_one(id='x')
-        er = model.compartments.get_one(id='r')
                            
         # Get metabolite species involved in reaction
         amino_acid_participants = list(amino_acid_id_conversion.values()) 
@@ -460,7 +459,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     energy_reactant = 'atp'
                     energy_product = 'adp'
                 else:
-                    energy_compartment = er # GTP-dependent translocation to other organelles and membranes
+                    energy_compartment = cytosol # GTP-dependent translocation to other organelles and membranes through er
                     energy_reactant = 'gtp'
                     energy_product = 'gdp'            
 

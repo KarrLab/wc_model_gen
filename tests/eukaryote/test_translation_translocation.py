@@ -297,11 +297,11 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_x').participants}, 
             {'prot1[c]': -1, 'atp[x]': -1, 'h2o[x]': -1, 'prot1[x]': 1, 'adp[x]': 1, 'pi[x]': 1, 'h[x]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_r').participants}, 
-            {'prot1[c]': -1, 'gtp[r]': -1, 'h2o[r]': -1, 'prot1[r]': 1, 'gdp[r]': 1, 'pi[r]': 1, 'h[r]': 1})
+            {'prot1[c]': -1, 'gtp[c]': -1, 'h2o[c]': -1, 'prot1[r]': 1, 'gdp[c]': 1, 'pi[c]': 1, 'h[c]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_m').participants}, 
             {'prot1[c]': -1, 'atp[m]': -1, 'h2o[m]': -1, 'prot1[m]': 1, 'adp[m]': 1, 'pi[m]': 1, 'h[m]': 1})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_c_m').participants}, 
-            {'prot1[c]': -1, 'gtp[r]': -1, 'h2o[r]': -1, 'prot1[c_m]': 1, 'gdp[r]': 1, 'pi[r]': 1, 'h[r]': 1})
+            {'prot1[c]': -1, 'gtp[c]': -1, 'h2o[c]': -1, 'prot1[c_m]': 1, 'gdp[c]': 1, 'pi[c]': 1, 'h[c]': 1})
         self.assertEqual(model.reactions.get_one(id='translocation_protM_m_to_m'), None)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot5_c_to_x').participants}, 
             {'prot5[c]': -1, 'atp[x]': -1, 'h2o[x]': -1, 'prot5[x]': 1, 'adp[x]': 1, 'pi[x]': 1, 'h[x]': 1})
