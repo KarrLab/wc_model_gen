@@ -129,24 +129,24 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             reversible=False,
             comments='Pseudo-reaction for use as dFBA objective function')
 
-        # Add metabolites in the free pool to the RHS of biomass reaction
+        # Add metabolites in the free pool to the LHS of biomass reaction
         for conc in model.distribution_init_concentrations:
             if conc.species.species_type.type == wc_ontology['WC:metabolite'] and \
                 conc.species.compartment.id!='e': 
                 biomass_rxn.participants.add(
-                    conc.species.species_coefficients.get_or_create(coefficient=conc.mean))
+                    conc.species.species_coefficients.get_or_create(coefficient=-conc.mean))
         
-        # Add metabolites to be recycled to the LHS of biomass reaction
+        # Add metabolites to be recycled to the RHS of biomass reaction
         for met_id, amount in self.options['recycled_metabolites'].items():            
             model_species = model.species.get_one(id=met_id)
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += -amount
+                model_species_coefficient.coefficient += amount
             else:	
                 biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=-amount))
+                    model_species.species_coefficients.get_or_create(coefficient=amount))
 
-        # Add carbohydrate components to the RHS of biomass reaction and create carbohydrate formation reaction        
+        # Add carbohydrate components to the LHS of biomass reaction and create carbohydrate formation reaction        
         carbohydrate_st = model.species_types.create(id='carbohydrate', name='carbohydrate', 
             type = wc_ontology['WC:pseudo_species'], structure = wc_lang.ChemicalStructure())
         carbohydrate_species = model.species.create(species_type=carbohydrate_st, compartment=cytosol)
@@ -186,15 +186,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += amount
+                model_species_coefficient.coefficient += -amount
             else:   
                 biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=amount))
+                    model_species.species_coefficients.get_or_create(coefficient=-amount))
             
         carbohydrate_st.structure.molecular_weight = weight
         carbohydrate_st.structure.charge = round(charge)
 
-        # Add lipid components to the RHS of biomass reaction and create lipid formation reaction
+        # Add lipid components to the LHS of biomass reaction and create lipid formation reaction
         lipid_st = model.species_types.create(id='lipid', name='lipid', 
             type = wc_ontology['WC:pseudo_species'], structure = wc_lang.ChemicalStructure())
         lipid_species = model.species.create(species_type=lipid_st, compartment=cytosol)
@@ -233,10 +233,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += amount
+                model_species_coefficient.coefficient += -amount
             else:   
                 biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=amount))
+                    model_species.species_coefficients.get_or_create(coefficient=-amount))
             
         lipid_st.structure.molecular_weight = weight
         lipid_st.structure.charge = round(charge)
@@ -372,10 +372,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 model_species = model.species.get_one(id=met_id)
                 model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
                 if model_species_coefficient:
-                    model_species_coefficient.coefficient += amount
+                    model_species_coefficient.coefficient += -amount
                 else:
                     biomass_rxn.participants.add(
-                        model_species.species_coefficients.get_or_create(coefficient=amount))
+                        model_species.species_coefficients.get_or_create(coefficient=-amount))
 
         # Add biomass reaction as objective function
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)

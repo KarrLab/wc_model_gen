@@ -488,14 +488,14 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         self.assertEqual(model.reactions.get_one(id='biomass_reaction').reversible, False)
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants},
-            {'pool[c]': 25, 'rec[m]': -100, 'datp[n]': 26, 'dttp[n]': 26, 'dctp[n]': 12, 'dgtp[n]': 12,
-            'g6p[c]': 10*scipy.constants.Avogadro, 'chsterol[c]': 2*scipy.constants.Avogadro, 'pail_hs[c]': 8*scipy.constants.Avogadro, 
-            'atp[n]': 180, 'ctp[n]': 120, 'gtp[n]': 124, 'utp[n]': 120, 'ppi[n]': -492, 'amp[n]': -120, 'cmp[n]': -120, 'gmp[n]': -120, 
-            'ump[n]': -120, 'h2o[n]': 244, 'h[n]': -244, 'adp[n]': -60, 'pi[n]': -64, 'gdp[n]': -4, 'datp[m]': 4800, 'dttp[m]': 4800, 'dctp[m]': 1500, 'dgtp[m]': 1500, 
-            'atp[m]': 136, 'ctp[m]': 120, 'gtp[m]': 140, 'utp[m]': 120, 'ppi[m]': -12420, 'amp[m]': -172, 'cmp[m]': -160, 'gmp[m]': -160, 
-            'ump[m]': -160, 'h2o[m]': 340, 'h[m]': -332, 'adp[m]': -4, 'pi[m]': -48, 'gdp[m]': -20, 'ala_L[m]': 12, 'met_L[m]': 4,
-            'atp[c]': 48, 'gtp[c]': 60, 'amp[c]': -76, 'cmp[c]': -40, 'gmp[c]': -40, 'ump[c]': -40, 'h2o[c]': 240, 'h[c]': -216, 
-            'adp[c]': -12, 'pi[c]': -144, 'gdp[c]': -60, 'ala_L[c]': 36, 'met_L[c]': 12, 'h2o[l]': 24, 'ala_L[l]': -24, 'met_L[l]': -8,
+            {'pool[c]': -25, 'rec[m]': 100, 'datp[n]': -26, 'dttp[n]': -26, 'dctp[n]': -12, 'dgtp[n]': -12,
+            'g6p[c]': -10*scipy.constants.Avogadro, 'chsterol[c]': -2*scipy.constants.Avogadro, 'pail_hs[c]': -8*scipy.constants.Avogadro, 
+            'atp[n]': -180, 'ctp[n]': -120, 'gtp[n]': -124, 'utp[n]': -120, 'ppi[n]': 492, 'amp[n]': 120, 'cmp[n]': 120, 'gmp[n]': 120, 
+            'ump[n]': 120, 'h2o[n]': -244, 'h[n]': 244, 'adp[n]': 60, 'pi[n]': 64, 'gdp[n]': 4, 'datp[m]': -4800, 'dttp[m]': -4800, 'dctp[m]': -1500, 'dgtp[m]': -1500, 
+            'atp[m]': -136, 'ctp[m]': -120, 'gtp[m]': -140, 'utp[m]': -120, 'ppi[m]': 12420, 'amp[m]': 172, 'cmp[m]': 160, 'gmp[m]': 160, 
+            'ump[m]': 160, 'h2o[m]': -340, 'h[m]': 332, 'adp[m]': 4, 'pi[m]': 48, 'gdp[m]': 20, 'ala_L[m]': -12, 'met_L[m]': -4,
+            'atp[c]': -48, 'gtp[c]': -60, 'amp[c]': 76, 'cmp[c]': 40, 'gmp[c]': 40, 'ump[c]': 40, 'h2o[c]': -240, 'h[c]': 216, 
+            'adp[c]': 12, 'pi[c]': 144, 'gdp[c]': 60, 'ala_L[c]': -36, 'met_L[c]': -12, 'h2o[l]': -24, 'ala_L[l]': 24, 'met_L[l]': 8,
             })
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro)
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.charge, 10*scipy.constants.Avogadro)
@@ -671,7 +671,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen.clean_and_validate_options()
         gen.gen_reactions()
         
-        self.assertEqual([i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants if i.species.id=='atp[c]'], [2000])
+        self.assertEqual([i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants if i.species.id=='atp[c]'], [-2000])
 
     def test_calibrate_submodel(self):
         
