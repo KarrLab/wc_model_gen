@@ -165,22 +165,28 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     reversible=False)
         carb_rxn.participants.add(carbohydrate_species.species_coefficients.create(coefficient=1))
 
+        water_st = model.species_types.get_one(id='h2o')
+        water_weight = water_st.structure.molecular_weight
         unscaled_mass = 0
         for met_id, rel_amount in self.options['carbohydrate_components'].items():            
             model_species = model.species.get_one(id=met_id)
-            unscaled_mass += model_species.species_type.structure.molecular_weight * rel_amount
-        scale_factor = cell.parameters.get_one(id='total_carbohydrate_mass').value / unscaled_mass 
+            unscaled_mass += (model_species.species_type.structure.molecular_weight - \
+                water_weight) * rel_amount
+        scale_factor = (cell.parameters.get_one(id='total_carbohydrate_mass').value - \
+            water_weight / scipy.constants.Avogadro) / unscaled_mass 
                     
         charge = 0
         weight = 0
+        monomer_no = 0
         for met_id, rel_amount in self.options['carbohydrate_components'].items():
             
             amount = rel_amount * scale_factor * scipy.constants.Avogadro
-            
+            monomer_no += amount
             model_species = model.species.get_one(id=met_id)
             
             charge += model_species.species_type.structure.charge * amount
-            weight += model_species.species_type.structure.molecular_weight * amount
+            weight += (model_species.species_type.structure.molecular_weight - \
+                water_weight) * amount
             
             carb_rxn.participants.add(model_species.species_coefficients.create(coefficient=-amount))
             
@@ -191,8 +197,19 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=-amount))
             
-        carbohydrate_st.structure.molecular_weight = weight
+        carbohydrate_st.structure.molecular_weight = weight + water_weight
         carbohydrate_st.structure.charge = round(charge)
+
+        # Add water as product of carbohydrate synthesis and to be recycled in the biomass reaction
+        water_species = water_st.species.get_one(compartment=cytosol)
+        carb_rxn.participants.add(water_species.species_coefficients.get_or_create(
+            coefficient=monomer_no - 1))
+        water_species_coefficient = biomass_rxn.participants.get_one(species=water_species)
+        if water_species_coefficient:
+            water_species_coefficient.coefficient += monomer_no - 1
+        else:   
+            biomass_rxn.participants.add(
+                water_species.species_coefficients.get_or_create(coefficient=monomer_no - 1))
 
         # Add lipid components to the LHS of biomass reaction and create lipid formation reaction
         lipid_st = model.species_types.create(id='lipid', name='lipid', 

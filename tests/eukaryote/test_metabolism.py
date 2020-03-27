@@ -150,7 +150,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         nucleus = cell.compartments.create(id='n')
         extracellular = cell.compartments.create(id='e')
 
-        cell.parameters.create(id='total_carbohydrate_mass', value=2000)
+        cell.parameters.create(id='total_carbohydrate_mass', value=2000+20/scipy.constants.Avogadro)
         cell.parameters.create(id='total_lipid_mass', value=4700)
 
         sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
@@ -252,7 +252,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='g6p[e]'), mean=25.)
         conc_model.id = conc_model.gen_id()
 
-        structure_info = {'g6p': ('C6H13O9P', 200., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1)}
+        structure_info = {'g6p': ('C6H13O9P', 220., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1), 'h2o': ('H2O', 20., 0.)}
         for k, v in structure_info.items():
             model_species_type = model.species_types.get_one(id=k)
             model_species_type.structure = wc_lang.ChemicalStructure()
@@ -494,17 +494,17 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'ump[n]': 120, 'h2o[n]': -244, 'h[n]': 244, 'adp[n]': 60, 'pi[n]': 64, 'gdp[n]': 4, 'datp[m]': -4800, 'dttp[m]': -4800, 'dctp[m]': -1500, 'dgtp[m]': -1500, 
             'atp[m]': -136, 'ctp[m]': -120, 'gtp[m]': -140, 'utp[m]': -120, 'ppi[m]': 12420, 'amp[m]': 172, 'cmp[m]': 160, 'gmp[m]': 160, 
             'ump[m]': 160, 'h2o[m]': -340, 'h[m]': 332, 'adp[m]': 4, 'pi[m]': 48, 'gdp[m]': 20, 'ala_L[m]': -12, 'met_L[m]': -4,
-            'atp[c]': -48, 'gtp[c]': -60, 'amp[c]': 76, 'cmp[c]': 40, 'gmp[c]': 40, 'ump[c]': 40, 'h2o[c]': -240, 'h[c]': 216, 
+            'atp[c]': -48, 'gtp[c]': -60, 'amp[c]': 76, 'cmp[c]': 40, 'gmp[c]': 40, 'ump[c]': 40, 'h2o[c]': -240 + (10*scipy.constants.Avogadro - 1), 'h[c]': 216, 
             'adp[c]': 12, 'pi[c]': 144, 'gdp[c]': 60, 'ala_L[c]': -36, 'met_L[c]': -12, 'h2o[l]': -24, 'ala_L[l]': 24, 'met_L[l]': 8,
             })
-        self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro)
+        self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro + 20.)
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.charge, 10*scipy.constants.Avogadro)
         self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.mean, 1.)
         self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
         self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.id, 'macromolecular_formation')
         self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.framework, wc_ontology['WC:stochastic_simulation_algorithm'])
         self.assertEqual({i.species.id:i.coefficient for i in model.reactions.get_one(id='carbohydrate_formation').participants}, 
-            {'g6p[c]': -10*scipy.constants.Avogadro, 'carbohydrate[c]': 1.})        
+            {'g6p[c]': -10*scipy.constants.Avogadro, 'carbohydrate[c]': 1., 'h2o[c]': 10*scipy.constants.Avogadro-1})        
         self.assertEqual(model.species_types.get_one(id='lipid').structure.charge, -8*scipy.constants.Avogadro)
         self.assertEqual(model.species.get_one(id='lipid[c]').distribution_init_concentration.mean, 1.)
         self.assertEqual(model.species.get_one(id='lipid[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
@@ -545,7 +545,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         kb = wc_kb.KnowledgeBase()
         cell = kb.cell = wc_kb.Cell()
 
-        cell.parameters.create(id='total_carbohydrate_mass', value=2000)
+        cell.parameters.create(id='total_carbohydrate_mass', value=2000+20/scipy.constants.Avogadro)
         cell.parameters.create(id='total_lipid_mass', value=4700)
 
         cytoplasm = cell.compartments.create(id='c')
@@ -587,7 +587,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model = model.distribution_init_concentrations.create(species=model.species.get_one(id='pool[c]'), mean=25.)
         conc_model.id = conc_model.gen_id()
 
-        structure_info = {'g6p': ('C6H13O9P', 200., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1)}
+        structure_info = {'g6p': ('C6H13O9P', 220., 1), 'chsterol': ('C27H46O4S', 350., 0), 'pail_hs': ('C41H78O13P', 500., -1), 'h2o': ('H2O', 20., 0.)}
         for k, v in structure_info.items():
             model_species_type = model.species_types.get_one(id=k)
             model_species_type.structure = wc_lang.ChemicalStructure()
