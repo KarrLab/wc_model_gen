@@ -113,7 +113,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 
             'trnaD': ('Asp', 'GTC', 'c'), 'trnaW': ('Trp', 'CCA', 'c'), 'trnaU': ('Selcys', 'TCA', 'c')}
         for trna_id, (aa_id, anticodon, comp) in trnas.items():
-            trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, type=wc_kb.eukaryote.TranscriptType.tRna)
+            locus_trna = wc_kb.eukaryote.GenericLocus(start=1, end=5)
+            trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, gene=gene1, exons=[locus_trna], type=wc_kb.eukaryote.TranscriptType.tRna)
             trna_compartment = cytoplasm if comp=='c' else mito
             trna_spec = wc_kb.core.Species(species_type=trna_species_type, compartment=trna_compartment)            
             trna_property = wc_kb.core.SpeciesTypeProperty(property='anticodon:amino_acid', species_type=trna_species_type, 
@@ -176,7 +177,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         
         complexes = {'comp_1': ('ribosome', ['m', 'c']), 'comp_2': ('init_factor', ['m', 'c']), 'comp_3': ('el_factor1', ['m', 'c']), 
             'comp_4': ('el_factor2', ['m', 'c']), 'comp_5': ('chaperone', ['n', 'c', 'x', 'r', 'm']), 
-            'complexM': ('complexM', ['m'])}
+            'complexM': ('complexM', ['m']), 'comp_6': ('mitochondrial_exosome', ['m']),
+            'comp_7': ('cytoplasmic_exosome', ['c'])}
         for k, v in complexes.items():
             model_species_type = model.species_types.create(id=k, name=v[0], type=wc_ontology['WC:pseudo_species'],
             	structure = wc_lang.ChemicalStructure(
@@ -191,7 +193,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                     mean=5, units=unit_registry.parse_units('molecule'))
                 conc_model.id = conc_model.gen_id()
 
-        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'Trp', 'Selcys', 'atp', 'adp', 'amp', 'gtp','gdp','pi', 'h2o', 'h']
+        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'Trp', 'Selcys', 'atp', 'adp', 
+            'amp', 'cmp', 'gmp', 'ump', 'gtp','gdp','pi', 'h2o', 'h']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'],
                 structure = wc_lang.ChemicalStructure(
@@ -216,7 +219,33 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             conc_model = model.distribution_init_concentrations.create(species=model_species, 
                 mean=2, units=unit_registry.parse_units('molecule'))
             conc_model.id = conc_model.gen_id()
-        model.distribution_init_concentrations.get_one(id='dist-init-conc-mt_trnaD[m]').mean = 0.    
+        model.distribution_init_concentrations.get_one(id='dist-init-conc-mt_trnaD[m]').mean = 0. 
+ 
+        rna_deg_submodel = model.submodels.create(id='rna_degradation')
+        for Id, c in trna_model.items():
+            trna_species = model.species.get_one(id='{}[{}]'.format(Id, c))
+            model_trna_deg_reaction = model.reactions.create(submodel=rna_deg_submodel, id='degradation_{}'.format(Id))
+            participant_coeffs = {'{}[{}]'.format(Id, c): -1, 'h2o[{}]'.format(c): -4, 'amp[{}]'.format(c): 1, 
+                'ump[{}]'.format(c): 1, 'gmp[{}]'.format(c): 2, 'cmp[{}]'.format(c): 1, 'h[{}]'.format(c): 4}
+            for k, v in participant_coeffs.items():
+                participant_species = model.species.get_one(id=k)
+                model_trna_deg_reaction.participants.append(participant_species.species_coefficients.get_or_create(coefficient=v))
+            modifier = model.species.get_one(id='comp_6[m]' if c=='m' else 'comp_7[c]')
+            h2o_species = model.species.get_one(id='h2o[{}]'.format(c))
+            rate_law_exp, _ = utils.gen_michaelis_menten_like_rate_law(
+                model, model_trna_deg_reaction, modifiers=[modifier], exclude_substrates=[h2o_species])            
+            rate_law = model.rate_laws.create(
+                direction=wc_lang.RateLawDirection.forward,
+                type=None,
+                expression=rate_law_exp,
+                reaction=model_trna_deg_reaction,
+                )
+            rate_law.id = rate_law.gen_id()
+            param_val = {
+                'K_m_degradation_{}_{}'.format(Id, Id): 2 / scipy.constants.Avogadro / (2.5E-14 if c=='m' else 1E-13), 
+                'k_cat_degradation_{}'.format(Id): utils.calc_avg_deg_rate(2, 10000) / 5 / 0.5}
+            for k, v in param_val.items():
+                model.parameters.get_one(id=k).value = v
 
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
@@ -235,6 +264,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'cytoplasmic_chaperones': [['chaperone']],
             'mitochondrial_chaperones': [['chaperone']],
             'er_chaperones': [['chaperone']],
+            'mitochondrial_exosome': 'mitochondrial_exosome',
             'amino_acid_id_conversion': {
                 'M': 'Met',
                 'A': 'Ala',
@@ -261,7 +291,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'len': 4, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
-        self.assertEqual([i.id for i in self.model.submodels], ['translation_translocation'])
+        self.assertEqual(gen.submodel.id, 'translation_translocation')
 
         # initiation
         self.assertEqual(model.species_types.get_one(id='ribo_bound_trans1').structure.empirical_formula, EmpiricalFormula('H2'))
@@ -307,7 +337,6 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             {'prot5[c]': -1, 'atp[x]': -1, 'h2o[x]': -1, 'prot5[x]': 1, 'adp[x]': 1, 'pi[x]': 1, 'h[x]': 1})
 
         # Test gen_rate_laws
-        self.assertEqual(len(model.rate_laws), 22)
         self.assertEqual(len(model.observables), 3)
         self.assertEqual(len(model.functions), 37) # 6 volume + 11 trna + 12 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
@@ -488,6 +517,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'cytoplasmic_chaperones': [['chaperone']],
             'mitochondrial_chaperones': [['chaperone']],
             'er_chaperones': [['chaperone']],
+            'mitochondrial_exosome': 'mitochondrial_exosome',
             'amino_acid_id_conversion': {
                 'M': 'Met',
                 'A': 'Ala',
@@ -543,6 +573,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'cytoplasmic_chaperones': [['chaperone']],
             'mitochondrial_chaperones': [['chaperone']],
             'er_chaperones': [['chaperone']],
+            'mitochondrial_exosome': 'mitochondrial_exosome',
             'amino_acid_id_conversion': {
                 'M': 'Met',
                 'A': 'Ala',
@@ -578,8 +609,27 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='trnaA1_import_constant').units, unit_registry.parse_units('molecule^-1 s^-1'))
 
         average_rate = utils.calc_avg_syn_rate(2, 10000, 20*3600)
-        self.assertEqual(model.parameters.get_one(id='trnaA1_import_constant').value, 0.01 / (1-0.01) * average_rate / (2*(1-0.01)))
+        self.assertEqual(model.parameters.get_one(id='trnaA1_import_constant').value, 0.01 / 0.99 * average_rate / (2*0.99))
+
+        self.assertEqual(model.reactions.get_one(id='degradation_trnaA1_m').submodel.id, 'rna_degradation')
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='degradation_trnaA1_m').participants},
+            {'trnaA1[m]': -1, 'h2o[m]': -4, 'amp[m]': 1, 'cmp[m]': 1, 'gmp[m]': 2, 'ump[m]': 1, 'h[m]': 4})
+        self.assertEqual(model.rate_laws.get_one(id='degradation_trnaA1_m-forward').expression.expression,
+            'k_cat_degradation_trnaA1_m * comp_6[m] * '
+            '(trnaA1[m] / (trnaA1[m] + K_m_degradation_trnaA1_m_trnaA1 * Avogadro * volume_m))')
+        self.assertEqual(model.parameters.get_one(id='K_m_degradation_trnaA1_m_trnaA1').value, 2 * 0.01 / scipy.constants.Avogadro / 2.5E-14)
+        self.assertEqual(model.parameters.get_one(id='K_m_degradation_trnaA1_m_trnaA1').comments, 
+            'The value was assumed to be 1.0 times the concentration of trnaA1 in mitochondria')
+        self.assertEqual(model.parameters.get_one(id='K_m_degradation_trnaA1_trnaA1').value, 2 / scipy.constants.Avogadro / 1E-13)
+
+        total_deg_rate = utils.calc_avg_deg_rate(2, 10000)
+        cyto_deg_rate = total_deg_rate / 0.5 * (2*0.99/(2*0.99 + 2))
+        self.assertEqual(model.parameters.get_one(id='k_cat_degradation_trnaA1_m').value, (total_deg_rate - cyto_deg_rate) / 5 / 0.5)
 
         model.distribution_init_concentrations.get_one(id='dist-init-conc-trnaA2[c]').mean = 0.
         gen._import_cytosolic_trna_into_mitochondria(['trnaA2'])
         self.assertEqual(model.parameters.get_one(id='trnaA2_import_constant').value, 0.)
+        self.assertEqual(model.parameters.get_one(id='K_m_degradation_trnaA2_m_trnaA2').value, 1e-05)
+        self.assertEqual(model.parameters.get_one(id='K_m_degradation_trnaA2_m_trnaA2').comments, 
+            'The value was assigned to 1e-05 because the concentration of trnaA2 in mitochondria was zero')
+        self.assertEqual(model.parameters.get_one(id='k_cat_degradation_trnaA2_m').value, 0.)

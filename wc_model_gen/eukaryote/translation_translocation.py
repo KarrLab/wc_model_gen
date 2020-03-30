@@ -122,7 +122,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             the default is an empty list
         * er_chaperones (:obj:`list` of :obj:`list`): list of lists of the name of
             chaperones in the endoplasmic reticulum, grouped based on similar functions or classes, 
-            the default is an empty list                
+            the default is an empty list
+        * mitochondrial_exosome (:obj:`str`): the name of exosome complex that degrades RNAs in 
+            the mitochondria                    
         * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
             as keys and amino acid metabolite ids as values     
         * codon_table (:obj:`dict`, optional): a dictionary with protein id as key and 
@@ -174,7 +176,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         options['mitochondrial_chaperones'] = mitochondrial_chaperones
 
         er_chaperones = options.get('er_chaperones', [])
-        options['er_chaperones'] = er_chaperones  
+        options['er_chaperones'] = er_chaperones
+
+        if 'mitochondrial_exosome' not in options:
+            raise ValueError('The name of mitochondrial exosome has not been provided')
+        else:    
+            mitochondrial_exosome = options['mitochondrial_exosome']
 
         if 'amino_acid_id_conversion' not in options:
             raise ValueError('The dictionary amino_acid_id_conversion has not been provided')
@@ -1309,10 +1316,22 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         kb = self.knowledge_base            
         model = self.model
         submodel = self.submodel
+        beta = self.options['beta']
         mitochondrial_cytosolic_trna_partition = self.options['mitochondrial_cytosolic_trna_partition']
+        mitochondrial_exosome = self.options['mitochondrial_exosome']
 
         cytosol = model.compartments.get_one(id='c')
         mitochondria = model.compartments.get_one(id='m')
+        
+        rna_deg_submodel = model.submodels.get_one(id='rna_degradation')
+        exosome_species = model.species_types.get_one(
+            name=mitochondrial_exosome).species.get_one(compartment=mitochondria)
+
+        Avogadro = model.parameters.get_or_create(
+            id='Avogadro',
+            type=None,
+            value=scipy.constants.Avogadro,
+            units=unit_registry.parse_units('molecule mol^-1'))       
 
         for trna_id in cytosolic_trna_ids:
 
@@ -1373,9 +1392,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     )
                 import_rate_law.id = import_rate_law.gen_id()
 
-                # Caibrate import rate
-                half_life = kb.cell.species_types.get_one(id=trna_id).properties.get_one(
-                    property='half-life').get_value()
+                # Calibrate import rate
+                rna_kb = kb.cell.species_types.get_one(id=trna_id)
+                half_life = rna_kb.properties.get_one(property='half-life').get_value()
                 mean_doubling_time = model.parameters.get_one(id='mean_doubling_time').value
                 average_rate = utils.calc_avg_syn_rate(
                     total_conc, half_life, mean_doubling_time)
@@ -1383,7 +1402,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 import_constant.value = 1.
                 eval_rate_law = import_rate_law_expression._parsed_expression.eval({
                     wc_lang.Species: {cyto_trna_species.id: total_conc * \
-                    (1 - mitochondrial_cytosolic_trna_partition)}
+                        (1 - mitochondrial_cytosolic_trna_partition)}
                     })
                 if eval_rate_law:
                     import_constant.value = mitochondrial_cytosolic_trna_partition / \
@@ -1391,3 +1410,104 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         average_rate / eval_rate_law
                 else:        
                     import_constant.value = 0.
+
+                # Generate degradation reaction for imported tRNA
+                metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
+                metabolites = {}
+                for met in metabolic_participants:
+                    met_species_type = model.species_types.get_one(id=met)
+                    metabolites[met] = met_species_type.species.get_or_create(
+                            compartment=mitochondria, model=model)
+
+                reaction = model.reactions.get_or_create(submodel=rna_deg_submodel, 
+                    id='degradation_{}_{}'.format(trna_id, mitochondria.id))
+                reaction.name = 'degradation of {} in mitochondria'.format(trna_species_type.name)
+                
+                if trna_id in gvar.transcript_ntp_usage:
+                    ntp_count = gvar.transcript_ntp_usage[trna_id]
+                else:
+                    seq = rna_kb.get_seq()
+                    ntp_count = gvar.transcript_ntp_usage[trna_id] = {
+                        'A': seq.upper().count('A'),
+                        'C': seq.upper().count('C'),
+                        'G': seq.upper().count('G'),
+                        'U': seq.upper().count('U'),
+                        'len': len(seq)
+                        }                
+                # Adding participants to LHS
+                reaction.participants.append(mito_trna_species.species_coefficients.get_or_create(
+                    coefficient=-1))
+                reaction.participants.append(metabolites['h2o'].species_coefficients.get_or_create(
+                    coefficient=-(ntp_count['len']-1)))
+                # Adding participants to RHS
+                reaction.participants.append(metabolites['amp'].species_coefficients.get_or_create(
+                    coefficient=ntp_count['A']))
+                reaction.participants.append(metabolites['cmp'].species_coefficients.get_or_create(
+                    coefficient=ntp_count['C']))
+                reaction.participants.append(metabolites['gmp'].species_coefficients.get_or_create(
+                    coefficient=ntp_count['G']))
+                reaction.participants.append(metabolites['ump'].species_coefficients.get_or_create(
+                    coefficient=ntp_count['U']))
+                reaction.participants.append(metabolites['h'].species_coefficients.get_or_create(
+                    coefficient=ntp_count['len']-1))            
+                
+                # Generate rate law for degradation reaction of imported tRNA
+                rate_law_exp, _ = utils.gen_michaelis_menten_like_rate_law(
+                    model, reaction, modifiers=[exosome_species], 
+                    exclude_substrates=[metabolites['h2o']])
+                
+                rate_law = model.rate_laws.create(
+                    direction=wc_lang.RateLawDirection.forward,
+                    type=None,
+                    expression=rate_law_exp,
+                    reaction=reaction,
+                    )
+                rate_law.id = rate_law.gen_id()
+                
+                # Calibrate degradation reaction of imported tRNA
+                cyto_deg_reaction = rna_deg_submodel.reactions.get_one(id='degradation_' + rna_kb.id)
+                cyto_species_counts = {species.id: species.distribution_init_concentration.mean \
+                    for species in cyto_deg_reaction.rate_laws[0].expression.species}
+                cyto_deg_rate = cyto_deg_reaction.rate_laws[0].expression._parsed_expression.eval({
+                    wc_lang.Species: cyto_species_counts,
+                    wc_lang.Compartment: {
+                        cytosol.id: cytosol.init_volume.mean * \
+                            cytosol.init_density.value}
+                    })                
+                total_deg_rate = utils.calc_avg_deg_rate(total_conc, half_life)
+                mito_deg_rate = total_deg_rate - cyto_deg_rate
+
+                mito_species_counts = {exosome_species.id: exosome_species.distribution_init_concentration.mean}
+                for species in reaction.get_reactants():
+
+                    mito_species_counts[species.id] = species.distribution_init_concentration.mean
+
+                    if model.parameters.get(id='K_m_{}_{}'.format(reaction.id, species.species_type.id)):
+                        model_Km = model.parameters.get_one(
+                            id='K_m_{}_{}'.format(reaction.id, species.species_type.id))
+                        if species.distribution_init_concentration.mean:
+                            model_Km.value = beta * species.distribution_init_concentration.mean \
+                                / Avogadro.value / species.compartment.init_volume.mean
+                            model_Km.comments = 'The value was assumed to be {} times the concentration of {} in {}'.format(
+                                beta, species.species_type.id, species.compartment.name)
+                        else:
+                            model_Km.value = 1e-05
+                            model_Km.comments = 'The value was assigned to 1e-05 because the concentration of ' +\
+                                '{} in {} was zero'.format(species.species_type.id, species.compartment.name)
+
+                model_kcat = model.parameters.get_one(id='k_cat_{}'.format(reaction.id))
+
+                if mito_deg_rate:            
+                    model_kcat.value = 1.
+                    eval_rate_law = reaction.rate_laws[0].expression._parsed_expression.eval({
+                        wc_lang.Species: mito_species_counts,
+                        wc_lang.Compartment: {
+                            mitochondria.id: mitochondria.init_volume.mean * \
+                                mitochondria.init_density.value}
+                        })
+                    if eval_rate_law:
+                        model_kcat.value = mito_deg_rate / eval_rate_law
+                    else:
+                        model_kcat.value = 0.  
+                else:          
+                    model_kcat.value = 0.
