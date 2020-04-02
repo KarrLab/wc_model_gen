@@ -228,7 +228,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                            
         # Get metabolite species involved in reaction
         amino_acid_participants = list(amino_acid_id_conversion.values()) 
-        other_metabolite_participants = ['atp', 'adp', 'amp', 'gtp', 'gdp', 'pi', 'h2o', 'h']
+        other_metabolite_participants = ['atp', 'adp', 'amp', 'gtp', 'gdp', 'pi', 'ppi', 'h2o', 'h', 'selnp']
         metabolites = {}
         for met in amino_acid_participants + other_metabolite_participants:
             met_species_type = model.species_types.get_one(id=met)
@@ -410,12 +410,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     coefficient=-(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)))
             el_reaction.participants.append(metabolites['h2o'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-((gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*2 + 1)))
-            for aa_met, count in aa_content.items():   
-                if count:             
-                    el_reaction.participants.append(metabolites[aa_met][
-                        translation_compartment.id].species_coefficients.get_or_create(
-                            coefficient=-count))            
+                    coefficient=-((gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*2 + 1)))            
             
             # Adding participants to RHS
             el_reaction.participants.append(ribosome_complex.species_coefficients.get_or_create(
@@ -436,6 +431,33 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             el_reaction.participants.append(metabolites['h'][
                 translation_compartment.id].species_coefficients.get_or_create(
                     coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
+
+            # Adding participation of amino acids and other additional metabolites for forming selenocysteine  
+            for aa_met, count in aa_content.items():   
+                if count:
+                    # To add selenocysteine, seryl-tRNA is formed and phosphorylated before reacting with selenophosphate
+                    if aa_met == amino_acid_id_conversion['U']:
+                        serine_met = amino_acid_id_conversion['S']
+                        el_reaction.participants.append(metabolites[serine_met][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))
+                        el_reaction.participants.append(metabolites['selnp'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))
+                        el_reaction.participants.get_one(species=metabolites['atp'][
+                            translation_compartment.id]).coefficient -= count
+                        el_reaction.participants.get_one(species=metabolites['h'][
+                            translation_compartment.id]).coefficient -= count
+                        el_reaction.participants.append(metabolites['adp'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=count))
+                        el_reaction.participants.append(metabolites['ppi'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=count))
+                    else:             
+                        el_reaction.participants.append(metabolites[aa_met][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))
 
             init_el_rxn_no += 1
             
@@ -893,9 +915,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             for cl, dictionary in objects.items():
                                 dictionary.update(codon_info['objects'][cl])                    
 
-            for key, value in gvar.protein_aa_usage[mrna_kb.protein.id].items():                
-                if key in amino_acid_id_conversion and value:
-                    aa_met = amino_acid_id_conversion[key]
+            selcys = 0
+            for key, value in gvar.protein_aa_usage[mrna_kb.protein.id].items():
+                aa_id = 'S' if key=='U' else key                
+                if aa_id in amino_acid_id_conversion and value:
+                    selcys += 1 if key=='U' else 0
+                    aa_met = amino_acid_id_conversion[aa_id]
                     if aa_met==start_aa_met and value-1==0: 
                         pass
                     else:    
@@ -911,8 +936,9 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 dictionary.update(aa_functions[translation_compartment.id][
                                     aa_met]['objects'][cl])
             
+            other_mets = [['gtp'], ['atp']] + ([['selnp']] if selcys else [])
             expressions, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
-                model, beta, elongation_reaction.id, 'translation_elongation', translation_compartment, [['gtp'], ['atp']])
+                model, beta, elongation_reaction.id, 'translation_elongation', translation_compartment, other_mets)
             expression_terms += expressions
             objects[wc_lang.Species].update(all_species)
             objects[wc_lang.Parameter].update(all_parameters)

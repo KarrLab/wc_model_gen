@@ -193,8 +193,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                     mean=5, units=unit_registry.parse_units('molecule'))
                 conc_model.id = conc_model.gen_id()
 
-        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'Trp', 'Selcys', 'atp', 'adp', 
-            'amp', 'cmp', 'gmp', 'ump', 'gtp','gdp','pi', 'h2o', 'h']
+        metabolic_participants = ['Met', 'Ala', 'Cys', 'Asp', 'Trp', 'Ser', 'Selcys', 'atp', 'adp', 
+            'amp', 'cmp', 'gmp', 'ump', 'gtp', 'gdp', 'ppi', 'pi', 'h2o', 'h', 'selnp']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'],
                 structure = wc_lang.ChemicalStructure(
@@ -272,6 +272,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'D': 'Asp',
                 'W': 'Trp',
                 'U': 'Selcys',
+                'S': 'Ser',
                 },
             'cds': False,
             'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 
@@ -283,11 +284,11 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model
 
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 1, 'U': 2, 'G': 4, 'C': 2, 'len': 9})
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 'S': 0, 
             'len': 3, '*': 0, 'start_aa': 'M', 'start_codon': 'AUG'})
-        self.assertEqual(gvar.protein_aa_usage['protX1'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 
+        self.assertEqual(gvar.protein_aa_usage['protX1'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 'S': 0,
             'len': 2, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
-        self.assertEqual(gvar.protein_aa_usage['protX2'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 2, 
+        self.assertEqual(gvar.protein_aa_usage['protX2'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 2, 'S': 0,
             'len': 4, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
@@ -318,8 +319,9 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             {'ribo_bound_transX1[c]': -1, 'gtp[c]': -2, 'atp[c]': -1, 'h2o[c]': -3, 'Ala[c]': -1,
             'comp_1[c]': 1, 'transX1_ribosome_binding_site[c]': 1, 'protX1[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 2})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX2').participants}, 
-            {'ribo_bound_transX2[c]': -1, 'gtp[c]': -4, 'atp[c]': -3, 'h2o[c]': -7, 'Ala[c]': -1, 'Selcys[c]': -2,
-            'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'amp[c]': 3, 'gdp[c]': 4, 'pi[c]': 10, 'h[c]': 4})
+            {'ribo_bound_transX2[c]': -1, 'gtp[c]': -4, 'atp[c]': -5, 'h2o[c]': -7, 'Ala[c]': -1, 'Ser[c]': -2, 'selnp[c]': -2,
+            'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'adp[c]': 2, 'amp[c]': 3, 
+            'gdp[c]': 4, 'pi[c]': 10, 'ppi[c]': 2, 'h[c]': 2})
         
         # translocation
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_n').participants}, 
@@ -338,7 +340,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_rate_laws
         self.assertEqual(len(model.observables), 3)
-        self.assertEqual(len(model.functions), 37) # 6 volume + 11 trna + 12 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.functions), 39) # 6 volume + 11 trna + 14 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
         self.assertEqual(model.observables.get_one(id='translation_m_factors_m_1').expression.expression, 'mt_trnaD[m] + trnaD[m]')
         self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_4[c] + prot2[c]')
@@ -446,10 +448,11 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             'trna_function_CGC_c * '
             'trna_function_TCA_c * '
             'aminoacid_function_Ala_c * '            
-            'aminoacid_function_Selcys_c * '
+            'aminoacid_function_Ser_c * '            
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_transX2_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_transX2_atp * Avogadro * volume_c)) * '
-            '2**7')
+            '(selnp[c] / (selnp[c] + K_m_translation_elongation_transX2_selnp * Avogadro * volume_c)) * '
+            '2**8')
 
         # Translocation
         self.assertEqual(model.rate_laws.get_one(id='translocation_prot1_c_to_m-forward').expression.expression,
@@ -502,7 +505,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_c_m').value, math.log(2)*(1/(20*3600) + 1/40000)*55/10*5/10)
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'U':0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'}}
+        gvar.protein_aa_usage = {'prot1': {'M': 2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'U': 0, 'S': 0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'}}
 
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='atp[m]')).mean = 0.
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='Met[m]')).mean = 0.
@@ -524,7 +527,8 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'C': 'Cys',
                 'D': 'Asp',
                 'W': 'Trp',
-                'U': 'Selcys'
+                'U': 'Selcys',
+                'S': 'Ser',
                 },
             'cds': False,
             'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 
@@ -535,7 +539,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         model = self.model
 
-        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'U': 0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['prot1'], {'M':2, 'A': 4, 'C': 2, 'D': 1, 'W': 0, 'U': 0, 'S': 0, 'len': 7, '*': 1, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -7, 'atp[c]': -6, 'h2o[c]': -13, 'Ala[c]': -4, 'Cys[c]': -2, 'Asp[c]': -1, 'Met[c]': -1,
@@ -581,6 +585,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 'D': 'Asp',
                 'W': 'Trp',
                 'U': 'Selcys',
+                'S': 'Ser',
                 },
             'cds': False,
             'polysome_fraction': {'trans1': 0.4, 'trans2': 0.2, 'trans4': 0.0, 'trans5': 0.0, 
