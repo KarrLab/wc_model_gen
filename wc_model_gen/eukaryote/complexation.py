@@ -32,6 +32,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
             to substrate concentration (Km/[S]) for use when estimating 
             Km values, the default value is 1
+        * selenoproteome (:obj:`list`, optional): list of IDs of genes that translate into 
+            selenoproteins, default is an empty list    
         * estimate_initial_state (:obj:`bool`): if True, the initial concentrations of complexes 
             and free-pool subunits will be estimated using linear programming,
             the default is True
@@ -39,7 +41,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             at each round of reaction selection during initial copy number estimation, 
             value should be higher than 0 and not more than 1.0, and the default value is 0.1
         * subunit_equilibrium_fraction (:obj:`float`): the fraction of total concentration for
-            each protein that stays as free subunits        
+            each protein that stays as free subunits, and the default value is 0.1        
     """
 
     def clean_and_validate_options(self):
@@ -60,6 +62,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         beta = options.get('beta', 1.)
         options['beta'] = beta
 
+        selenoproteome = options.get('selenoproteome', [])
+        options['selenoproteome'] = selenoproteome
+
         estimate_initial_state = options.get('estimate_initial_state', True)
         options['estimate_initial_state'] = estimate_initial_state
 
@@ -79,6 +84,7 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         amino_acid_id_conversion = self.options['amino_acid_id_conversion']
         codon_table = self.options['codon_table']
         cds = self.options['cds']
+        selenoproteome = self.options['selenoproteome']
         
         print('Start generating complexation submodel...')
         assembly_rxn_no = 0
@@ -153,17 +159,32 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                             if gvar.protein_aa_usage[subunit.species_type.id][aa]:
                                                 aa_content[aa_id] = gvar.protein_aa_usage[subunit.species_type.id][aa]
                                     else:
+                                        gvar.protein_aa_usage[subunit.species_type.id] = {
+                                            i:0 for i in list(amino_acid_id_conversion.keys())}
                                         if codon_table == 1:
                                             codon_id = 1
                                         else:
-                                            codon_id = codon_table[subunit.species_type.id]                                        
-                                        protein_seq = ''.join(i for i in subunit.species_type.get_seq(table=codon_id, cds=cds) if i!='*')                                   
+                                            codon_id = codon_table[subunit.species_type.id]                                   
+                                        
+                                        _, raw_seq, start_codon = subunit.species_type.get_seq_and_start_codon(table=codon_id, cds=cds)
+                                        if subunit.species_type.transcript.gene.id in selenoproteome:
+                                            processed_seq = raw_seq[:-1] if raw_seq.endswith('*') else raw_seq
+                                            protein_seq = ''.join(i if i!='*' else 'U' for i in processed_seq)
+                                        else:                                            
+                                            protein_seq = ''.join(i for i in raw_seq if i!='*')
+                                        
                                         for aa in protein_seq:
                                             aa_id = amino_acid_id_conversion[aa]
                                             if aa_id not in aa_content:
                                                 aa_content[aa_id] = 1
+                                                gvar.protein_aa_usage[subunit.species_type.id][aa] = 1
                                             else:
                                                 aa_content[aa_id] += 1
+                                                gvar.protein_aa_usage[subunit.species_type.id][aa] += 1
+                                        gvar.protein_aa_usage[subunit.species_type.id]['*'] = raw_seq.count('*')
+                                        gvar.protein_aa_usage[subunit.species_type.id]['len'] = len(protein_seq)
+                                        gvar.protein_aa_usage[subunit.species_type.id]['start_aa'] = protein_seq[0]
+                                        gvar.protein_aa_usage[subunit.species_type.id]['start_codon'] = str(start_codon).upper()        
 
                                     if compl_compartment.id == 'm':
                                         degradation_comp = model.compartments.get_one(id='m')

@@ -28,7 +28,7 @@ class TestCase(unittest.TestCase):
         self.tmp_dirname = tempfile.mkdtemp()
         self.sequence_path = os.path.join(self.tmp_dirname, 'test_seq.fasta')
         with open(self.sequence_path, 'w') as f:
-            f.write('>chr1\nGCGTGCGATGAT\n')
+            f.write('>chr1\nGCGTGCGATGATtgatga\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -39,7 +39,7 @@ class TestCase(unittest.TestCase):
         membrane = cell.compartments.create(id='c_m')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
-        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=12)
+        gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=18)
         
         locus1 = wc_kb.eukaryote.GenericLocus(start=1, end=6)
         transcript1 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus1])
@@ -64,6 +64,13 @@ class TestCase(unittest.TestCase):
         prot3_spec2 = wc_kb.core.Species(species_type=prot3, compartment=mito)
         prot3_spec3 = wc_kb.core.Species(species_type=prot3, compartment=membrane)
 
+        locus4 = wc_kb.eukaryote.GenericLocus(start=10, end=18)
+        transcript4 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, gene=gene1, exons=[locus4])
+        prot4 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot4', name='protein4', transcript=transcript4, coding_regions=[locus4])
+        prot4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot4, 
+            value='40000.0', value_type=wc_ontology['WC:float'])
+        prot4_spec = wc_kb.core.Species(species_type=prot4, compartment=nucleus)
+
         met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
         for i in cell.compartments:
             met1_species = wc_kb.core.Species(species_type=met1, compartment=i)
@@ -77,7 +84,11 @@ class TestCase(unittest.TestCase):
         complex2 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_2', subunits=[
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot3, coefficient=2),
             wc_kb.core.SpeciesTypeCoefficient(species_type=met1, coefficient=2),
-            ])            
+            ])
+
+        complex3 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_3', subunits=[
+            wc_kb.core.SpeciesTypeCoefficient(species_type=prot4, coefficient=2),
+            ])                
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -128,7 +139,7 @@ class TestCase(unittest.TestCase):
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=compartment)
             model_species.id = model_species.gen_id()
 
-        for compl in [complex1, complex2]:
+        for compl in [complex1, complex2, complex3]:
             model_species_type = model.species_types.create(id=compl.id, type=wc_ontology['WC:pseudo_species'])
             subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
                 for sub in compl.subunits]
@@ -146,7 +157,7 @@ class TestCase(unittest.TestCase):
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
 
-        metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'h2o']
+        metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'Selcys', 'h2o']
         metabolic_compartments = ['l', 'm']
         for i in metabolic_participants:
             for c in metabolic_compartments:
@@ -167,17 +178,21 @@ class TestCase(unittest.TestCase):
             'A': 'Ala',
             'C': 'Cys',
             'D': 'Asp',
+            'E': 'Glu',
+            'U': 'Selcys',
             }
         gen = complexation.ComplexationSubmodelGenerator(self.kb, self.model, options={
             'amino_acid_id_conversion': amino_acid_id_conversion,
             'cds': False,
-            'estimate_initial_state': False,                
+            'estimate_initial_state': False,
+            'selenoproteome': ['gene1'],                
             })
         gen.run()
 
-        self.assertEqual(gvar.protein_aa_usage, {})   
+        self.assertEqual(gvar.protein_aa_usage['prot4'], 
+            {'A': 0, 'C': 0, 'D': 1, 'E': 0, 'U': 1, 'len': 2, '*': 2, 'start_aa': 'D', 'start_codon': 'GAU'})   
 
-        self.assertEqual(len(model.reactions), 10)
+        self.assertEqual(len(model.reactions), 12)
         self.assertEqual([i.id for i in model.submodels], ['complexation'])
 
         # Test gen_reaction
@@ -218,6 +233,10 @@ class TestCase(unittest.TestCase):
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c2_dissociate_prot3_c_m.participants]),
             sorted([('complex_2[c_m]', -1), ('h2o[l]', -1), ('Asp[l]', 2),  ('prot3[c_m]', 1), ('met1[c_m]', 2)]))
 
+        dissociate_prot4 = model.reactions.get_one(id='complex_3_dissociation_in_n_degrade_prot4')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot4.participants]),
+            sorted([('complex_3[n]', -1), ('h2o[l]', -1), ('Asp[l]', 1), ('Selcys[l]', 1), ('prot4[n]', 1)]))
+
         # Test gen_rate_laws
         self.assertEqual(complex1_assembly.rate_laws[0].expression.expression, 
             'k_cat_complex_1_association_in_n * '
@@ -251,12 +270,13 @@ class TestCase(unittest.TestCase):
         gen.options['estimate_initial_state'] = True
         gen.options['greedy_step_size'] = 0.5
         gen.calibrate_submodel()
-        self.assertEqual(gen._maximum_possible_amount, {'complex_1[n]': 5, 'complex_2[n]': 5, 'complex_2[m]': 10, 'complex_2[c_m]': 10})
+        self.assertEqual(gen._maximum_possible_amount, {'complex_1[n]': 5, 'complex_2[n]': 5, 'complex_2[m]': 10, 'complex_2[c_m]': 10, 'complex_3[n]': 5})
         self.assertEqual(gen._effective_dissociation_constant, {
             'complex_1[n]': 1/40000 + 2/20000 + 1/25000, 
             'complex_2[n]': 2/25000, 
             'complex_2[m]': 2/25000, 
             'complex_2[c_m]': 2/25000,
+            'complex_3[n]': 2/40000,
             })
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot1[n]').mean, 6)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot2[n]').mean, 2)
@@ -267,6 +287,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[n]').mean, 2.5)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[m]').mean, 9)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_2[c_m]').mean, 9)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-complex_3[n]').mean, 4.5)
         
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_association_in_n').value, (1/40000 + 2/20000 + 1/25000) * 4)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_2_association_in_n').value, 2/25000 * 2.5)
@@ -278,16 +299,19 @@ class TestCase(unittest.TestCase):
             'The value was assigned to 1e-05 because the concentration of met1 in mitochondria was not known')
 
     def test_global_vars(self):
-        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'len': 7, '*': 1, 'start_aa': 'A', 'start_codon': 'GCG'}}
+        gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'E': 0, 'U': 0, 'len': 7, '*': 1, 'start_aa': 'A', 'start_codon': 'GCG'}}
         amino_acid_id_conversion = {
             'A': 'Ala',
             'C': 'Cys',
             'D': 'Asp',
+            'E': 'Glu',
+            'U': 'Selcys',
             }
         gen = complexation.ComplexationSubmodelGenerator(self.kb, self.model, options={
             'amino_acid_id_conversion': amino_acid_id_conversion,
             'cds': False,
-            'estimate_steady_state': False,                
+            'estimate_steady_state': False,
+            'selenoproteome': ['gene1'],                
             })
         gen.run()   
 
