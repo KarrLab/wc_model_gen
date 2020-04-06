@@ -632,31 +632,32 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     }
 
         aa_functions = {'c': {}, 'm': {}}
-        for aa_id in amino_acid_id_conversion.values():
-            for compartment in [cytosol, mitochondrion]:
-                factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
-                    model, beta, 'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), 
-                    compartment, [[aa_id]])
+        for aa, aa_id in amino_acid_id_conversion.items():
+            if aa!='U':
+                for compartment in [cytosol, mitochondrion]:
+                    factor_exp, all_species, all_parameters, all_volumes, all_observables = utils.gen_response_functions(
+                        model, beta, 'translation_{}'.format(compartment.id), 'translation_{}'.format(compartment.id), 
+                        compartment, [[aa_id]])
 
-                objects = {
-                    wc_lang.Species: all_species,
-                    wc_lang.Parameter: all_parameters,
-                    wc_lang.Observable: all_observables,
-                    wc_lang.Function: all_volumes,            
-                    }                                
-                
-                aa_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
-                assert error is None, str(error)
+                    objects = {
+                        wc_lang.Species: all_species,
+                        wc_lang.Parameter: all_parameters,
+                        wc_lang.Observable: all_observables,
+                        wc_lang.Function: all_volumes,            
+                        }                                
+                    
+                    aa_expression, error = wc_lang.FunctionExpression.deserialize(factor_exp[0], objects)
+                    assert error is None, str(error)
 
-                aa_functions[compartment.id][aa_id] = {
-                    'function': model.functions.create(     
-                        id='aminoacid_function_{}_{}'.format(aa_id, compartment.id),               
-                        name='response function for amino acid {} in {}'.format(aa_id, compartment.name),
-                        expression=aa_expression,
-                        units=unit_registry.parse_units(''),
-                        ),
-                    'objects': objects
-                    }
+                    aa_functions[compartment.id][aa_id] = {
+                        'function': model.functions.create(     
+                            id='aminoacid_function_{}_{}'.format(aa_id, compartment.id),               
+                            name='response function for amino acid {} in {}'.format(aa_id, compartment.name),
+                            expression=aa_expression,
+                            units=unit_registry.parse_units(''),
+                            ),
+                        'objects': objects
+                        }
                             
         # Generate response function for each translation initiation factor group
         init_factor_functions = {'c': {}, 'm': {}}

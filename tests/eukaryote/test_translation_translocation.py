@@ -340,7 +340,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_rate_laws
         self.assertEqual(len(model.observables), 3)
-        self.assertEqual(len(model.functions), 39) # 6 volume + 11 trna + 14 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.functions), 37) # 6 volume + 11 trna + 12 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
         self.assertEqual(model.observables.get_one(id='translation_m_factors_m_1').expression.expression, 'mt_trnaD[m] + trnaD[m]')
         self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_4[c] + prot2[c]')
