@@ -396,7 +396,32 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             aa_content[amino_acid_id_conversion[gvar.protein_aa_usage[mrna_kb.protein.id]['start_aa']]] -= 1
 
-            # Adding participants to LHS
+            # Adding participation of amino acids and other additional metabolites for forming selenocysteine
+            serine_no = 0
+            for aa_met, count in aa_content.items():   
+                if count:
+                    # To add selenocysteine, seryl-tRNA is formed and phosphorylated before reacting with selenophosphate
+                    if aa_met == amino_acid_id_conversion['U']:
+                        serine_no = count
+                        serine_met = amino_acid_id_conversion['S']
+                        el_reaction.participants.append(metabolites[serine_met][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))
+                        el_reaction.participants.append(metabolites['selnp'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))                        
+                        el_reaction.participants.append(metabolites['adp'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=count))
+                        el_reaction.participants.append(metabolites['ppi'][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=count))
+                    else:             
+                        el_reaction.participants.append(metabolites[aa_met][
+                            translation_compartment.id].species_coefficients.get_or_create(
+                                coefficient=-count))
+
+            # Adding general participants to LHS
             # Include 1 ATP hydrolysis for each tRNA-aa charging
             # Include 1 GTP hydrolysis for each peptide bond formation
             # Include 1 GTP hydrolysis at termination 
@@ -407,12 +432,12 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     coefficient=-gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
             el_reaction.participants.append(metabolites['atp'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)))
+                    coefficient=-(gvar.protein_aa_usage[mrna_kb.protein.id]['len']- 1 + serine_no)))            
             el_reaction.participants.append(metabolites['h2o'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=-((gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*2 + 1)))            
+                    coefficient=-((gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*2 + 1)))           
             
-            # Adding participants to RHS
+            # Adding general participants to RHS
             el_reaction.participants.append(ribosome_complex.species_coefficients.get_or_create(
                 coefficient=1))
             el_reaction.participants.append(ribo_binding_site_species.species_coefficients.get_or_create(
@@ -427,37 +452,10 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
             el_reaction.participants.append(metabolites['pi'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*3 + 1))
+                    coefficient=(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*3 + 1))            
             el_reaction.participants.append(metabolites['h'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len']))
-
-            # Adding participation of amino acids and other additional metabolites for forming selenocysteine  
-            for aa_met, count in aa_content.items():   
-                if count:
-                    # To add selenocysteine, seryl-tRNA is formed and phosphorylated before reacting with selenophosphate
-                    if aa_met == amino_acid_id_conversion['U']:
-                        serine_met = amino_acid_id_conversion['S']
-                        el_reaction.participants.append(metabolites[serine_met][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=-count))
-                        el_reaction.participants.append(metabolites['selnp'][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=-count))
-                        el_reaction.participants.get_one(species=metabolites['atp'][
-                            translation_compartment.id]).coefficient -= count
-                        el_reaction.participants.get_one(species=metabolites['h'][
-                            translation_compartment.id]).coefficient -= count
-                        el_reaction.participants.append(metabolites['adp'][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=count))
-                        el_reaction.participants.append(metabolites['ppi'][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=count))
-                    else:             
-                        el_reaction.participants.append(metabolites[aa_met][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=-count))
+                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len'] - serine_no))
 
             init_el_rxn_no += 1
             
