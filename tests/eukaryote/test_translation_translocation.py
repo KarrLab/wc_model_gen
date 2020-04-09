@@ -467,7 +467,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translocation_prot1_c_to_c_m-forward').expression.expression,
             'k_cat_translocation_prot1_c_to_c_m * prot1[c] * '
             'translocation_factor_function_r_1 * '
-            '(gtp[r] / (gtp[r] + K_m_translocation_prot1_c_to_c_m_gtp * Avogadro * volume_r)) * '
+            '(gtp[c] / (gtp[c] + K_m_translocation_prot1_c_to_c_m_gtp * Avogadro * volume_c)) * '
             '2**2')
 
         for law in model.rate_laws:
@@ -500,7 +500,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='K_m_translocation_m_comp_5').value, 5/scipy.constants.Avogadro/2.5E-14)
         self.assertEqual(model.parameters.get_one(id='K_m_translocation_m_comp_5').comments, 
         	'The value was assumed to be 1.0 times the concentration of comp_5 in mitochondria')
-        self.assertEqual(model.parameters.get_one(id='K_m_translocation_prot1_c_to_c_m_gtp').value, 15/scipy.constants.Avogadro/1.5E-14)
+        self.assertEqual(model.parameters.get_one(id='K_m_translocation_prot1_c_to_c_m_gtp').value, 15/scipy.constants.Avogadro/1E-13)
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_m').value, math.log(2)*(1/(20*3600) + 1/40000)*55/10)
         self.assertEqual(model.parameters.get_one(id='k_cat_translocation_prot1_c_to_c_m').value, math.log(2)*(1/(20*3600) + 1/40000)*55/10*5/10)
 

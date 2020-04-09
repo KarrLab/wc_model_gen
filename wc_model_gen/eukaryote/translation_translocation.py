@@ -984,20 +984,22 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 
                 if target_compartment_id=='n':
                     energy_compartment = nucleus
-                    energy_reactant = 'gtp'       
+                    energy_reactant = 'gtp'
                     chaperones = []
                 elif target_compartment_id=='m':
                     energy_compartment = mitochondrion
                     energy_reactant = 'atp'
-                    chaperones = mitochondrial_chaperones                    
+                    chaperones = mitochondrial_chaperones
+                    chaperone_compartment = mitochondrion                    
                 elif target_compartment_id=='x':
                     energy_compartment = peroxisome
                     energy_reactant = 'atp'
                     chaperones = []
                 else:
-                    energy_compartment = er
+                    energy_compartment = cytosol
                     energy_reactant = 'gtp'
                     chaperones = er_chaperones
+                    chaperone_compartment = er
 
                 objects = {
                     wc_lang.Species: {},
@@ -1007,7 +1009,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     }
                 expression_terms = []
                 for factor in chaperones:
-                    factor_details = trans_factor_functions[energy_compartment.id][','.join(factor)]
+                    factor_details = trans_factor_functions[chaperone_compartment.id][','.join(factor)]
                     expression_terms.append(factor_details['function'].id)
                     for cl, dictionary in objects.items():
                         dictionary.update(factor_details['objects'][cl])
