@@ -240,7 +240,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             assert error is None, str(error)      
                         
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
-            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs']
+            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'selnp', 'g6p', 'chsterol', 'pail_hs']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
             for j in ['n', 'm', 'c', 'l', 'e']:
@@ -578,7 +578,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         conc_model.id = conc_model.gen_id() 
                             
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp', 'rec', 'pool',
-            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs']
+            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'ala_L', 'met_L', 'g6p', 'chsterol', 'pail_hs', 'selnp']
         for i in metabolic_participants:
             model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])            
             model_compartment = model.compartments.get_or_create(id='c')

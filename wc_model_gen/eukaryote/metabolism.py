@@ -260,7 +260,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
         # Determine the consumption(production) of metabolites in other submodels        
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'datp', 'dttp', 'dgtp', 'dctp', 'ppi', 'amp', 'cmp',
-            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp'] + self.options['amino_acid_ids']
+            'gmp', 'ump', 'h2o', 'h', 'adp', 'pi', 'gdp', 'selnp'] + self.options['amino_acid_ids']
         met_requirement = {'{}[{}]'.format(i, j.id): 0 for i in metabolic_participants for j in model.compartments}	
         
         doubling_time = model.parameters.get_one(id='mean_doubling_time').value
@@ -850,7 +850,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 flux_range[reaction] += (min_val,)
             cplex_model.objective.set_linear(reaction, 0.0)
 
-        flux_range = {k: (v[1], v[0]) for k,v in flux_range.items()}    
+        flux_range = {k: (v[1], v[0]) for k,v in flux_range.items()}
 
         return flux_range    
 
