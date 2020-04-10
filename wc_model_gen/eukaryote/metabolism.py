@@ -141,7 +141,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             model_species = model.species.get_one(id=met_id)
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += amount
+                old_coef = model_species_coefficient.coefficient
+                biomass_rxn.participants.remove(model_species_coefficient)
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=old_coef + amount))
             else:	
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=amount))
@@ -192,7 +195,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += -amount
+                old_coef = model_species_coefficient.coefficient
+                biomass_rxn.participants.remove(model_species_coefficient)
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
             else:   
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=-amount))
@@ -206,7 +212,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             coefficient=monomer_no - 1))
         water_species_coefficient = biomass_rxn.participants.get_one(species=water_species)
         if water_species_coefficient:
-            water_species_coefficient.coefficient += monomer_no - 1
+            old_coef = water_species_coefficient.coefficient
+            biomass_rxn.participants.remove(water_species_coefficient)
+            biomass_rxn.participants.add(
+                water_species.species_coefficients.get_or_create(coefficient=old_coef + monomer_no - 1))
         else:   
             biomass_rxn.participants.add(
                 water_species.species_coefficients.get_or_create(coefficient=monomer_no - 1))
@@ -250,7 +259,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
             if model_species_coefficient:
-                model_species_coefficient.coefficient += -amount
+                old_coef = model_species_coefficient.coefficient
+                biomass_rxn.participants.remove(model_species_coefficient)
+                biomass_rxn.participants.add(
+                    model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
             else:   
                 biomass_rxn.participants.add(
                     model_species.species_coefficients.get_or_create(coefficient=-amount))
@@ -389,7 +401,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 model_species = model.species.get_one(id=met_id)
                 model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
                 if model_species_coefficient:
-                    model_species_coefficient.coefficient += -amount
+                    old_coef = model_species_coefficient.coefficient
+                    biomass_rxn.participants.remove(model_species_coefficient)
+                    biomass_rxn.participants.add(
+                        model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
                 else:
                     biomass_rxn.participants.add(
                         model_species.species_coefficients.get_or_create(coefficient=-amount))
@@ -541,7 +556,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     conv_variables[reaction_id].upper_bound += adjustment*scale_factor
             # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
             if any(numpy.isnan(i) for i in lower.values()) or any(numpy.isnan(i) for i in upper.values()):
-                pass
+                print('No solution is found during model calibration')
             else:
                 flux_range = self.flux_variability_analysis(conv_model)
                 self.impute_kinetic_constant(flux_range)

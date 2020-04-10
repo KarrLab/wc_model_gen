@@ -404,9 +404,19 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     if aa_met == amino_acid_id_conversion['U']:
                         serine_no = count
                         serine_met = amino_acid_id_conversion['S']
-                        el_reaction.participants.append(metabolites[serine_met][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=-count))
+                        serine_species = metabolites[serine_met][translation_compartment.id]
+                        serine_coefficient = el_reaction.participants.get_one(
+                            species=serine_species)
+                        if serine_coefficient:
+                            old_coef = serine_coefficient.coefficient
+                            el_reaction.participants.remove(serine_coefficient)
+                            el_reaction.participants.add(
+                                serine_species.species_coefficients.get_or_create(
+                                    coefficient=old_coef - count))
+                        else:
+                            el_reaction.participants.append(
+                                serine_species.species_coefficients.get_or_create(
+                                    coefficient=-count))
                         el_reaction.participants.append(metabolites['selnp'][
                             translation_compartment.id].species_coefficients.get_or_create(
                                 coefficient=-count))                        
@@ -416,10 +426,20 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         el_reaction.participants.append(metabolites['ppi'][
                             translation_compartment.id].species_coefficients.get_or_create(
                                 coefficient=count))
-                    else:             
-                        el_reaction.participants.append(metabolites[aa_met][
-                            translation_compartment.id].species_coefficients.get_or_create(
-                                coefficient=-count))
+                    else:
+                        aa_species = metabolites[aa_met][translation_compartment.id]
+                        aa_coefficient = el_reaction.participants.get_one(
+                            species=aa_species)
+                        if aa_coefficient:
+                            old_coef = aa_coefficient.coefficient
+                            el_reaction.participants.remove(aa_coefficient)
+                            el_reaction.participants.add(
+                                aa_species.species_coefficients.get_or_create(
+                                    coefficient=old_coef - count))
+                        else:             
+                            el_reaction.participants.append(
+                                aa_species.species_coefficients.get_or_create(
+                                    coefficient=-count))
 
             # Adding general participants to LHS
             # Include 1 ATP hydrolysis for each tRNA-aa charging

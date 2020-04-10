@@ -31,7 +31,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         with open(self.sequence_path, 'w') as f:
             f.write('>chr1\nATGGCGtGCGAtGATTGTtGTTAA\n'
                     '>chrM\nNGCGTgCATgGATGATtggTAG\n'
-                    '>chrX\nATGtgaGCGtgatga\n')
+                    '>chrX\nATGtgaAGTGCGtgatga\n')
 
         self.kb = wc_kb.KnowledgeBase()
         cell = self.kb.cell = wc_kb.Cell()
@@ -90,7 +90,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         protM_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=protM, 
             value='25000.0', value_type=wc_ontology['WC:float'])
 
-        locusX1 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
+        locusX1 = wc_kb.eukaryote.GenericLocus(start=1, end=18)
         transcriptX1 = wc_kb.eukaryote.TranscriptSpeciesType(id='transX1', cell=cell, gene=geneX1, exons=[locusX1], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcriptX1_spec = wc_kb.core.Species(species_type=transcriptX1, compartment=cytoplasm)
         transcriptX1_conc = wc_kb.core.Concentration(cell=cell, species=transcriptX1_spec, value=10.)
@@ -98,7 +98,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         protX1_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=protX1, 
             value='25000.0', value_type=wc_ontology['WC:float'])
 
-        locusX2 = wc_kb.eukaryote.GenericLocus(start=1, end=15)
+        locusX2 = wc_kb.eukaryote.GenericLocus(start=1, end=18)
         transcriptX2 = wc_kb.eukaryote.TranscriptSpeciesType(id='transX2', cell=cell, gene=geneX2, exons=[locusX2], type=wc_kb.eukaryote.TranscriptType.mRna)
         transcriptX2_spec = wc_kb.core.Species(species_type=transcriptX2, compartment=cytoplasm)
         transcriptX2_conc = wc_kb.core.Concentration(cell=cell, species=transcriptX2_spec, value=10.)
@@ -111,7 +111,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         trnas = {'mt_trnaM': ('Met', 'CAT', 'm'), 'mt_trnaA': ('Ala', 'CGC', 'm'), 'mt_trnaC': ('Cys', 'GCA', 'm'), 'mt_trnaD': ('Asp', 'GTC', 'm'), 
             'trnaM': ('Met', 'CAT', 'c'), 'trnaA1': ('Ala', 'CGC', 'c'), 'trnaA2': ('Ala', 'CGC', 'c'), 'trnaC': ('Cys', 'GCA', 'c'), 
-            'trnaD': ('Asp', 'GTC', 'c'), 'trnaW': ('Trp', 'CCA', 'c'), 'trnaU': ('Selcys', 'TCA', 'c')}
+            'trnaD': ('Asp', 'GTC', 'c'), 'trnaW': ('Trp', 'CCA', 'c'), 'trnaU': ('Selcys', 'TCA', 'c'), 'trnaS': ('Ser', 'GCT', 'c')}
         for trna_id, (aa_id, anticodon, comp) in trnas.items():
             locus_trna = wc_kb.eukaryote.GenericLocus(start=1, end=5)
             trna_species_type = wc_kb.eukaryote.TranscriptSpeciesType(id=trna_id, cell=cell, gene=gene1, exons=[locus_trna], type=wc_kb.eukaryote.TranscriptType.tRna)
@@ -210,7 +210,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
                 conc_model.id = conc_model.gen_id()                    
 
         trna_model = {'mt_trnaM': 'm', 'mt_trnaA':'m', 'mt_trnaC': 'm', 'mt_trnaD': 'm', 
-            'trnaM': 'c','trnaA1': 'c', 'trnaA2': 'c', 'trnaC': 'c', 'trnaD': 'c', 'trnaW': 'c', 'trnaU': 'c'}
+            'trnaM': 'c','trnaA1': 'c', 'trnaA2': 'c', 'trnaC': 'c', 'trnaD': 'c', 'trnaW': 'c', 'trnaU': 'c', 'trnaS': 'c'}
         for Id, c in trna_model.items():
             model_species_type = model.species_types.create(id=Id)
             model_compartment = model.compartments.get_one(id=c)
@@ -286,10 +286,10 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 1, 'U': 2, 'G': 4, 'C': 2, 'len': 9})
         self.assertEqual(gvar.protein_aa_usage['prot1'], {'A': 1, 'C': 1, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 'S': 0, 
             'len': 3, '*': 0, 'start_aa': 'M', 'start_codon': 'AUG'})
-        self.assertEqual(gvar.protein_aa_usage['protX1'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 'S': 0,
-            'len': 2, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
-        self.assertEqual(gvar.protein_aa_usage['protX2'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 2, 'S': 0,
-            'len': 4, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['protX1'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 0, 'S': 1,
+            'len': 3, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
+        self.assertEqual(gvar.protein_aa_usage['protX2'], {'A': 1, 'C': 0, 'D': 0, 'M': 1, 'W': 0, 'U': 2, 'S': 1,
+            'len': 5, '*': 3, 'start_aa': 'M', 'start_codon': 'AUG'})
 
         # Test gen_reactions
         self.assertEqual(gen.submodel.id, 'translation_translocation')
@@ -316,12 +316,12 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             {'ribo_bound_transM[m]': -1, 'gtp[m]': -4, 'atp[m]': -3, 'h2o[m]': -7, 'Asp[m]': -2, 'Trp[m]': -1, 
             'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 4})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX1').participants}, 
-            {'ribo_bound_transX1[c]': -1, 'gtp[c]': -2, 'atp[c]': -1, 'h2o[c]': -3, 'Ala[c]': -1,
-            'comp_1[c]': 1, 'transX1_ribosome_binding_site[c]': 1, 'protX1[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 2})
+            {'ribo_bound_transX1[c]': -1, 'gtp[c]': -3, 'atp[c]': -2, 'h2o[c]': -5, 'Ala[c]': -1, 'Ser[c]': -1,
+            'comp_1[c]': 1, 'transX1_ribosome_binding_site[c]': 1, 'protX1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 3})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX2').participants}, 
-            {'ribo_bound_transX2[c]': -1, 'gtp[c]': -4, 'atp[c]': -5, 'h2o[c]': -7, 'Ala[c]': -1, 'Ser[c]': -2, 'selnp[c]': -2,
-            'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'adp[c]': 2, 'amp[c]': 3, 
-            'gdp[c]': 4, 'pi[c]': 10, 'ppi[c]': 2, 'h[c]': 2})
+            {'ribo_bound_transX2[c]': -1, 'gtp[c]': -5, 'atp[c]': -6, 'h2o[c]': -9, 'Ala[c]': -1, 'Ser[c]': -3, 'selnp[c]': -2,
+            'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'adp[c]': 2, 'amp[c]': 4, 
+            'gdp[c]': 5, 'pi[c]': 13, 'ppi[c]': 2, 'h[c]': 3})
         
         # translocation
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_n').participants}, 
@@ -340,7 +340,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_rate_laws
         self.assertEqual(len(model.observables), 3)
-        self.assertEqual(len(model.functions), 37) # 6 volume + 11 trna + 12 aa + 2 init + 3 elo + 3 trans
+        self.assertEqual(len(model.functions), 38) # 6 volume + 12 trna + 12 aa + 2 init + 3 elo + 3 trans
         self.assertEqual(model.observables.get_one(id='translation_c_factors_c_1').expression.expression, 'trnaA1[c] + trnaA2[c]')
         self.assertEqual(model.observables.get_one(id='translation_m_factors_m_1').expression.expression, 'mt_trnaD[m] + trnaD[m]')
         self.assertEqual(model.observables.get_one(id='translation_el_c_factors_c_1').expression.expression, 'comp_4[c] + prot2[c]')
@@ -437,14 +437,17 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_transX1-forward').expression.expression,
             'k_cat_translation_elongation_transX1 * ribo_bound_transX1[c] * '
             'translation_el_factor_function_c_1 * '
+            'trna_function_GCT_c * '
             'trna_function_CGC_c * '
             'aminoacid_function_Ala_c * '
+            'aminoacid_function_Ser_c * '
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_transX1_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_transX1_atp * Avogadro * volume_c)) * '
-            '2**5')
+            '2**7')
         self.assertEqual(model.rate_laws.get_one(id='translation_elongation_transX2-forward').expression.expression,
             'k_cat_translation_elongation_transX2 * ribo_bound_transX2[c] * '
             'translation_el_factor_function_c_1 * '
+            'trna_function_GCT_c * '
             'trna_function_CGC_c * '
             'trna_function_TCA_c * '
             'aminoacid_function_Ala_c * '            
@@ -452,7 +455,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
             '(gtp[c] / (gtp[c] + K_m_translation_elongation_transX2_gtp * Avogadro * volume_c)) * '
             '(atp[c] / (atp[c] + K_m_translation_elongation_transX2_atp * Avogadro * volume_c)) * '
             '(selnp[c] / (selnp[c] + K_m_translation_elongation_transX2_selnp * Avogadro * volume_c)) * '
-            '2**8')
+            '2**9')
 
         # Translocation
         self.assertEqual(model.rate_laws.get_one(id='translocation_prot1_c_to_m-forward').expression.expression,
