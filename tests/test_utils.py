@@ -74,22 +74,32 @@ class TestCase(unittest.TestCase):
         self.assertEqual(unproducibles, [])
         self.assertEqual(unrecyclables, [])
 
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds)
+
+        self.assertEqual(unproducibles, [])
+        self.assertEqual(unrecyclables, [])
+
         mock1 = model.species.create(id='mock1')
         mock2 = model.species.create(id='mock2')
         biomass_reaction.participants.add(mock1.species_coefficients.get_or_create(coefficient=1.0))
         biomass_reaction.participants.add(mock2.species_coefficients.get_or_create(coefficient=-1.0))
             
-        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
-            pseudo_reactions=['biomass_reaction'])
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds)
 
         self.assertEqual(unproducibles, ['mock2'])
         self.assertEqual(unrecyclables, ['mock1'])
 
         unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
-            test_producibles=['mock1'], test_recyclables=['mock2'])
+            pseudo_reactions=['biomass_reaction'], test_producibles=['mock1'], test_recyclables=['mock2'])
 
         self.assertEqual(unproducibles, ['mock1'])
         self.assertEqual(unrecyclables, ['mock2'])
+
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
+            test_producibles=['mock1'], test_recyclables=['mock2'])
+
+        self.assertEqual(unproducibles, [])
+        self.assertEqual(unrecyclables, [])
 
         R4 = model.reactions.create(submodel=submodel, id='Ex_mock1')
         R4.participants.add(mock1.species_coefficients.get_or_create(coefficient=-1.0))
@@ -99,8 +109,7 @@ class TestCase(unittest.TestCase):
 
         reaction_bounds = {i.id:(0., 1000.) for i in model.reactions}
         
-        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds, 
-            test_producibles=['mock1'], test_recyclables=['mock2'])
+        unproducibles, unrecyclables = utils.test_metabolite_production(submodel, reaction_bounds)
 
         self.assertEqual(unproducibles, [])
         self.assertEqual(unrecyclables, [])

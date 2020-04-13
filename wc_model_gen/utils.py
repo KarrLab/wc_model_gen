@@ -10,7 +10,6 @@ from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import collections
 import conv_opt
-import copy
 import math
 import scipy.constants
 import wc_lang
@@ -51,10 +50,10 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
     test_producibles=None, test_recyclables=None):
     """ Test that an FBA metabolism submodel can produce each reactant component (producible) 
         and recycle each product component (recyclable) in each reaction in the objective 
-        function individually. For each reactant (product) component, a source (sink) reaction 
-        is added as objective function to be maximized. If the solution returns a zero 
-        objective function, that indicates the submodel cannot produce (recycle) the
-        reactant (product) component.
+        function individually. First, a source (sink) reaction is added for each reactant 
+        (product) component. Each source (sink) reaction is then set as the objective function 
+        to be maximized. If the solution returns a zero objective function, that indicates 
+        the submodel cannot produce (recycle) the associated reactant (product) component.
 
         Args:
             submodel (:obj:`wc_lang.Submodel`): FBA metabolism submodel
@@ -116,7 +115,37 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
     for met_id, expression in conv_metabolite_matrices.items():
         conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
             upper_bound=0.0, lower_bound=0.0))                    
-          
+    
+    obj_reactants = {}
+    for reactant in reactants:            
+        obj_reaction = conv_opt.Variable(name=reactant + '_test_reaction', 
+                                type=conv_opt.VariableType.continuous,
+                                lower_bound=0.0)
+        obj_reactants[reactant] = obj_reaction
+        conv_model.variables.append(obj_reaction)
+        expression = [i for i in conv_model.constraints if i.name==reactant]
+        if expression:
+            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, -1.))
+        else:
+            conv_model.constraints.append(conv_opt.Constraint(
+                [conv_opt.LinearTerm(obj_reaction, -1.)], name=reactant, 
+                upper_bound=0.0, lower_bound=0.0))
+    
+    obj_products = {}
+    for product in products:            
+        obj_reaction = conv_opt.Variable(name=product + '_test_reaction', 
+                            type=conv_opt.VariableType.continuous,
+                            lower_bound=0.0)
+        obj_products[product] = obj_reaction
+        conv_model.variables.append(obj_reaction)
+        expression = [i for i in conv_model.constraints if i.name==product]
+        if expression:
+            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, 1.))
+        else:
+            conv_model.constraints.append(conv_opt.Constraint(
+                [conv_opt.LinearTerm(obj_reaction, 1.)], name=product, 
+                upper_bound=0.0, lower_bound=0.0))
+
     conv_model.objective_direction = conv_opt.ObjectiveDirection.maximize
 
     options = conv_opt.SolveOptions(
@@ -137,43 +166,17 @@ def test_metabolite_production(submodel, reaction_bounds, pseudo_reactions=None,
 
     unproducibles = []
     for reactant in reactants:
-        temp_model = copy.deepcopy(conv_model)
-        obj_reaction = conv_opt.Variable(name=reactant + '_test_reaction', 
-                                        type=conv_opt.VariableType.continuous,
-                                        lower_bound=0.0)
-        temp_model.variables.append(obj_reaction)
-        
-        expression = [i for i in temp_model.constraints if i.name==reactant]
-        if expression:
-            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, -1.))
-        else:
-            temp_model.constraints.append(conv_opt.Constraint(
-                [conv_opt.LinearTerm(obj_reaction, -1.)], name=reactant, 
-                upper_bound=0.0, lower_bound=0.0))
-        
-        temp_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
-        result = temp_model.solve()
+        obj_reaction = obj_reactants[reactant]
+        conv_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
+        result = conv_model.solve()
         if result.value == 0.0:
             unproducibles.append(reactant)
 
     unrecyclables = []
     for product in products:
-        temp_model = copy.deepcopy(conv_model)        
-        obj_reaction = conv_opt.Variable(name=product + '_test_reaction', 
-                                        type=conv_opt.VariableType.continuous,
-                                        lower_bound=0.0)
-        temp_model.variables.append(obj_reaction)        
-        
-        expression = [i for i in temp_model.constraints if i.name==product]
-        if expression:
-            expression[0].terms.append(conv_opt.LinearTerm(obj_reaction, 1.))
-        else:
-            temp_model.constraints.append(conv_opt.Constraint(
-                [conv_opt.LinearTerm(obj_reaction, 1.)], name=product, 
-                upper_bound=0.0, lower_bound=0.0))
-        
-        temp_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
-        result = temp_model.solve()
+        obj_reaction = obj_products[product]
+        conv_model.objective_terms = [conv_opt.LinearTerm(obj_reaction, 1.),]
+        result = conv_model.solve()
         if result.value == 0.0:
             unrecyclables.append(product)    
 
