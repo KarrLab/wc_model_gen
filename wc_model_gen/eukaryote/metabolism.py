@@ -42,7 +42,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         * optimization_type (:obj:`bool`): if True, linear optimization is used during submodel
             calibration, else a quadratic optimization is used; default is True
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant to substrate 
-            concentration (Km/[S]) for use when estimating Km values, the default value is 1                    
+            concentration (Km/[S]) for use when estimating Km values, the default value is 1
+        * tolerance (:obj:`float`, optional): the upper limit of difference between calibrated and 
+            measured growth as a fraction of the measured growth that can be tolerated,
+            the default value is 0.01                        
     """
 
     def clean_and_validate_options(self):
@@ -80,7 +83,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         options['optimization_type'] = optimization_type
 
         beta = options.get('beta', 1.)
-        options['beta'] = beta        
+        options['beta'] = beta
+
+        tolerance = options.get('tolerance', 0.01)
+        options['tolerance'] = tolerance        
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel 
@@ -485,7 +491,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         coef_scale_factor = self.options['coef_scale_factor']
         optimization_type = self.options['optimization_type']
         media_fluxes = self.options['media_fluxes']
-        exchange_reactions = self.options['exchange_reactions']        
+        exchange_reactions = self.options['exchange_reactions']
+        tolerance = self.options['tolerance']
+
         measured_growth = math.log(2)/model.parameters.get_one(id='mean_doubling_time').value
 
         self._reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = self.determine_bounds(
@@ -545,21 +553,31 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         print('Optimized flux through biomass reaction before calibration is {}'.format(growth))        
         
         if not numpy.isnan(growth):
-            # Relax bounds if necessary
+            # Restrict bounds if underconstrained
+            if growth > measured_growth:
+                flux_range = self.flux_variability_analysis(
+                    conv_model, fraction_of_objective=measured_growth / growth)
+                self.impute_kinetic_constant(flux_range)
+            
+            # Relax bounds if overconstrained
             lower = upper = {}
-            if growth < measured_growth:
+            while (measured_growth - growth)/measured_growth > tolerance:
                 target = {'biomass_reaction': measured_growth}
                 lower, upper = self.relax_bounds(target, lower_bound_adjustable, upper_bound_adjustable)
                 for reaction_id, adjustment in lower.items():
                     conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
                 for reaction_id, adjustment in upper.items():
                     conv_variables[reaction_id].upper_bound += adjustment*scale_factor
-            # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
-            if any(numpy.isnan(i) for i in lower.values()) or any(numpy.isnan(i) for i in upper.values()):
-                print('No solution is found during model calibration')
-            else:
-                flux_range = self.flux_variability_analysis(conv_model)
-                self.impute_kinetic_constant(flux_range)
+                # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
+                if any(numpy.isnan(i) for i in lower.values()) or any(numpy.isnan(i) for i in upper.values()):
+                    print('No solution is found during model calibration')
+                    break
+                else:
+                    flux_range = self.flux_variability_analysis(conv_model)
+                    self.impute_kinetic_constant(flux_range)
+                    result = conv_model.solve()
+                    growth = result.value/scale_factor*coef_scale_factor
+                    print('Optimized flux through biomass reaction after relaxation is {}'.format(growth))
     
     def determine_bounds(self, exchange_reactions, media_fluxes, scale_factor):
         """ Determine the minimum and maximum bounds for each reaction based on the provided
