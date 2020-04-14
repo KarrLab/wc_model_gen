@@ -486,67 +486,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             values determined by Flux Variability Analysis.
         """
         model = self.model
-        submodel = self.submodel
         scale_factor = self.options['scale_factor']
         coef_scale_factor = self.options['coef_scale_factor']
-        optimization_type = self.options['optimization_type']
-        media_fluxes = self.options['media_fluxes']
-        exchange_reactions = self.options['exchange_reactions']
         tolerance = self.options['tolerance']
 
         measured_growth = math.log(2)/model.parameters.get_one(id='mean_doubling_time').value
 
-        self._reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = self.determine_bounds(
-            exchange_reactions, media_fluxes, scale_factor)                
-
-        # Formulate the optimization problem using the conv_opt package
-        conv_model = conv_opt.Model(name='model')
-        conv_variables = {}
-        conv_metabolite_matrices = collections.defaultdict(list)
-        for reaction in submodel.reactions:
-            conv_variables[reaction.id] = conv_opt.Variable(
-                name=reaction.id, type=conv_opt.VariableType.continuous,
-                lower_bound=self._reaction_bounds[reaction.id][0], 
-                upper_bound=self._reaction_bounds[reaction.id][1])
-            conv_model.variables.append(conv_variables[reaction.id])
-            for part in reaction.participants:
-                if reaction.id == 'biomass_reaction':
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient*coef_scale_factor))
-                else:
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient))	
-
-        for met_id, expression in conv_metabolite_matrices.items():
-            conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
-                upper_bound=0.0, lower_bound=0.0))                      
-
-        if optimization_type:
-            conv_model.objective_terms = [conv_opt.LinearTerm(
-                conv_variables['biomass_reaction'], 1.),]
-        else:
-            conv_model.objective_terms.append(conv_opt.QuadraticTerm(
-                conv_variables['biomass_reaction'], conv_variables['biomass_reaction'], 1.))     
-        
-        conv_model.objective_direction = conv_opt.ObjectiveDirection.maximize
-
-        options = conv_opt.SolveOptions(
-            solver=conv_opt.Solver.cplex,
-            presolve=conv_opt.Presolve.on,
-            solver_options={
-                'cplex': {
-                    'parameters': {
-                        'emphasis': {
-                            'numerical': 1,
-                        },
-                        'read': {
-                            'scale': 1,
-                        },
-                    },
-                },
-            })
+        conv_model, conv_variables, lb_adjustable, ub_adjustable = self.conv_for_optim()
         result = conv_model.solve()
         growth = result.value/scale_factor*coef_scale_factor
         
@@ -563,7 +509,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             lower = upper = {}
             while (measured_growth - growth)/measured_growth > tolerance:
                 target = {'biomass_reaction': measured_growth}
-                lower, upper = self.relax_bounds(target, lower_bound_adjustable, upper_bound_adjustable)
+                lower, upper = self.relax_bounds(target, lb_adjustable, ub_adjustable)
                 for reaction_id, adjustment in lower.items():
                     conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
                 for reaction_id, adjustment in upper.items():
@@ -575,6 +521,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 else:
                     flux_range = self.flux_variability_analysis(conv_model)
                     self.impute_kinetic_constant(flux_range)
+                    conv_model, conv_variables, lb_adjustable, ub_adjustable = self.conv_for_optim()
                     result = conv_model.solve()
                     growth = result.value/scale_factor*coef_scale_factor
                     print('Optimized flux through biomass reaction after relaxation is {}'.format(growth))
@@ -584,19 +531,19 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             media fluxes, list of exchange reactions and the rate laws. The bounds will be
             scaled according to the provided scale factor.
 
-            Args:
-                exchange_reactions (:obj:`list`): list of exchange reaction IDs
-                media_fluxes (:obj:`dict`): dictionary with the IDs of exchange reactions as 
-                    keys and tuples of minimum and maximum bounds to be set as values
-                scale_factor (:obj:`float`): factor to be used for scaling the bounds
-                
-            Returns:
-                :obj:`dict`: dictionary with reaction IDs as keys and tuples of scaled minimum
-                    and maximum bounds as values
-                :obj:`list`: list of IDs of reactions whose lower bounds are fully determined from 
-                    measured kinetic data and enzyme concentrations are not zero
-                :obj:`list`: list of IDs of reactions whose upper bounds are fully determined from 
-                    measured kinetic data and enzyme concentrations are not zero                   
+        Args:
+            exchange_reactions (:obj:`list`): list of exchange reaction IDs
+            media_fluxes (:obj:`dict`): dictionary with the IDs of exchange reactions as 
+                keys and tuples of minimum and maximum bounds to be set as values
+            scale_factor (:obj:`float`): factor to be used for scaling the bounds
+            
+        Returns:
+            :obj:`dict`: dictionary with reaction IDs as keys and tuples of scaled minimum
+                and maximum bounds as values
+            :obj:`list`: list of IDs of reactions whose lower bounds are fully determined from 
+                measured kinetic data and enzyme concentrations are not zero
+            :obj:`list`: list of IDs of reactions whose upper bounds are fully determined from 
+                measured kinetic data and enzyme concentrations are not zero                   
         """
         submodel = self.submodel
         
@@ -664,7 +611,81 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             reaction_bounds[reaction.id] = (min_constr, max_constr)
 
-        return reaction_bounds, lower_bound_adjustable, upper_bound_adjustable    
+        return reaction_bounds, lower_bound_adjustable, upper_bound_adjustable
+
+    def conv_for_optim(self):
+        """ Convert metabolism reactions into an optimization problem model
+
+        Returns:
+            :obj:`conv_opt.Model`: a conv_opt model for optimization
+            :obj:`dict`: a dictionary with variable name as keys and 
+                conv_opt variable objects as values
+            :obj:`list`: list of IDs of reactions whose lower bounds are fully determined from 
+                measured kinetic data and enzyme concentrations are not zero
+            :obj:`list`: list of IDs of reactions whose upper bounds are fully determined from 
+                measured kinetic data and enzyme concentrations are not zero    
+        """        
+        model = self.model
+        submodel = self.submodel
+        scale_factor = self.options['scale_factor']
+        coef_scale_factor = self.options['coef_scale_factor']
+        optimization_type = self.options['optimization_type']
+        media_fluxes = self.options['media_fluxes']
+        exchange_reactions = self.options['exchange_reactions']
+
+        self._reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = self.determine_bounds(
+            exchange_reactions, media_fluxes, scale_factor)                
+
+        # Formulate the optimization problem using the conv_opt package
+        conv_model = conv_opt.Model(name='model')
+        conv_variables = {}
+        conv_metabolite_matrices = collections.defaultdict(list)
+        for reaction in submodel.reactions:
+            conv_variables[reaction.id] = conv_opt.Variable(
+                name=reaction.id, type=conv_opt.VariableType.continuous,
+                lower_bound=self._reaction_bounds[reaction.id][0], 
+                upper_bound=self._reaction_bounds[reaction.id][1])
+            conv_model.variables.append(conv_variables[reaction.id])
+            for part in reaction.participants:
+                if reaction.id == 'biomass_reaction':
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_variables[reaction.id], 
+                            part.coefficient*coef_scale_factor))
+                else:
+                    conv_metabolite_matrices[part.species.id].append(
+                        conv_opt.LinearTerm(conv_variables[reaction.id], 
+                            part.coefficient))  
+
+        for met_id, expression in conv_metabolite_matrices.items():
+            conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
+                upper_bound=0.0, lower_bound=0.0))                      
+
+        if optimization_type:
+            conv_model.objective_terms = [conv_opt.LinearTerm(
+                conv_variables['biomass_reaction'], 1.),]
+        else:
+            conv_model.objective_terms.append(conv_opt.QuadraticTerm(
+                conv_variables['biomass_reaction'], conv_variables['biomass_reaction'], 1.))     
+        
+        conv_model.objective_direction = conv_opt.ObjectiveDirection.maximize
+
+        options = conv_opt.SolveOptions(
+            solver=conv_opt.Solver.cplex,
+            presolve=conv_opt.Presolve.on,
+            solver_options={
+                'cplex': {
+                    'parameters': {
+                        'emphasis': {
+                            'numerical': 1,
+                        },
+                        'read': {
+                            'scale': 1,
+                        },
+                    },
+                },
+            })
+
+        return conv_model, conv_variables, lower_bound_adjustable, upper_bound_adjustable
 
     def relax_bounds(self, target, lower_bound_adjustable, upper_bound_adjustable):
         """ Relax bounds to achieve set target flux(es) while minimizing the total necessary adjustment
