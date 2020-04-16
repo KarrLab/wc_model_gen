@@ -293,6 +293,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_reactions
         self.assertEqual(gen.submodel.id, 'translation_translocation')
+        self.assertEqual(model.submodels.get_one(id='translation_translocation').framework, wc_ontology['WC:next_reaction_method'])
 
         # initiation
         self.assertEqual(model.species_types.get_one(id='ribo_bound_trans1').structure.empirical_formula, EmpiricalFormula('H2'))

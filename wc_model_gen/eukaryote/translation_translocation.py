@@ -237,6 +237,8 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 'm': met_species_type.species.get_one(compartment=mitochondrion)
                 }
 
+        self.submodel.framework = wc_ontology['WC:next_reaction_method']
+
         print('Start generating translation and translocation submodel...')
         
         # Create initiation and elongation reactions for each mRNA

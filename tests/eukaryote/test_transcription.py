@@ -239,6 +239,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['transcription'])
+        self.assertEqual(self.model.submodels.get_one(id='transcription').framework, wc_ontology['WC:next_reaction_method'])
 
         # binding to non-specific site
         nuclear_genome_binding_site_conc = model.distribution_init_concentrations.get_one(

@@ -149,6 +149,7 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['rna_degradation'])
+        self.assertEqual(self.model.submodels.get_one(id='rna_degradation').framework, wc_ontology['WC:next_reaction_method'])
         self.assertEqual(sorted([i.id for i in self.model.reactions]), 
             sorted(['degradation_trans1', 'degradation_trans2', 'degradation_trans3', 'degradation_trans4']))
         self.assertEqual(sorted([i.name for i in self.model.reactions]), 

@@ -85,6 +85,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         codon_table = self.options['codon_table']
         cds = self.options['cds']
         selenoproteome = self.options['selenoproteome']
+
+        self.submodel.framework = wc_ontology['WC:next_reaction_method']
         
         print('Start generating complexation submodel...')
         assembly_rxn_no = 0

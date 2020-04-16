@@ -152,7 +152,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cytosol = model.compartments.get_one(id='c')
 
         polr_occupancy_width = self.options.get('polr_occupancy_width')
-        ribosome_occupancy_width = self.options['ribosome_occupancy_width']        
+        ribosome_occupancy_width = self.options['ribosome_occupancy_width']
+
+        self.submodel.framework = onto['WC:next_reaction_method']        
 
         # Get species involved in reaction
         metabolic_participants = ['atp', 'ctp', 'gtp', 'utp', 'ppi', 

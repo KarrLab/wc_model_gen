@@ -194,6 +194,7 @@ class TestCase(unittest.TestCase):
 
         self.assertEqual(len(model.reactions), 12)
         self.assertEqual([i.id for i in model.submodels], ['complexation'])
+        self.assertEqual(model.submodels.get_one(id='complexation').framework, wc_ontology['WC:next_reaction_method'])
 
         # Test gen_reaction
         complex1_assembly = model.reactions.get_one(id='complex_1_association_in_n')

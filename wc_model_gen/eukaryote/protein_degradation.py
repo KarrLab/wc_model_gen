@@ -5,6 +5,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import math
 import numpy
@@ -73,6 +74,8 @@ class ProteinDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         codon_table = self.options['codon_table']
         cds = self.options['cds']
         selenoproteome = self.options['selenoproteome']
+
+        self.submodel.framework = wc_ontology['WC:next_reaction_method']
                 
         print('Start generating protein degradation submodel...')
         protein_kbs = cell.species_types.get(__type=wc_kb.eukaryote.ProteinSpeciesType)

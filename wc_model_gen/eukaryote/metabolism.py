@@ -101,7 +101,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         submodel = self.submodel
         media_fluxes = self.options['media_fluxes']
         macro_submodel = model.submodels.get_or_create(id='macromolecular_formation', 
-            framework=wc_ontology['WC:stochastic_simulation_algorithm'])
+            framework=wc_ontology['WC:next_reaction_method'])
 
         cytosol = model.compartments.get_one(id='c')
 

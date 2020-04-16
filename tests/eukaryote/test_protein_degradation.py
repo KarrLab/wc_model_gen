@@ -168,6 +168,7 @@ class ProteinDegradationSubmodelGeneratorTestCase(unittest.TestCase):
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['protein_degradation'])
+        self.assertEqual(self.model.submodels.get_one(id='protein_degradation').framework, wc_ontology['WC:next_reaction_method'])
         self.assertEqual(sorted([i.id for i in self.model.reactions]), 
             sorted(['prot1_n_degradation', 'prot1_c_degradation', 'prot2_c_degradation', 
                 'prot2_l_degradation', 'prot3_l_degradation', 'protM_m_degradation', 

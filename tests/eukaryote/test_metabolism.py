@@ -502,7 +502,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.mean, 1.)
         self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.units, unit_registry.parse_units('molecule'))
         self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.id, 'macromolecular_formation')
-        self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.framework, wc_ontology['WC:stochastic_simulation_algorithm'])
+        self.assertEqual(model.reactions.get_one(id='carbohydrate_formation').submodel.framework, wc_ontology['WC:next_reaction_method'])
         self.assertEqual({i.species.id:i.coefficient for i in model.reactions.get_one(id='carbohydrate_formation').participants}, 
             {'g6p[c]': -10*scipy.constants.Avogadro, 'carbohydrate[c]': 1., 'h2o[c]': 10*scipy.constants.Avogadro-1})        
         self.assertEqual(model.species_types.get_one(id='lipid').structure.charge, -8*scipy.constants.Avogadro)

@@ -5,6 +5,7 @@
 :License: MIT
 """
 
+from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 import wc_model_gen.global_vars as gvar
 import wc_model_gen.utils as utils
@@ -62,6 +63,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 'c': met_species_type.species.get_or_create(compartment=cytoplasm, model=model),
                 'm': met_species_type.species.get_or_create(compartment=mitochondrion, model=model)
                 }
+
+        self.submodel.framework = wc_ontology['WC:next_reaction_method']        
 
         print('Start generating RNA degradation submodel...')
         # Create reaction for each RNA and get exosome
