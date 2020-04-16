@@ -76,6 +76,7 @@ ANTICODON_CODON_RECOGNITION_RULES = {
     'TCA': ['TGA'], #selenocysteine
     'AAA': ['TTT'], #natural pairing but unlikely according to the rule
     'ATA': ['TAT'], #natural pairing but unlikely according to the rule
+    'ACA': ['TGT'], #natural pairing but unlikely according to the rule
     'ATG': ['CAT'], #natural pairing but unlikely according to the rule
     'ATT': ['AAT'], #natural pairing but unlikely according to the rule
     'ACT': ['AGT'], #natural pairing but unlikely according to the rule
