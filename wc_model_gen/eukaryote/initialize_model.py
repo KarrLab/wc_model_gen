@@ -157,9 +157,9 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         assert(isinstance(media, dict))
         options['media'] = media
 
-        input_seq = options.get('input_seq', {})
-        assert(isinstance(input_seq, dict))
-        options['input_seq'] = input_seq
+        rna_input_seq = options.get('rna_input_seq', {})
+        assert(isinstance(rna_input_seq, dict))
+        options['rna_input_seq'] = rna_input_seq
 
         check_reaction = options.get('check_reaction', True)
         assert(isinstance(check_reaction, bool))
@@ -332,10 +332,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     def global_vars_from_input(self):
         """ Populate global variable if input transcript sequences are provided in the options  
         """
-        input_seq = self.options['input_seq']
+        rna_input_seq = self.options['rna_input_seq']
         selenoproteome =self.options['selenoproteome']
 
-        for Id, seq in input_seq.items():
+        for Id, seq in rna_input_seq.items():
             gvar.transcript_ntp_usage[Id] = {
                 'A': seq.upper().count('A'),
                 'C': seq.upper().count('C'),
@@ -476,8 +476,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            if model_species_type.id in self.options['input_seq']:
-                seq = self.options['input_seq'][model_species_type.id]
+            if model_species_type.id in self.options['rna_input_seq']:
+                seq = self.options['rna_input_seq'][model_species_type.id]
             else:
                 seq = kb_species_type.get_seq()
                 gvar.transcript_ntp_usage[model_species_type.id] = {
@@ -571,7 +571,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                                 'len': len(seq)
                                 }
                         else:
-                            seq = self.options['input_seq'][subunit_id]
+                            seq = self.options['rna_input_seq'][subunit_id]
 
                         formula += subunit.species_type.get_empirical_formula(seq_input=seq) * coef
                         weight += subunit.species_type.get_mol_wt(seq_input=seq) * coef

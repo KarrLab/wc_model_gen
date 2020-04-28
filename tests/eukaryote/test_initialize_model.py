@@ -260,7 +260,7 @@ class TestCase(unittest.TestCase):
     def test_gen_taxon_compartments_parameters_var(self):
         gvar.transcript_ntp_usage = {}
         option = self.set_options([])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()
@@ -366,7 +366,7 @@ class TestCase(unittest.TestCase):
     def test_gen_transcripts(self):
         gvar.transcript_ntp_usage = {}
         option = self.set_options(['gen_transcripts'])
-        option['input_seq'] = {'trans5': 'ACCGU'} 
+        option['rna_input_seq'] = {'trans5': 'ACCGU'} 
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()
@@ -561,7 +561,7 @@ class TestCase(unittest.TestCase):
     def test_gen_complexes(self):
         
         option = self.set_options(['gen_complexes'])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()
@@ -633,7 +633,7 @@ class TestCase(unittest.TestCase):
         
         option = self.set_options(['gen_metabolites', 'gen_complexes'])
         option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': 
@@ -646,7 +646,7 @@ class TestCase(unittest.TestCase):
 
         option = self.set_options(['gen_metabolites', 'gen_protein', 'gen_complexes'])
         option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': 
@@ -746,7 +746,7 @@ class TestCase(unittest.TestCase):
         cell = kb.cell
 
         option = self.set_options(['gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()
@@ -780,7 +780,7 @@ class TestCase(unittest.TestCase):
 
         option = self.set_options(['gen_protein', 'gen_metabolites', 'gen_complexes', 
             'gen_distribution_init_concentrations', 'gen_kb_reactions'])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()       
@@ -795,7 +795,7 @@ class TestCase(unittest.TestCase):
         
         option = self.set_options(['gen_dna', 'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_observables', 
                 'gen_distribution_init_concentrations', 'gen_kb_reactions', 'gen_kb_rate_laws'])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
             options={'component': {'InitializeModel': option}}).run()
@@ -925,7 +925,7 @@ class TestCase(unittest.TestCase):
                         'gen_observables',
                         'gen_kb_reactions',
                         'gen_kb_rate_laws'])
-        option['input_seq'] = {'trans5': 'ACCGU'}
+        option['rna_input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
             options={'component': {'InitializeModel': option}}).run()
