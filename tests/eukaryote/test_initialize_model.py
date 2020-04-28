@@ -132,6 +132,12 @@ class TestCase(unittest.TestCase):
         prot4_conc = wc_kb.core.Concentration(cell=cell, species=prot4_spec, value=0.1)
         prot4_conc.id = prot3_conc.serialize()
 
+        transcript5 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans5',
+            name='transcript5', gene=gene4, exons=[])
+        transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=cytoplasm)
+        transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=0.01)
+        transcript5_conc.id = transcript5_conc.serialize()
+
         met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
         met1_structure = wc_kb.core.SpeciesTypeProperty(property='structure', species_type=met1, value=
             'InChI=1S'
@@ -178,6 +184,10 @@ class TestCase(unittest.TestCase):
         species_type_coeff6 = wc_kb.core.SpeciesTypeCoefficient(species_type=prot4, coefficient=2)
         complex4 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp4', name='complex4',
             subunits=[species_type_coeff6])
+
+        species_type_coeff7 = wc_kb.core.SpeciesTypeCoefficient(species_type=transcript5, coefficient=1)
+        complex5 = wc_kb.core.ComplexSpeciesType(cell=cell, id='comp5', name='complex5',
+            subunits=[species_type_coeff7])
 
         expr1 = wc_kb.core.ObservableExpression(expression = '2.5 * prot1[n] + 1.3 * prot3[m]',
             species = [prot1_spec, prot3_spec])
@@ -247,11 +257,13 @@ class TestCase(unittest.TestCase):
         shutil.rmtree(self.tmp_dirname) 
         gvar.protein_aa_usage = {} 
 
-    def test_gen_taxon_compartments_parameters(self):
-
+    def test_gen_taxon_compartments_parameters_var(self):
+        gvar.transcript_ntp_usage = {}
+        option = self.set_options([])
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options([])}}).run()
+            options={'component': {'InitializeModel': option}}).run()
 
         self.assertEqual(model.taxon.id, 'taxon')
         self.assertEqual(model.taxon.name, 'Homo sapiens')
@@ -315,6 +327,8 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').units, unit_registry.parse_units('s'))
         self.assertEqual(model.parameters.get_one(id='mean_doubling_time').value, 20)
 
+        self.assertEqual(gvar.transcript_ntp_usage['trans5'], {'A': 1, 'C': 2, 'G': 1, 'U':1, 'len': 5})
+
     def test_gen_dna(self):
 
         model = core.EukaryoteModelGenerator(self.kb,
@@ -351,15 +365,18 @@ class TestCase(unittest.TestCase):
 
     def test_gen_transcripts(self):
         gvar.transcript_ntp_usage = {}
+        option = self.set_options(['gen_transcripts'])
+        option['input_seq'] = {'trans5': 'ACCGU'} 
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_transcripts'])}}).run()
+            options={'component': {'InitializeModel': option}}).run()
 
         transcript1_model = model.species_types.get_one(id='trans1')
         transcript2_model = model.species_types.get_one(id='trans2')
         transcript3_model = model.species_types.get_one(id='trans3')
 
         self.assertEqual(gvar.transcript_ntp_usage['trans2'], {'A': 1, 'U': 1, 'G': 1, 'C': 1, 'len': 4})
+        self.assertEqual(gvar.transcript_ntp_usage['trans5'], {'A': 1, 'C': 2, 'G': 1, 'U':1, 'len': 5})
 
         self.assertEqual(transcript1_model.name, 'transcript1')
         self.assertEqual(transcript3_model.type, wc_ontology['WC:RNA'])
@@ -381,6 +398,13 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(transcript2_model.structure.molecular_weight, exp_mol_wt, places=0)
         self.assertEqual(transcript2_model.structure.charge, -L - 1)
         self.assertEqual(transcript2_model.comments, '')
+
+        transcript5_model = model.species_types.get_one(id='trans5')
+        self.assertEqual(transcript5_model.structure.empirical_formula, chem.EmpiricalFormula('C10H12N5O7P') * 1
+                         + chem.EmpiricalFormula('C9H12N3O8P') * 2
+                         + chem.EmpiricalFormula('C10H12N5O8P') * 1
+                         + chem.EmpiricalFormula('C9H11N2O9P') * 1
+                         - chem.EmpiricalFormula('OH') * (5 - 1))
 
     def test_gen_protein(self):
 
@@ -535,10 +559,12 @@ class TestCase(unittest.TestCase):
         self.assertEqual(h2_model.structure.charge, 0)
         
     def test_gen_complexes(self):
-
+        
+        option = self.set_options(['gen_complexes'])
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options(['gen_complexes'])}}).run()
+            options={'component': {'InitializeModel': option}}).run()
 
         comp1_model = model.species_types.get_one(id='comp1')
         self.assertEqual(comp1_model.name, 'complex1')
@@ -559,6 +585,14 @@ class TestCase(unittest.TestCase):
         self.assertAlmostEqual(comp3_model.structure.molecular_weight, 1201.49, delta=0.3)
         self.assertEqual(comp3_model.structure.charge, 1)
 
+        comp5_model = model.species_types.get_one(id='comp5')
+        self.assertEqual(comp5_model.structure.empirical_formula, 
+            chem.EmpiricalFormula('C10H12N5O7P') * 1
+            + chem.EmpiricalFormula('C9H12N3O8P') * 2
+            + chem.EmpiricalFormula('C10H12N5O8P') * 1
+            + chem.EmpiricalFormula('C9H11N2O9P') * 1
+            - chem.EmpiricalFormula('OH') * (5 - 1))
+        
         self.assertEqual(gvar.protein_aa_usage['prot4'], {
                 'len': 3,
                 '*': 0,  # Symbol used in Bio.Seq.Seq when cds is set to False  
@@ -587,6 +621,9 @@ class TestCase(unittest.TestCase):
                 'start_codon': 'AUG',
             })
 
+        self.assertEqual(gvar.transcript_ntp_usage['trans5'], {'A': 1, 'C': 2, 'G': 1, 'U':1, 'len': 5})
+
+
         # Test the use of determine_protein_structure_from_aa
         amino_acid_id_conversion = {'N': 'met_N', 'E': 'met_E', 'I': 'met_I', 'L': 'met_L', 'K':'met_K', 'M':'met_M', 'V':'met_V'}
         for i in amino_acid_id_conversion.values():
@@ -596,6 +633,7 @@ class TestCase(unittest.TestCase):
         
         option = self.set_options(['gen_metabolites', 'gen_complexes'])
         option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': 
@@ -608,6 +646,7 @@ class TestCase(unittest.TestCase):
 
         option = self.set_options(['gen_metabolites', 'gen_protein', 'gen_complexes'])
         option.update({'amino_acid_id_conversion': amino_acid_id_conversion})
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb,
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': 
@@ -706,10 +745,11 @@ class TestCase(unittest.TestCase):
         kb = self.kb
         cell = kb.cell
 
+        option = self.set_options(['gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options([
-                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_kb_reactions'])}}).run()
+            options={'component': {'InitializeModel': option}}).run()
 
         self.assertEqual(len(model.reactions), 5)
         self.assertEqual(len(model.submodels), 1)
@@ -738,11 +778,12 @@ class TestCase(unittest.TestCase):
         met1_e_kb = cell.species_types.get_one(id='met1').species.get_one(compartment=extracellular)
         met1_e_conc = wc_kb.core.Concentration(cell=cell, species=met1_e_kb, value=0.5)
 
+        option = self.set_options(['gen_protein', 'gen_metabolites', 'gen_complexes', 
+            'gen_distribution_init_concentrations', 'gen_kb_reactions'])
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(kb,
             component_generators=[initialize_model.InitializeModel],
-            options={'component': {'InitializeModel': self.set_options([
-                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_distribution_init_concentrations', 
-                'gen_kb_reactions'])}}).run()       
+            options={'component': {'InitializeModel': option}}).run()       
         
         self.assertEqual(len(model.reactions), 6)
         self.assertEqual(model.reactions.get_one(id='EX_met1_e_kb').name, 'exchange reaction')
@@ -752,12 +793,12 @@ class TestCase(unittest.TestCase):
         
     def test_gen_kb_rate_laws(self):
         
+        option = self.set_options(['gen_dna', 'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_observables', 
+                'gen_distribution_init_concentrations', 'gen_kb_reactions', 'gen_kb_rate_laws'])
+        option['input_seq'] = {'trans5': 'ACCGU'}
         model = core.EukaryoteModelGenerator(self.kb, 
             component_generators=[initialize_model.InitializeModel], 
-            options={'component': {'InitializeModel': self.set_options(['gen_dna', 
-                'gen_protein', 'gen_metabolites', 'gen_complexes', 'gen_observables', 
-                'gen_distribution_init_concentrations', 'gen_kb_reactions', 
-                'gen_kb_rate_laws'])}}).run()
+            options={'component': {'InitializeModel': option}}).run()
 
         self.assertEqual(len(model.rate_laws), 2)
 
@@ -874,9 +915,7 @@ class TestCase(unittest.TestCase):
 
         self.assertTrue(kb2.is_equal(self.kb))
         
-        model = core.EukaryoteModelGenerator(self.kb, 
-            component_generators=[initialize_model.InitializeModel], 
-            options={'component': {'InitializeModel': self.set_options([
+        option = self.set_options([
                         'gen_dna',
                         'gen_transcripts',
                         'gen_protein',
@@ -885,6 +924,10 @@ class TestCase(unittest.TestCase):
                         'gen_distribution_init_concentrations',
                         'gen_observables',
                         'gen_kb_reactions',
-                        'gen_kb_rate_laws'])}}).run()
+                        'gen_kb_rate_laws'])
+        option['input_seq'] = {'trans5': 'ACCGU'}
+        model = core.EukaryoteModelGenerator(self.kb, 
+            component_generators=[initialize_model.InitializeModel], 
+            options={'component': {'InitializeModel': option}}).run()
         
         self.assertTrue(kb2.is_equal(self.kb))

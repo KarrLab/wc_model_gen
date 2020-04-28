@@ -40,6 +40,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
     * media (:obj:`dict`): a dictionary with species type ids as keys and tuples of concentration (M) in the 
         media (extracellular space), `list` of `wc_lang.Reference`, and comments as values
+    * rna_input_seq (:obj:`dict`, optional): a dictionary with RNA ids as keys and sequence strings as values     
     * check_reaction (:obj:`bool`): if True, reactions will be checked and corrected for proton and charge balance;
         default is True
     * gen_dna (:obj:`bool`): if True, DNA species types and species will be generated; 
@@ -71,6 +72,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         self.gen_taxon()
         self.gen_compartments()
         self.gen_parameters()
+        self.global_vars_from_input()
 
         print('Taxon, compartments, and parameters have been initialized')
 
@@ -154,6 +156,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         media = options.get('media', {})
         assert(isinstance(media, dict))
         options['media'] = media
+
+        input_seq = options.get('input_seq', {})
+        assert(isinstance(input_seq, dict))
+        options['input_seq'] = input_seq
 
         check_reaction = options.get('check_reaction', True)
         assert(isinstance(check_reaction, bool))
@@ -323,6 +329,21 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         model_doubling_time.value *= conversion_factor
         model_doubling_time.units = unit_registry.parse_units('s')
 
+    def global_vars_from_input(self):
+        """ Populate global variable if input transcript sequences are provided in the options  
+        """
+        input_seq = self.options['input_seq']
+        selenoproteome =self.options['selenoproteome']
+
+        for Id, seq in input_seq.items():
+            gvar.transcript_ntp_usage[Id] = {
+                'A': seq.upper().count('A'),
+                'C': seq.upper().count('C'),
+                'G': seq.upper().count('G'),
+                'U': seq.upper().count('U'),
+                'len': len(seq)
+                }
+
     def gen_metabolites(self):
         """ Generate metabolites for the model from knowledge base """
         kb = self.knowledge_base
@@ -455,14 +476,17 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
 
         elif isinstance(kb_species_type, wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type.type = wc_ontology['WC:RNA'] # RNA
-            seq = kb_species_type.get_seq()
-            gvar.transcript_ntp_usage[model_species_type.id] = {
-                'A': seq.upper().count('A'),
-                'C': seq.upper().count('C'),
-                'G': seq.upper().count('G'),
-                'U': seq.upper().count('U'),
-                'len': len(seq)
-                }
+            if model_species_type.id in self.options['input_seq']:
+                seq = self.options['input_seq'][model_species_type.id]
+            else:
+                seq = kb_species_type.get_seq()
+                gvar.transcript_ntp_usage[model_species_type.id] = {
+                    'A': seq.upper().count('A'),
+                    'C': seq.upper().count('C'),
+                    'G': seq.upper().count('G'),
+                    'U': seq.upper().count('U'),
+                    'len': len(seq)
+                    }
             model_species_type.structure.empirical_formula = kb_species_type.get_empirical_formula(
                 seq_input=seq)
             model_species_type.structure.molecular_weight = kb_species_type.get_mol_wt(
@@ -529,7 +553,30 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                         else:
                             formula += sub_formula * coef 
                             charge += sub_charge * coef
-                            weight += sub_mol_wt * coef   
+                            weight += sub_mol_wt * coef
+                elif isinstance(subunit.species_type, wc_kb.eukaryote.TranscriptSpeciesType):
+                    subunit_model_species_type = model.species_types.get_one(id=subunit_id)
+                    if subunit_model_species_type:
+                        formula += subunit_model_species_type.structure.empirical_formula * coef 
+                        charge += subunit_model_species_type.structure.charge * coef
+                        weight += subunit_model_species_type.structure.molecular_weight * coef
+                    else:
+                        if subunit_id not in gvar.transcript_ntp_usage:
+                            seq = subunit.species_type.get_seq()
+                            gvar.transcript_ntp_usage[subunit.species_type.id] = {
+                                'A': seq.upper().count('A'),
+                                'C': seq.upper().count('C'),
+                                'G': seq.upper().count('G'),
+                                'U': seq.upper().count('U'),
+                                'len': len(seq)
+                                }
+                        else:
+                            seq = self.options['input_seq'][subunit_id]
+
+                        formula += subunit.species_type.get_empirical_formula(seq_input=seq) * coef
+                        weight += subunit.species_type.get_mol_wt(seq_input=seq) * coef
+                        charge += subunit.species_type.get_charge(seq_input=seq) * coef
+
                 else:
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
