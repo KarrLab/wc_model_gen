@@ -95,6 +95,14 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         transcript6_spec = wc_kb.core.Species(species_type=transcript6, compartment=cytoplasm)
         transcript6_conc = wc_kb.core.Concentration(cell=cell, species=transcript6_spec, value=0.)
 
+        transcript7 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans7', 
+            name='transcript7', gene=gene6, type=wc_kb.eukaryote.TranscriptType.mRna)
+        transcript7_spec = wc_kb.core.Species(species_type=transcript7, compartment=cytoplasm)
+        transcript7_conc = wc_kb.core.Concentration(cell=cell, species=transcript7_spec, value=10.)
+
+        transcript8 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans8', 
+            name='transcript8', gene=gene6)
+
         activator = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='activator')
         repressor = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='repressor')
         gene2_reg1 = gene2.regulatory_modules.create(
@@ -207,6 +215,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
     def test_methods(self):           
 
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
+            'transcription_unit': {'trans6': ['trans7', 'trans8']},
+            'rna_input_seq': {'trans7': 'AG', 'trans8': 'CC'},
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
@@ -236,6 +246,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         model=self.model
 
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
+        self.assertEqual(gvar.transcript_ntp_usage['trans7'], {'A': 1, 'U': 0, 'G': 1, 'C': 0, 'len': 2})
+        self.assertEqual(gvar.transcript_ntp_usage['trans8'], {'A': 0, 'U': 0, 'G': 0, 'C': 2, 'len': 2})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['transcription'])
@@ -306,7 +318,16 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             {'atp[n]': -1, 'ctp[n]': 0, 'gtp[n]': -1, 'utp[n]': -1, 'h2o[n]': -1,'ppi[n]': 3, 'trans4[c]': 1,
             'amp[n]': 0, 'cmp[n]': 0, 'gmp[n]': 0, 'ump[n]': 0, 'h[n]': 1, 
             'complex2_bound_gene4[n]': -1, 'gene4_binding_site[n]': 1, 'complex2[n]': 1})
+        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='transcription_elongation_trans6').participants}, 
+            {'atp[n]': -2, 'ctp[n]': -2, 'gtp[n]': -2, 'utp[n]': -1, 'h2o[n]': -3, 'ppi[n]': 7, 'trans6[c]': 1, 
+            'trans7[c]': 1, 'trans7_ribosome_binding_site[c]': 1, 'trans8[c]': 1,
+            'amp[n]': 0, 'cmp[n]': 0, 'gmp[n]': 0, 'ump[n]': 0, 'h[n]': 3, 
+            'complex2_bound_gene6[n]': -1, 'gene6_binding_site[n]': 1, 'complex2[n]': 1})
+        self.assertEqual(model.reactions.get_one(id='transcription_elongation_trans7'), None)
+        self.assertEqual(model.reactions.get_one(id='transcription_elongation_trans8'), None)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trans1_ribosome_binding_site[c]').mean, 40)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trans7_ribosome_binding_site[c]').mean, 10)
+        self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-trans8_ribosome_binding_site[c]'), None)
 
         # Test gen_rate_laws
         self.assertEqual(len(model.rate_laws), 16)
@@ -418,8 +439,13 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='utp[m]')).mean = 0.
         
-        gvar.transcript_ntp_usage = {'trans1': {'A': 2, 'U': 2, 'G': 2, 'C': 2, 'len': 8}}
+        gvar.transcript_ntp_usage = {
+            'trans1': {'A': 2, 'U': 2, 'G': 2, 'C': 2, 'len': 8},
+            'trans7': {'A': 1, 'U': 0, 'G': 1, 'C': 0, 'len': 2},
+            'trans8': {'A': 0, 'U': 0, 'G': 0, 'C': 2, 'len': 2},
+            }
         gen = transcription.TranscriptionSubmodelGenerator(self.kb, self.model, options={
+            'transcription_unit': {'trans6': ['trans7', 'trans8']},
             'rna_pol_pair': {'trans1': 'RNA Polymerase I', 'trans2': 'RNA Polymerase mitochondria', 
                             'trans3': 'RNA Polymerase II', 'trans4': 'RNA Polymerase II', 
                             'trans5': 'RNA Polymerase III', 'trans6': 'RNA Polymerase II'},
@@ -456,6 +482,11 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
             {'atp[m]': -4, 'ctp[m]': -3, 'gtp[m]': -2, 'utp[m]': -9, 'h2o[m]': -9, 'ppi[m]': 18, 'trans2[m]': 1, 'trans2_ribosome_binding_site[m]': 3,
             'amp[m]': 2, 'cmp[m]': 1, 'gmp[m]': 1, 'ump[m]': 4,'h[m]': 9,
             'complex3_bound_gene2[m]': -1, 'gene2_binding_site[m]': 1, 'complex3[m]': 1})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='transcription_elongation_trans6').participants}, 
+            {'atp[n]': -2, 'ctp[n]': -2, 'gtp[n]': -2, 'utp[n]': -1, 'h2o[n]': -3, 'ppi[n]': 7, 'trans6[c]': 1, 
+            'trans7[c]': 1, 'trans7_ribosome_binding_site[c]': 1, 'trans8[c]': 1,
+            'amp[n]': 0, 'cmp[n]': 0, 'gmp[n]': 0, 'ump[n]': 0, 'h[n]': 3, 
+            'complex2_bound_gene6[n]': -1, 'gene6_binding_site[n]': 1, 'complex2[n]': 1})
 
         self.assertEqual(self.model.parameters.get_one(id='K_m_transcription_elongation_trans2_utp').value, 1e-05)
         self.assertEqual(self.model.parameters.get_one(id='K_m_transcription_elongation_trans2_utp').comments, 

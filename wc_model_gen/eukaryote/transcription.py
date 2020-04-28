@@ -24,6 +24,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for transcription submodel 
 
         Options:
+        * transcription_unit (:obj:`dict`, optional): a dictionary of RNA id as key and a list
+            of ids of RNAs that are transcribed as a unit with the RNA in the key
+        * rna_input_seq (:obj:`dict`, optional): a dictionary with RNA ids as keys and 
+            sequence strings as values    
         * rna_pol_pair (:obj:`dict`): a dictionary of RNA id as key and
             the name of RNA polymerase complex that transcribes the RNA as value, e.g.
             rna_pol_pair = {
@@ -77,6 +81,12 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
         options = self.options
+
+        transcription_unit = options.get('transcription_unit', {})
+        options['transcription_unit'] = transcription_unit
+
+        rna_input_seq = options.get('rna_input_seq', {})
+        options['rna_input_seq'] = rna_input_seq
 
         if 'rna_pol_pair' not in options:
             raise ValueError('The dictionary rna_pol_pair has not been provided')
@@ -153,6 +163,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         polr_occupancy_width = self.options.get('polr_occupancy_width')
         ribosome_occupancy_width = self.options['ribosome_occupancy_width']
+        transcription_unit = self.options['transcription_unit']
+        rna_input_seq = self.options['rna_input_seq']
 
         self.submodel.framework = onto['WC:next_reaction_method']        
 
@@ -306,14 +318,40 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         
         # Create initiation and elongation reactions for each RNA
         init_el_rxn_no = 0
-        rna_kbs = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
+        transcribed_genes = [i for i in cell.loci.get(__type=wc_kb.eukaryote.GeneLocus) \
+            if i.transcripts]
         self._initiation_polr_species = {}
         self._elongation_modifier = {}
         self._allowable_queue_len = {}        
-        for rna_kb in rna_kbs:
+        for gene in transcribed_genes:
             
-            transcription_compartment = nucleus if rna_kb.species[0].compartment.id == 'c' else mitochondrion
-            translation_compartment = cytosol if rna_kb.species[0].compartment.id == 'c' else mitochondrion
+            transcription_compartment = mitochondrion if 'M' in gene.polymer.id else nucleus
+            translation_compartment = mitochondrion if 'M' in gene.polymer.id else cytosol
+
+            len_add_rna = 0
+            if len(gene.transcripts) == 1:
+                rna_kb = gene.transcripts[0]
+                add_seq = {}               
+            else:
+                rna_kb = [i for i in gene.transcripts if i.id in transcription_unit][0]
+                add_seq = {'A': 0, 'C': 0, 'G': 0, 'U': 0, 'len': 0}
+                for add_transcript in transcription_unit[rna_kb.id]:
+                    len_add_rna += 1
+                    if add_transcript in gvar.transcript_ntp_usage:
+                        add_count = gvar.transcript_ntp_usage[add_transcript]
+                    else:
+                        if add_transcript in rna_input_seq:
+                            seq = rna_input_seq[add_transcript]
+                        else:
+                            seq = cell.species_types.get_one(id=add_transcript).get_seq()    
+                        add_count = gvar.transcript_ntp_usage[add_transcript] = {
+                            'A': seq.upper().count('A'),
+                            'C': seq.upper().count('C'),
+                            'G': seq.upper().count('G'),
+                            'U': seq.upper().count('U'),
+                            'len': len(seq),
+                            }
+                    add_seq = {k:v+add_count[k] for k,v in add_seq.items()}
             
             # Create initiation reaction
             polr_complex = model.species_types.get_one(name=rna_pol_pair[rna_kb.id])
@@ -331,7 +369,6 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             polr_non_specific_binding_site_species = model.species.get_one(
                 species_type=polr_non_specific_binding_site_st, compartment=transcription_compartment)
             
-            gene = rna_kb.gene
             polr_binding_site_st = model.species_types.get_or_create(
                 id='{}_binding_site'.format(gene.id),
                 name='binding site of {}'.format(gene.name),
@@ -345,10 +382,11 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 species_type=polr_binding_site_st, compartment=transcription_compartment)
             polr_binding_site_species.id = polr_binding_site_species.gen_id()
 
-            gene_seq = gene.get_seq() 
+            gene_seq = gene.get_seq()
+            gene_len = len(gene_seq) + (add_seq['len'] if add_seq else 0)
             conc_model = model.distribution_init_concentrations.create(
                 species=polr_binding_site_species,
-                mean=math.floor(len(gene_seq)/polr_occupancy_width) + 1,
+                mean=math.floor(gene_len/polr_occupancy_width) + 1,
                 units=unit_registry.parse_units('molecule'),
                 comments='Set to gene length divided by {} bp to allow '
                     'queueing of RNA polymerase during transcription'.format(polr_occupancy_width),
@@ -424,19 +462,34 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if rna_kb.gene.strand == wc_kb.core.PolymerStrand.positive:
                 pre_rna_seq = gene_seq.transcribe()
             else:
-                pre_rna_seq = gene_seq.reverse_complement().transcribe()  
+                pre_rna_seq = gene_seq.reverse_complement().transcribe()
+            pre_rna_count = {
+                'A': pre_rna_seq.upper().count('A'),
+                'C': pre_rna_seq.upper().count('C'),
+                'G': pre_rna_seq.upper().count('G'),
+                'U': pre_rna_seq.upper().count('U'),
+                'N': pre_rna_seq.upper().count('N'),
+                'len': len(pre_rna_seq),
+                }
             
             if rna_kb.id in gvar.transcript_ntp_usage:
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
             else:
-                seq = rna_kb.get_seq()
+                if rna_kb.id in rna_input_seq:
+                    seq = rna_input_seq[rna_kb.id]
+                else:    
+                    seq = rna_kb.get_seq()
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
                     'A': seq.upper().count('A'),
                     'C': seq.upper().count('C'),
                     'G': seq.upper().count('G'),
                     'U': seq.upper().count('U'),
-                    'len': len(seq)
+                    'len': len(seq),
                     }
+
+            if add_seq:
+                pre_rna_count = {k:(v+add_seq[k] if k in add_seq else v) for k,v in pre_rna_count.items()}
+                ntp_count = {k:v+add_seq[k] for k,v in ntp_count.items()}        
 
             # Adding participants to LHS
             reaction.participants.append(
@@ -444,43 +497,50 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 coefficient=-1))
             reaction.participants.append(metabolites['atp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.upper().count('A')))
+                coefficient=-pre_rna_count['A']))
             reaction.participants.append(metabolites['ctp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.upper().count('C')))
+                coefficient=-pre_rna_count['C']))
             reaction.participants.append(metabolites['gtp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.upper().count('G')))
+                coefficient=-pre_rna_count['G']))
             reaction.participants.append(metabolites['utp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=-pre_rna_seq.upper().count('U')))
+                coefficient=-pre_rna_count['U']))
             reaction.participants.append(metabolites['h2o'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=-(len(pre_rna_seq)-pre_rna_seq.upper().count('N')
+                coefficient=-(pre_rna_count['len']-pre_rna_count['N']+len_add_rna
                     -ntp_count['len']+1)))
             
             # Adding participants to RHS
+            if rna_kb.id in transcription_unit:
+                for add_transcript in transcription_unit[rna_kb.id]:
+                    add_rna_model = model.species_types.get_one(id=add_transcript).species[0]
+                    reaction.participants.append(
+                        add_rna_model.species_coefficients.get_or_create(
+                        coefficient=1))
+
             reaction.participants.append(
                 rna_model.species_coefficients.get_or_create(
                 coefficient=1))
             reaction.participants.append(metabolites['ppi'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-pre_rna_seq.upper().count('N')))
+                coefficient=pre_rna_count['len']-pre_rna_count['N']))
             reaction.participants.append(metabolites['amp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.upper().count('A')-ntp_count['A']))
+                coefficient=pre_rna_count['A']-ntp_count['A']))
             reaction.participants.append(metabolites['cmp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.upper().count('C')-ntp_count['C']))
+                coefficient=pre_rna_count['C']-ntp_count['C']))
             reaction.participants.append(metabolites['gmp'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.upper().count('G')-ntp_count['G']))
+                coefficient=pre_rna_count['G']-ntp_count['G']))
             reaction.participants.append(metabolites['ump'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=pre_rna_seq.upper().count('U')-ntp_count['U']))
+                coefficient=pre_rna_count['U']-ntp_count['U']))
             reaction.participants.append(metabolites['h'][
                 transcription_compartment.id].species_coefficients.get_or_create(
-                coefficient=len(pre_rna_seq)-pre_rna_seq.upper().count('N')
+                coefficient=pre_rna_count['len']-pre_rna_count['N']+len_add_rna
                     -ntp_count['len']+1))
             reaction.participants.append(
                 polr_complex_species.species_coefficients.get_or_create(
@@ -489,36 +549,44 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 polr_binding_site_species.species_coefficients.get_or_create(
                 coefficient=1))
 
-            if rna_kb.type==wc_kb.eukaryote.TranscriptType.mRna:
-                ribo_binding_site_st = model.species_types.get_or_create(
-                    id='{}_ribosome_binding_site'.format(rna_kb.id),
-                    name='ribosome binding site of {}'.format(rna_kb.name),
-                    type=onto['WC:pseudo_species'],
-                    )
-                ribo_binding_site_st.structure = wc_lang.ChemicalStructure(
-                    empirical_formula = EmpiricalFormula(),
-                    molecular_weight = 0.,
-                    charge = 0)
-                ribo_binding_site_species = model.species.get_or_create(
-                    species_type=ribo_binding_site_st, compartment=translation_compartment)
-                ribo_binding_site_species.id = ribo_binding_site_species.gen_id()
+            all_transcripts = [rna_kb]
+            if rna_kb.id in transcription_unit:
+                for add_transcript in transcription_unit[rna_kb.id]:
+                    all_transcripts.append(cell.species_types.get_one(id=add_transcript))
+            
+            for rna in all_transcripts:
+                if rna.type==wc_kb.eukaryote.TranscriptType.mRna:
+                    ribo_binding_site_st = model.species_types.get_or_create(
+                        id='{}_ribosome_binding_site'.format(rna.id),
+                        name='ribosome binding site of {}'.format(rna.name),
+                        type=onto['WC:pseudo_species'],
+                        )
+                    ribo_binding_site_st.structure = wc_lang.ChemicalStructure(
+                        empirical_formula = EmpiricalFormula(),
+                        molecular_weight = 0.,
+                        charge = 0)
+                    ribo_binding_site_species = model.species.get_or_create(
+                        species_type=ribo_binding_site_st, compartment=translation_compartment)
+                    ribo_binding_site_species.id = ribo_binding_site_species.gen_id()
 
-                site_per_rna = math.floor(ntp_count['len']/ribosome_occupancy_width) + 1
-                reaction.participants.append(
-                    ribo_binding_site_species.species_coefficients.get_or_create(
-                    coefficient=site_per_rna))
+                    site_per_rna = math.floor(gvar.transcript_ntp_usage[rna.id]['len'] / \
+                        ribosome_occupancy_width) + 1
+                    reaction.participants.append(
+                        ribo_binding_site_species.species_coefficients.get_or_create(
+                        coefficient=site_per_rna))
 
-                rna_init_conc = model.distribution_init_concentrations.get_one(
-                    species=rna_model).mean
-                conc_model = model.distribution_init_concentrations.create(
-                    species=ribo_binding_site_species,
-                    mean=site_per_rna * rna_init_conc,
-                    units=unit_registry.parse_units('molecule'),
-                    comments='Set to mRNA length divided by {} bp to allow '
-                        'queueing of ribosome during translation'.format(ribosome_occupancy_width),
-                    references=[ref_ribo_width]    
-                    )
-                conc_model.id = conc_model.gen_id()
+                    rna_model = model.species_types.get_one(id=rna.id).species[0]
+                    rna_init_conc = model.distribution_init_concentrations.get_one(
+                        species=rna_model).mean
+                    conc_model = model.distribution_init_concentrations.create(
+                        species=ribo_binding_site_species,
+                        mean=site_per_rna * rna_init_conc,
+                        units=unit_registry.parse_units('molecule'),
+                        comments='Set to mRNA length divided by {} bp to allow '
+                            'queueing of ribosome during translation'.format(ribosome_occupancy_width),
+                        references=[ref_ribo_width]    
+                        )
+                    conc_model.id = conc_model.gen_id()
 
             init_el_rxn_no += 1
 
@@ -532,6 +600,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cell = self.knowledge_base.cell
         nucleus = model.compartments.get_one(id='n')  
         mitochondrion = model.compartments.get_one(id='m')
+
+        transcription_unit = self.options['transcription_unit']
 
         ref_polr_width = model.references.get_one(
             title='Structure and mechanism of the RNA Polymerase II transcription machinery')
@@ -778,8 +848,10 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         polr_occupancy_width = self.options.get('polr_occupancy_width')
         p_function_exprs = {}
         self._gene_p_function_map = {}
-        rate_law_no = 0                    
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
+        rate_law_no = 0
+        transcribed_together = [j for i in transcription_unit.values() for j in i]                    
+        rnas_kb = [i for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType) \
+            if i.id not in transcribed_together]
         for rna_kb in rnas_kb:
 
             rna_kb_compartment_id = rna_kb.species[0].compartment.id
@@ -1008,6 +1080,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
 
+        transcription_unit = self.options['transcription_unit']
+
         beta = self.options.get('beta')
         beta_activator = self.options.get('beta_activator')
         beta_repressor = self.options.get('beta_repressor')
@@ -1024,7 +1098,9 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         average_rate = {}
         p_bound = {}
-        rnas_kb = cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType)
+        transcribed_together = [j for i in transcription_unit.values() for j in i]                    
+        rnas_kb = [i for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType) \
+            if i.id not in transcribed_together]
         for rna_kb in rnas_kb:            
         
             transcription_compartment = nucleus if rna_kb.species[0].compartment.id == 'c' else mitochondrion 
@@ -1093,7 +1169,8 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         # Calibrate binding constants
         polr_rna_pair = collections.defaultdict(list)
         for rna_id, polr in rna_pol_pair.items():
-            polr_rna_pair[polr].append(rna_id)
+            if rna_id not in transcribed_together:
+                polr_rna_pair[polr].append(rna_id)
         
         total_p_bound = {}
         total_gene_bound = {}
