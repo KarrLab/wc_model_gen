@@ -21,6 +21,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for rna degradation submodel
 
         Options:
+        * rna_input_seq (:obj:`dict`, optional): a dictionary with RNA ids as keys and 
+            sequence strings as values
         * rna_exo_pair (:obj:`dict`): a dictionary of RNA id as key and
             the name of exosome complex that degrades the RNA as value
         * beta (:obj:`float`, optional): ratio of Michaelis-Menten constant 
@@ -34,6 +36,9 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
         options = self.options
+
+        rna_input_seq = options.get('rna_input_seq', {})
+        options['rna_input_seq'] = rna_input_seq
 
         beta = options.get('beta', 1.)
         options['beta'] = beta
@@ -53,6 +58,8 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         nucleus = model.compartments.get_one(id='n')
         mitochondrion = model.compartments.get_one(id='m')
         cytoplasm = model.compartments.get_one(id='c')
+
+        rna_input_seq = self.options['rna_input_seq']
         
         # Get species involved in reaction
         metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
@@ -90,7 +97,10 @@ class RnaDegradationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if rna_kb.id in gvar.transcript_ntp_usage:
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id]
             else:
-                seq = rna_kb.get_seq()
+                if rna_kb.id in rna_input_seq:
+                    seq = rna_input_seq[rna_kb.id]
+                else:    
+                    seq = rna_kb.get_seq()
                 ntp_count = gvar.transcript_ntp_usage[rna_kb.id] = {
                     'A': seq.upper().count('A'),
                     'C': seq.upper().count('C'),

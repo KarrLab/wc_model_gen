@@ -70,7 +70,14 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
         transcript4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript4, 
             value='36000.0', value_type=wc_ontology['WC:float'])
         transcript4_spec = wc_kb.core.Species(species_type=transcript4, compartment=mito)
-        transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=0.)                   
+        transcript4_conc = wc_kb.core.Concentration(cell=cell, species=transcript4_spec, value=0.)
+
+        transcript5 = wc_kb.eukaryote.TranscriptSpeciesType(cell=cell, id='trans5', 
+            name='transcript5', gene=gene2)
+        transcript5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=transcript5, 
+            value='36000.0', value_type=wc_ontology['WC:float'])
+        transcript5_spec = wc_kb.core.Species(species_type=transcript5, compartment=mito)
+        transcript5_conc = wc_kb.core.Concentration(cell=cell, species=transcript5_spec, value=0.)                   
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -139,29 +146,35 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
     def test_methods(self):
         
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
+            'rna_input_seq': {'trans5': 'ACC'},
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
-                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'},
+                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome',
+                'trans5': 'Mitochondrial Exosome'},
             'ribosome_occupancy_width': 4,
             })
         gen.run()
 
         self.assertEqual(gvar.transcript_ntp_usage['trans1'], {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15})
+        self.assertEqual(gvar.transcript_ntp_usage['trans5'], {'A': 1, 'U': 0, 'G': 0, 'C': 2, 'len': 3})
 
         # Test gen_reactions
         self.assertEqual([i.id for i in self.model.submodels], ['rna_degradation'])
         self.assertEqual(self.model.submodels.get_one(id='rna_degradation').framework, wc_ontology['WC:next_reaction_method'])
         self.assertEqual(sorted([i.id for i in self.model.reactions]), 
-            sorted(['degradation_trans1', 'degradation_trans2', 'degradation_trans3', 'degradation_trans4']))
+            sorted(['degradation_trans1', 'degradation_trans2', 'degradation_trans3', 'degradation_trans4', 'degradation_trans5']))
         self.assertEqual(sorted([i.name for i in self.model.reactions]), 
-            sorted(['degradation of transcript1', 'degradation of transcript2', 'degradation of transcript3', 'degradation of transcript4']))
+            sorted(['degradation of transcript1', 'degradation of transcript2', 'degradation of transcript3', 
+                'degradation of transcript4', 'degradation of transcript5']))
         self.assertEqual(set([i.submodel.id for i in self.model.reactions]), set(['rna_degradation']))
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans1').participants}, 
             {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[c]': -1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
             {'amp[m]': 2, 'cmp[m]': 2, 'gmp[m]': 1, 'ump[m]': 5, 'h[m]': 9, 'h2o[m]': -9, 'trans2[m]': -1, 'trans2_ribosome_binding_site[m]': -3})
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans5').participants}, 
+            {'amp[m]': 1, 'cmp[m]': 2, 'gmp[m]': 0, 'ump[m]': 0, 'h[m]': 2, 'h2o[m]': -2, 'trans5[m]': -1})
         
         # Test gen_rate_laws
-        self.assertEqual(len(self.model.rate_laws), 4)
+        self.assertEqual(len(self.model.rate_laws), 5)
         self.assertEqual(self.model.rate_laws.get_one(id='degradation_trans1-forward').expression.expression,
             'k_cat_degradation_trans1 * complex1[c] * '
             '(trans1[c] / (trans1[c] + K_m_degradation_trans1_trans1 * Avogadro * volume_c))')
@@ -190,10 +203,14 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             'Set to the median value because it could not be determined from data')
 
     def test_global_vars(self):
-        gvar.transcript_ntp_usage = {'trans2': {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15}}
+        gvar.transcript_ntp_usage = {
+            'trans2': {'A': 4, 'U': 7, 'G': 2, 'C': 2, 'len': 15},
+            'trans5': {'A': 1, 'U': 0, 'G': 0, 'C': 2, 'len': 3},
+            }
         gen = rna_degradation.RnaDegradationSubmodelGenerator(self.kb, self.model, options={
             'rna_exo_pair': {'trans1': 'Exosome', 'trans2': 'Mitochondrial Exosome', 
-                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome'},
+                'trans3': 'Mitochondrial Exosome', 'trans4': 'Mitochondrial Exosome',
+                'trans5': 'Mitochondrial Exosome'},
             'ribosome_occupancy_width': 4,    
             })
         gen.run()
@@ -204,4 +221,5 @@ class RnaDegradationSubmodelGeneratorTestCase(unittest.TestCase):
             {'amp[c]': 4, 'cmp[c]': 2, 'gmp[c]': 2, 'ump[c]': 7, 'h[c]': 14, 'h2o[c]': -14, 'trans1[c]': -1})
         self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans2').participants}, 
             {'amp[m]': 4, 'cmp[m]': 2, 'gmp[m]': 2, 'ump[m]': 7, 'h[m]': 14, 'h2o[m]': -14, 'trans2[m]': -1, 'trans2_ribosome_binding_site[m]': -4})
-        
+        self.assertEqual({i.species.id: i.coefficient for i in self.model.reactions.get_one(id='degradation_trans5').participants}, 
+            {'amp[m]': 1, 'cmp[m]': 2, 'gmp[m]': 0, 'ump[m]': 0, 'h[m]': 2, 'h2o[m]': -2, 'trans5[m]': -1})
