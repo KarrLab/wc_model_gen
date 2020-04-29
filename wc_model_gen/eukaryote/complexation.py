@@ -22,6 +22,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     """ Generator for macromolecular complexation submodel
 
         Options:
+        * rna_subunit_seq (:obj:`dict`, optional): a dictionary with subunit RNA ids as keys and 
+            sequence strings as values 
         * amino_acid_id_conversion (:obj:`dict`): a dictionary with amino acid standard ids
             as keys and amino acid metabolite ids as values
         * codon_table (:obj:`dict`): a dictionary with protein subunit id as key and 
@@ -47,6 +49,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
     def clean_and_validate_options(self):
         """ Apply default options and validate options """
         options = self.options
+
+        rna_subunit_seq = options.get('rna_subunit_seq', {})
+        options['rna_subunit_seq'] = rna_subunit_seq
 
         if 'amino_acid_id_conversion' not in options:
             raise ValueError('The dictionary amino_acid_id_conversion has not been provided')
@@ -81,12 +86,26 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         model = self.model
         cell = self.knowledge_base.cell
 
+        cytoplasm = model.compartments.get_one(id='c')
+        mitochondrion = model.compartments.get_one(id='m')
+        lysosome = model.compartments.get_one(id='l')
+
         amino_acid_id_conversion = self.options['amino_acid_id_conversion']
         codon_table = self.options['codon_table']
         cds = self.options['cds']
         selenoproteome = self.options['selenoproteome']
+        rna_subunit_seq = self.options['rna_subunit_seq']
 
         self.submodel.framework = wc_ontology['WC:next_reaction_method']
+
+        metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h']
+        metabolites = {}
+        for met in metabolic_participants:
+            met_species_type = model.species_types.get_one(id=met)
+            metabolites[met] = {
+                'c': met_species_type.species.get_or_create(compartment=cytoplasm, model=model),
+                'm': met_species_type.species.get_or_create(compartment=mitochondrion, model=model)
+                }
         
         print('Start generating complexation submodel...')
         assembly_rxn_no = 0
@@ -189,9 +208,9 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                         gvar.protein_aa_usage[subunit.species_type.id]['start_codon'] = str(start_codon).upper()        
 
                                     if compl_compartment.id == 'm':
-                                        degradation_comp = model.compartments.get_one(id='m')
+                                        degradation_comp = mitochondrion
                                     else:
-                                        degradation_comp = model.compartments.get_one(id='l')
+                                        degradation_comp = lysosome
                                     for aa_id, aa_count in aa_content.items():
                                         model_aa = model.species_types.get_one(id=aa_id).species.get_or_create(
                                             model=model, compartment=degradation_comp)
@@ -213,7 +232,78 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 else:
                                     model_rxn.participants.add(
                                         model_subunit_species.species_coefficients.get_or_create(
-                                        coefficient=subunit_coefficient))                              
+                                        coefficient=subunit_coefficient))
+
+                        elif type(compl_subunit.species_type) == wc_kb.eukaryote.TranscriptSpeciesType:                            
+                            
+                            model_rxn = model.reactions.create(
+                                submodel=self.submodel,
+                                id='{}_dissociation_in_{}_degrade_{}'.format(
+                                    compl.id, compl_compartment.id, compl_subunit.species_type.id),
+                                name='Dissociation of {} in {} and degradation of {}'.format(
+                                    compl.id, compl_compartment.name, compl_subunit.species_type.id),
+                                reversible=False)
+
+                            model_rxn.participants.add(
+                                model_compl_species.species_coefficients.get_or_create(
+                                coefficient=-1))
+
+                            disassembly_rxn_no += 1
+
+                            for subunit in compl.subunits:
+                                
+                                model_subunit_species = model.species_types.get_one(
+                                    id=subunit.species_type.id).species.get_one(compartment=compl_compartment)
+                                subunit_coefficient = subunit.coefficient if subunit.coefficient else 1
+                                
+                                if subunit.species_type==compl_subunit.species_type:
+
+                                    if subunit.species_type.id in gvar.transcript_ntp_usage:                                        
+                                        ntp_count = gvar.transcript_ntp_usage[subunit.species_type.id]
+                                    else:
+                                        if subunit.species_type.id in rna_subunit_seq:
+                                            seq = rna_subunit_seq[subunit.species_type.id]
+                                        else:    
+                                            seq = subunit.species_type.get_seq()
+                                        ntp_count = gvar.transcript_ntp_usage[subunit.species_type.id] = {
+                                            'A': seq.upper().count('A'),
+                                            'C': seq.upper().count('C'),
+                                            'G': seq.upper().count('G'),
+                                            'U': seq.upper().count('U'),
+                                            'len': len(seq)
+                                            }
+
+                                    degradation_comp_id = 'm' if compl_compartment.id == 'm' else 'c'
+                                    
+                                    model_rxn.participants.add(metabolites['h2o'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=-(ntp_count['len']-1)))
+
+                                    model_rxn.participants.add(metabolites['amp'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=ntp_count['A']))
+                                    model_rxn.participants.add(metabolites['cmp'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=ntp_count['C']))
+                                    model_rxn.participants.add(metabolites['gmp'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=ntp_count['G']))
+                                    model_rxn.participants.add(metabolites['ump'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=ntp_count['U']))
+                                    model_rxn.participants.add(metabolites['h'][
+                                        degradation_comp_id].species_coefficients.get_or_create(
+                                        coefficient=ntp_count['len']-1))
+
+                                    if subunit_coefficient > 1:
+                                        model_rxn.participants.add(
+                                            model_subunit_species.species_coefficients.get_or_create(
+                                            coefficient=subunit_coefficient-1))
+
+                                else:
+                                    model_rxn.participants.add(
+                                        model_subunit_species.species_coefficients.get_or_create(
+                                        coefficient=subunit_coefficient))
         
         self._maximum_possible_amount = {k:min(v) if v else 0 for k, v in self._maximum_possible_amount.items()}
 
@@ -371,7 +461,8 @@ class ComplexationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         subunit_equilibrium_level = {i.species: i.mean * subunit_equilibrium_fraction \
             for i in model.distribution_init_concentrations \
-            if i.species.species_type.type == wc_ontology['WC:protein']}
+            if i.species.species_type.type == wc_ontology['WC:protein'] \
+            or i.species.species_type.type == wc_ontology['WC:RNA']}
         
         complexation_reactions = {}
         for reaction in self.submodel.reactions:

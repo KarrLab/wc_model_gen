@@ -37,6 +37,7 @@ class TestCase(unittest.TestCase):
         mito = cell.compartments.create(id='m')
         lysosome = cell.compartments.create(id='l')
         membrane = cell.compartments.create(id='c_m')
+        cytoplasm = cell.compartments.create(id='c')
 
         chr1 = wc_kb.core.DnaSpeciesType(cell=cell, id='chr1', sequence_path=self.sequence_path)
         gene1 = wc_kb.eukaryote.GeneLocus(cell=cell, id='gene1', polymer=chr1, start=1, end=18)
@@ -69,7 +70,18 @@ class TestCase(unittest.TestCase):
         prot4 = wc_kb.eukaryote.ProteinSpeciesType(cell=cell, id='prot4', name='protein4', transcript=transcript4, coding_regions=[locus4])
         prot4_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=prot4, 
             value='40000.0', value_type=wc_ontology['WC:float'])
-        prot4_spec = wc_kb.core.Species(species_type=prot4, compartment=nucleus)
+        prot4_spec1 = wc_kb.core.Species(species_type=prot4, compartment=nucleus)
+        prot4_spec2 = wc_kb.core.Species(species_type=prot4, compartment=cytoplasm)
+
+        trans5 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans5', cell=cell, gene=gene1)
+        trans5_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=trans5, 
+            value='40000.0', value_type=wc_ontology['WC:float'])
+        trans5_spec = wc_kb.core.Species(species_type=trans5, compartment=cytoplasm)
+
+        trans6 = wc_kb.eukaryote.TranscriptSpeciesType(id='trans6', cell=cell, gene=gene1)
+        trans6_half_life = wc_kb.core.SpeciesTypeProperty(property='half-life', species_type=trans6, 
+            value='36000.0', value_type=wc_ontology['WC:float'])
+        trans6_spec = wc_kb.core.Species(species_type=trans6, compartment=cytoplasm)
 
         met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met1', name='metabolite1')
         for i in cell.compartments:
@@ -88,7 +100,13 @@ class TestCase(unittest.TestCase):
 
         complex3 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_3', subunits=[
             wc_kb.core.SpeciesTypeCoefficient(species_type=prot4, coefficient=2),
-            ])                
+            ])
+
+        complex4 = wc_kb.core.ComplexSpeciesType(cell=cell, id='complex_4', subunits=[
+            wc_kb.core.SpeciesTypeCoefficient(species_type=prot4, coefficient=1),
+            wc_kb.core.SpeciesTypeCoefficient(species_type=trans5, coefficient=1),
+            wc_kb.core.SpeciesTypeCoefficient(species_type=trans6, coefficient=2),
+            ])                    
 
         # Create initial model content
         self.model = model = wc_lang.Model()
@@ -96,7 +114,8 @@ class TestCase(unittest.TestCase):
         model.parameters.create(id='Avogadro', value = scipy.constants.Avogadro,
                                 units = unit_registry.parse_units('molecule mol^-1'))
 
-        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14), 'l': ('lysosome', 2.5E-14), 'c_m': ('membrane', 5E-15)}
+        compartments = {'n': ('nucleus', 5E-14), 'm': ('mitochondria', 2.5E-14), 
+            'l': ('lysosome', 2.5E-14), 'c_m': ('membrane', 5E-15), 'c': ('cytoplasm', 1E-13)}
         for k, v in compartments.items():
             init_volume = wc_lang.core.InitVolume(distribution=wc_ontology['WC:normal_distribution'], 
                     mean=v[1], std=0)
@@ -134,12 +153,29 @@ class TestCase(unittest.TestCase):
             mean=20, units=unit_registry.parse_units('molecule'))
         conc_model.id = conc_model.gen_id()
 
+        model_species_type = model.species_types.get_or_create(id='prot4', name='protein4', type=wc_ontology['WC:protein'])
+        model_cyto = model.compartments.get_one(id='c')
+        model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_cyto)
+        model_species.id = model_species.gen_id()
+        conc_model = model.distribution_init_concentrations.create(species=model_species, 
+            mean=20, units=unit_registry.parse_units('molecule'))
+        conc_model.id = conc_model.gen_id()
+
+        for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
+            model_species_type = model.species_types.get_or_create(id=i.id, name=i.name, type=wc_ontology['WC:RNA'])
+            model_compartment = model.compartments.get_one(id='c')
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+            model_species.id = model_species.gen_id()
+            conc_model = model.distribution_init_concentrations.get_or_create(species=model_species, 
+                mean=25, units=unit_registry.parse_units('molecule'))
+            conc_model.id = conc_model.gen_id()
+
         model_species_type = model.species_types.get_or_create(id='met1', name='metabolite1', type=wc_ontology['WC:metabolite'])
         for compartment in model.compartments:
             model_species = model.species.get_or_create(species_type=model_species_type, compartment=compartment)
             model_species.id = model_species.gen_id()
 
-        for compl in [complex1, complex2, complex3]:
+        for compl in [complex1, complex2, complex3, complex4]:
             model_species_type = model.species_types.create(id=compl.id, type=wc_ontology['WC:pseudo_species'])
             subunit_compartments = [[s.compartment.id for s in sub.species_type.species]
                 for sub in compl.subunits]
@@ -157,8 +193,8 @@ class TestCase(unittest.TestCase):
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id()
 
-        metabolic_participants = ['Ala', 'Cys', 'Asp', 'Glu', 'Selcys', 'h2o']
-        metabolic_compartments = ['l', 'm']
+        metabolic_participants = ['amp', 'cmp', 'gmp', 'ump', 'h2o', 'h', 'Ala', 'Cys', 'Asp', 'Glu', 'Selcys']
+        metabolic_compartments = ['l', 'm', 'c']
         for i in metabolic_participants:
             for c in metabolic_compartments:
                 model_species_type = model.species_types.get_or_create(id=i, type=wc_ontology['WC:metabolite'])            
@@ -168,7 +204,8 @@ class TestCase(unittest.TestCase):
             
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
-        gvar.protein_aa_usage = {}                     
+        gvar.protein_aa_usage = {}
+        gvar.transcript_ntp_usage = {}                     
 
     def test_methods(self):
 
@@ -182,6 +219,7 @@ class TestCase(unittest.TestCase):
             'U': 'Selcys',
             }
         gen = complexation.ComplexationSubmodelGenerator(self.kb, self.model, options={
+            'rna_subunit_seq': {'trans5': 'ACCG', 'trans6': 'AU'},
             'amino_acid_id_conversion': amino_acid_id_conversion,
             'cds': False,
             'estimate_initial_state': False,
@@ -190,9 +228,10 @@ class TestCase(unittest.TestCase):
         gen.run()
 
         self.assertEqual(gvar.protein_aa_usage['prot4'], 
-            {'A': 0, 'C': 0, 'D': 1, 'E': 0, 'U': 1, 'len': 2, '*': 2, 'start_aa': 'D', 'start_codon': 'GAU'})   
+            {'A': 0, 'C': 0, 'D': 1, 'E': 0, 'U': 1, 'len': 2, '*': 2, 'start_aa': 'D', 'start_codon': 'GAU'})
+        self.assertEqual(gvar.transcript_ntp_usage['trans5'], {'A': 1, 'C': 2, 'G': 1, 'U': 0, 'len': 4})       
 
-        self.assertEqual(len(model.reactions), 12)
+        self.assertEqual(len(model.reactions), 18)
         self.assertEqual([i.id for i in model.submodels], ['complexation'])
         self.assertEqual(model.submodels.get_one(id='complexation').framework, wc_ontology['WC:next_reaction_method'])
 
@@ -238,6 +277,25 @@ class TestCase(unittest.TestCase):
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot4.participants]),
             sorted([('complex_3[n]', -1), ('h2o[l]', -1), ('Asp[l]', 1), ('Selcys[l]', 1), ('prot4[n]', 1)]))
 
+        complex4_assembly = model.reactions.get_one(id='complex_4_association_in_c')
+        self.assertEqual(complex4_assembly.name, 'Complexation of complex_4 in cytoplasm')
+        self.assertEqual([(i.species.id, i.coefficient) for i in complex4_assembly.participants],
+            [('prot4[c]', -1), ('trans5[c]', -1), ('trans6[c]', -2), ('complex_4[c]', 1)])
+
+        c4_dissociate_prot4_c = model.reactions.get_one(id='complex_4_dissociation_in_c_degrade_prot4')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c4_dissociate_prot4_c.participants]),
+            sorted([('complex_4[c]', -1), ('h2o[l]', -1), ('Asp[l]', 1), ('Selcys[l]', 1), ('trans5[c]', 1), ('trans6[c]', 2)]))
+
+        c4_dissociate_trans5_c = model.reactions.get_one(id='complex_4_dissociation_in_c_degrade_trans5')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c4_dissociate_trans5_c.participants]),
+            sorted([('complex_4[c]', -1), ('h2o[c]', -3), ('amp[c]', 1), ('cmp[c]', 2), ('gmp[c]', 1), ('ump[c]', 0), ('h[c]', 3), 
+                ('prot4[c]', 1), ('trans6[c]', 2)]))
+
+        c4_dissociate_trans6_c = model.reactions.get_one(id='complex_4_dissociation_in_c_degrade_trans6')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c4_dissociate_trans6_c.participants]),
+            sorted([('complex_4[c]', -1), ('h2o[c]', -1), ('amp[c]', 1), ('cmp[c]', 0), ('gmp[c]', 0), ('ump[c]', 1), ('h[c]', 1), 
+                ('prot4[c]', 1), ('trans5[c]', 1), ('trans6[c]', 1)]))              
+
         # Test gen_rate_laws
         self.assertEqual(complex1_assembly.rate_laws[0].expression.expression, 
             'k_cat_complex_1_association_in_n * '
@@ -249,6 +307,13 @@ class TestCase(unittest.TestCase):
             'k_cat_complex_1_dissociation_in_n_degrade_prot1 * complex_1[n]')
         self.assertEqual(dissociate_prot3.rate_laws[0].expression.expression, 
             'k_cat_complex_1_dissociation_in_n_degrade_prot3 * complex_1[n]')
+        self.assertEqual(complex4_assembly.rate_laws[0].expression.expression, 
+            'k_cat_complex_4_association_in_c * '
+            '(prot4[c] / (prot4[c] + K_m_complex_4_association_in_c_prot4 * Avogadro * volume_c)) * '
+            '(trans5[c] / (trans5[c] + K_m_complex_4_association_in_c_trans5 * Avogadro * volume_c)) * '
+            '(trans6[c] / (trans6[c] + K_m_complex_4_association_in_c_trans6 * Avogadro * volume_c)) * 2 ** 3')
+        self.assertEqual(c4_dissociate_trans6_c.rate_laws[0].expression.expression, 
+            'k_cat_complex_4_dissociation_in_c_degrade_trans6 * complex_4[c]')
 
         for law in model.rate_laws:
             self.assertEqual(law.validate(), None)
@@ -266,18 +331,24 @@ class TestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot1').value, 1/40000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot2').value, 2/20000.)
         self.assertEqual(model.parameters.get_one(id='k_cat_complex_1_dissociation_in_n_degrade_prot3').value, 1/25000.)
-        
+        self.assertEqual(model.parameters.get_one(id='K_m_complex_4_association_in_c_trans5').value, 25/scipy.constants.Avogadro/1E-13)
+        self.assertEqual(model.parameters.get_one(id='k_cat_complex_4_dissociation_in_c_degrade_trans6').value, 2/36000.)
+
         # Test determine_initial_concentration
         gen.options['estimate_initial_state'] = True
         gen.options['greedy_step_size'] = 0.5
         gen.calibrate_submodel()
-        self.assertEqual(gen._maximum_possible_amount, {'complex_1[n]': 5, 'complex_2[n]': 5, 'complex_2[m]': 10, 'complex_2[c_m]': 10, 'complex_3[n]': 5})
+        self.assertEqual(gen._maximum_possible_amount, {'complex_1[n]': 5.0, 'complex_2[n]': 5.0, 'complex_2[m]': 10.0, 
+            'complex_2[c_m]': 10.0, 'complex_3[n]': 5.0, 'complex_3[c]': 10.0, 'complex_4[c]': 12.5})
+        print(gen._effective_dissociation_constant)
         self.assertEqual(gen._effective_dissociation_constant, {
             'complex_1[n]': 1/40000 + 2/20000 + 1/25000, 
             'complex_2[n]': 2/25000, 
             'complex_2[m]': 2/25000, 
             'complex_2[c_m]': 2/25000,
             'complex_3[n]': 2/40000,
+            'complex_3[c]': 2/40000,
+            'complex_4[c]': 1/40000 + 1/40000 + 2/36000,
             })
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot1[n]').mean, 6)
         self.assertEqual(model.distribution_init_concentrations.get_one(id='dist-init-conc-prot2[n]').mean, 2)
@@ -301,6 +372,10 @@ class TestCase(unittest.TestCase):
 
     def test_global_vars(self):
         gvar.protein_aa_usage = {'prot1': {'A': 4, 'C': 2, 'D': 1, 'E': 0, 'U': 0, 'len': 7, '*': 1, 'start_aa': 'A', 'start_codon': 'GCG'}}
+        gvar.transcript_ntp_usage = {
+            'trans5': {'A': 1, 'C': 1, 'G': 1, 'U': 1, 'len': 4}, 
+            'trans6': {'A': 0, 'C': 1, 'G': 1, 'U': 2, 'len': 4},
+            }
         amino_acid_id_conversion = {
             'A': 'Ala',
             'C': 'Cys',
@@ -320,3 +395,7 @@ class TestCase(unittest.TestCase):
         self.assertEqual(sorted([(i.species.id, i.coefficient) for i in dissociate_prot1.participants]),
             sorted([('complex_1[n]', -1), ('h2o[l]', -6), ('Ala[l]', 4), ('Cys[l]', 2), ('Asp[l]', 1), ('prot2[n]', 2), ('prot3[n]', 1)]))
         
+        c4_dissociate_trans6_c = self.model.reactions.get_one(id='complex_4_dissociation_in_c_degrade_trans6')
+        self.assertEqual(sorted([(i.species.id, i.coefficient) for i in c4_dissociate_trans6_c.participants]),
+            sorted([('complex_4[c]', -1), ('h2o[c]', -3), ('amp[c]', 0), ('cmp[c]', 1), ('gmp[c]', 1), ('ump[c]', 2), ('h[c]', 3), 
+                ('prot4[c]', 1), ('trans5[c]', 1), ('trans6[c]', 1)]))
