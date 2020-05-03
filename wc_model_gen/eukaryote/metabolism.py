@@ -293,16 +293,18 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if model.submodels.get_one(id='transcription'):
                 # Add ATP hydrolysis requirement for DNA melting and promoter escape by RNA polymerase II
                 transcription_init_reaction = model.reactions.get_one(id='transcription_initiation_{}'.format(rna_kb.id))
-                for part in transcription_init_reaction.participants:
-                    if part.species.id in met_requirement:
-                        met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
-                            (1 + doubling_time / half_life)
+                if transcription_init_reaction:
+                    for part in transcription_init_reaction.participants:
+                        if part.species.id in met_requirement:
+                            met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
+                                (1 + doubling_time / half_life)
                 # Transcription elongation
                 transcription_el_reaction = model.reactions.get_one(id='transcription_elongation_{}'.format(rna_kb.id))
-                for part in transcription_el_reaction.participants:
-                    if part.species.id in met_requirement:
-                        met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
-                            (1 + doubling_time / half_life)
+                if transcription_el_reaction:
+                    for part in transcription_el_reaction.participants:
+                        if part.species.id in met_requirement:
+                            met_requirement[part.species.id] += -part.coefficient * mean_concentration * \
+                                (1 + doubling_time / half_life)
             
             if model.submodels.get_one(id='rna_degradation'):
                 # RNA degradation
