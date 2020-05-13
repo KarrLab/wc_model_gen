@@ -45,7 +45,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             concentration (Km/[S]) for use when estimating Km values, the default value is 1
         * tolerance (:obj:`float`, optional): the upper limit of difference between calibrated and 
             measured growth as a fraction of the measured growth that can be tolerated,
-            the default value is 0.01                        
+            the default value is 0.01
+        * kcat_adjustment_factor (:obj:`float`, optional): factor for adjusting the values of kcat
+            imputed based on flux variability analysis; the adjustment is only made for bounds 
+            that have not been relaxed during calibration; the default value is 1, i.e. 
+            no adjustment will be made                            
     """
 
     def clean_and_validate_options(self):
@@ -86,7 +90,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         options['beta'] = beta
 
         tolerance = options.get('tolerance', 0.01)
-        options['tolerance'] = tolerance        
+        options['tolerance'] = tolerance
+
+        kcat_adjustment_factor = options.get('kcat_adjustment_factor', 1.)
+        options['kcat_adjustment_factor'] = kcat_adjustment_factor   
 
     def gen_reactions(self):
         """ Generate reactions associated with submodel 
@@ -858,7 +865,25 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         scale_factor = self.options['scale_factor']
         coef_scale_factor = self.options['coef_scale_factor']
 
-        options = conv_opt.SolveOptions(solver=conv_opt.Solver.cplex, presolve=conv_opt.Presolve.on)
+        options = conv_opt.SolveOptions(
+            solver=conv_opt.Solver.cplex,
+            presolve=conv_opt.Presolve.on,
+            solver_options={
+                'cplex': {
+                    'parameters': {
+                        'emphasis': {
+                            'numerical': 1,
+                        },
+                        'read': {
+                            'scale': 1,
+                        },
+                    },
+                },
+            })
+                
+        pre_solution = conv_model.solve()
+        fva_target = pre_solution.value*fraction_of_objective
+        
         model = conv_model.convert(options)
         cplex_model = model.load(conv_model)
 
@@ -867,8 +892,6 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cplex_model.set_error_stream(None)
         cplex_model.set_warning_stream(None)
         cplex_model.set_results_stream(None)
-        pre_solution = cplex_model.solution
-        fva_target = pre_solution.get_objective_value()*fraction_of_objective
         cplex_model.variables.set_lower_bounds(cplex_model.objective.get_linear().index(1), fva_target)
         cplex_model.variables.set_upper_bounds(cplex_model.objective.get_linear().index(1), fva_target)
 
@@ -919,6 +942,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         """
         submodel = self.submodel
 
+        kcat_adjustment_factor = self.options['kcat_adjustment_factor']
+
         median_kcat = numpy.median([k.value for i in submodel.reactions for j in i.rate_laws \
             for k in j.expression.parameters if k.value and not numpy.isnan(k.value)])
         
@@ -948,8 +973,9 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     conc = comp.distribution_init_concentration.mean
                     if conc != 0.0: 
                         if numpy.isnan(kcat.value):                    
-                            kcat.value = value/conc
-                            kcat.comments = 'Value imputed based on FVA bound value'
+                            kcat.value = value/conc*kcat_adjustment_factor
+                            kcat.comments = 'Value imputed based on FVA bound value ' +\
+                                'and adjusted with a factor of {}'.format(kcat_adjustment_factor)
                         elif (value - kcat.value*conc)/value > 0.01:
                             kcat.value = value/conc
                             kcat.comments = 'Measured value adjusted to relax bound'        
@@ -974,8 +1000,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     for comp in complexes:
                         kcat = [p for p in law.expression.parameters if comp.species_type.id in p.id][0]  
                         if comp.distribution_init_concentration.mean!=0.0:
-                            kcat.value = shared_vmax/comp.distribution_init_concentration.mean                                    
-                            kcat.comments = 'Value imputed based on FVA bound value' 
+                            kcat.value = shared_vmax/comp.distribution_init_concentration.mean*\
+                                kcat_adjustment_factor                                    
+                            kcat.comments = 'Value imputed based on FVA bound value ' +\
+                                'and adjusted with a factor of {}'.format(kcat_adjustment_factor) 
                         else:
                             kcat.value = median_kcat
                             kcat.comments = 'Value imputed as the median of measured k_cat values'                        
@@ -995,8 +1023,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                             shared_vmax = (value - known_vmax)/unknown_vmax_count
                         for comp, kcat in comp_kcat.items():                            
                             if comp.distribution_init_concentration.mean!=0.0:
-                                kcat.value = shared_vmax/comp.distribution_init_concentration.mean
-                                kcat.comments = 'Value imputed based on FVA bound value'
+                                kcat.value = shared_vmax/comp.distribution_init_concentration.mean*\
+                                    kcat_adjustment_factor
+                                kcat.comments = 'Value imputed based on FVA bound value ' +\
+                                    'and adjusted with a factor of {}'.format(kcat_adjustment_factor)
                             else:
                                 kcat.value = median_kcat
                                 kcat.comments = 'Value imputed as the median of measured k_cat values'                                                                    
