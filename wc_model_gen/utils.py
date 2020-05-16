@@ -635,10 +635,7 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
             :obj:`wc_lang.RateLawExpression`: rate law
             :obj:`list` of :obj:`wc_lang.Parameter`: list of parameters in the rate law 
    """
-    print('the test reactants are')
-    print(reaction.get_reactants())
-    print(reaction.get_products())
-
+    
     if modifiers is None:
         modifier_species = []
         modifier_product = ''
@@ -662,19 +659,7 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
         model_k_unit = 's^-1 * molecule'
     else:
         model_k_unit = 's^-1 * molecule^{}'.format(-model_k_unit)
-    print('do i have paramers')
-    print(len(model.parameters))
-    for i in range(len(model.parameters)):
-        print(model.parameters[i].id)
-    print('i want to get the parameter:')
-
-                                             # type=None,
-                                             # units=unit_registry.parse_units(model_k_unit),
-                                             # value=model.parameters.get_or_create(id = kinetic_param_name))
-    print('i got the parameter:')
-    print(model_k.id)
-    print(model_k.value)
-    # model_k.type = None
+    
     model_k.units = unit_registry.parse_units(model_k_unit)
 
     parameters[model_k.id] = model_k
@@ -685,23 +670,16 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
     for species in set(reaction.get_reactants()).union(set(reaction.get_products())):
         if species not in modifier_species or species in additional_reactants:
             all_species[species.gen_id()] = species
-            print('added species: {}'.format(species))
             volume = species.compartment.init_density.function_expressions[0].function
             all_volumes[volume.id] = volume
         if species in set(reaction.get_reactants()):
             expression_terms.append(str(species.gen_id()))
-    print('the model_k id is:')
-    print(model_k.id)
-    print('all species is: {}'.format(all_species))
-    print('the expression terms are: {}'.format(expression_terms))
-
+    
     reactant_product = ''
     if expression_terms:
         reactant_product = ' * ' + ' * '.join(expression_terms)
     expression = model_k.id + modifier_product + reactant_product
-    print('the expression is')
-    print(expression)
-
+    
     rate_law_expression, error = wc_lang.RateLawExpression.deserialize(expression, {
         wc_lang.Parameter: parameters,
         wc_lang.Species: all_species,
@@ -709,5 +687,5 @@ def gen_mass_action_rate_law(model, reaction, model_k, modifiers=None, modifier_
         wc_lang.Function: all_volumes,
     })
     assert error is None, str(error)
-    print('---------------------------------------------------')
+    
     return rate_law_expression, list(parameters.values())
