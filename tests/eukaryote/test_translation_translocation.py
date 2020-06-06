@@ -309,20 +309,20 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         # elongation        
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -3, 'atp[c]': -2, 'h2o[c]': -5, 'Ala[c]': -1, 'Cys[c]': -1, 
-            'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 3})
+            'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 7})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans5').participants}, 
             {'ribo_bound_trans5[c]': -1, 'gtp[c]': -2, 'atp[c]': -1, 'h2o[c]': -3, 'Cys[c]': -1, 
-            'comp_1[c]': 1, 'trans5_ribosome_binding_site[c]': 1, 'prot5[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 2})
+            'comp_1[c]': 1, 'trans5_ribosome_binding_site[c]': 1, 'prot5[c]': 1, 'amp[c]': 1, 'gdp[c]': 2, 'pi[c]': 4, 'h[c]': 4})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
             {'ribo_bound_transM[m]': -1, 'gtp[m]': -4, 'atp[m]': -3, 'h2o[m]': -7, 'Asp[m]': -2, 'Trp[m]': -1, 
-            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 4})
+            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 10})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX1').participants}, 
             {'ribo_bound_transX1[c]': -1, 'gtp[c]': -3, 'atp[c]': -2, 'h2o[c]': -5, 'Ala[c]': -1, 'Ser[c]': -1,
-            'comp_1[c]': 1, 'transX1_ribosome_binding_site[c]': 1, 'protX1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 3})
+            'comp_1[c]': 1, 'transX1_ribosome_binding_site[c]': 1, 'protX1[c]': 1, 'amp[c]': 2, 'gdp[c]': 3, 'pi[c]': 7, 'h[c]': 7})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX2').participants}, 
             {'ribo_bound_transX2[c]': -1, 'gtp[c]': -5, 'atp[c]': -6, 'h2o[c]': -9, 'Ala[c]': -1, 'Ser[c]': -3, 'selnp[c]': -2,
             'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'adp[c]': 2, 'amp[c]': 4, 
-            'gdp[c]': 5, 'pi[c]': 13, 'ppi[c]': 2, 'h[c]': 3})
+            'gdp[c]': 5, 'pi[c]': 13, 'ppi[c]': 2, 'h[c]': 15})
         
         # translocation
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_n').participants}, 
@@ -547,10 +547,10 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
 
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_trans1').participants}, 
             {'ribo_bound_trans1[c]': -1, 'gtp[c]': -7, 'atp[c]': -6, 'h2o[c]': -13, 'Ala[c]': -4, 'Cys[c]': -2, 'Asp[c]': -1, 'Met[c]': -1,
-            'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 6, 'gdp[c]': 7, 'pi[c]': 19, 'h[c]': 7})
+            'comp_1[c]': 1, 'trans1_ribosome_binding_site[c]': 1, 'prot1[c]': 1, 'amp[c]': 6, 'gdp[c]': 7, 'pi[c]': 19, 'h[c]': 19})
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transM').participants}, 
             {'ribo_bound_transM[m]': -1, 'gtp[m]': -4, 'atp[m]': -3, 'h2o[m]': -7, 'Asp[m]': -2, 'Trp[m]': -1, 
-            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 4})
+            'comp_1[m]': 1, 'transM_ribosome_binding_site[m]': 1, 'protM[m]': 1, 'amp[m]': 3, 'gdp[m]': 4, 'pi[m]': 10, 'h[m]': 10})
 
         self.assertEqual(model.parameters.get_one(id='transM_ribosome_binding_constant').comments,
             'Set to the median value because it could not be determined from data')

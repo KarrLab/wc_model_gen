@@ -478,7 +478,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     coefficient=(gvar.protein_aa_usage[mrna_kb.protein.id]['len']-1)*3 + 1))            
             el_reaction.participants.append(metabolites['h'][
                 translation_compartment.id].species_coefficients.get_or_create(
-                    coefficient=gvar.protein_aa_usage[mrna_kb.protein.id]['len'] - serine_no))
+                    coefficient=3*gvar.protein_aa_usage[mrna_kb.protein.id]['len'] - 2 + serine_no))
 
             init_el_rxn_no += 1
             
