@@ -322,7 +322,7 @@ class TranslationTranslocationSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translation_elongation_transX2').participants}, 
             {'ribo_bound_transX2[c]': -1, 'gtp[c]': -5, 'atp[c]': -6, 'h2o[c]': -9, 'Ala[c]': -1, 'Ser[c]': -3, 'selnp[c]': -2,
             'comp_1[c]': 1, 'transX2_ribosome_binding_site[c]': 1, 'protX2[c]': 1, 'adp[c]': 2, 'amp[c]': 4, 
-            'gdp[c]': 5, 'pi[c]': 13, 'ppi[c]': 2, 'h[c]': 15})
+            'gdp[c]': 5, 'pi[c]': 13, 'ppi[c]': 2, 'h[c]': 11})
         
         # translocation
         self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='translocation_prot1_c_to_n').participants}, 
