@@ -431,10 +431,8 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans1').value, math.log(2)*(1/(20*3600) + 1/36000)*10)
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans2').value, math.log(2)*(1/(20*3600) + 1/15000)*10)
         self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans4').value, math.log(2)*(1/(20*3600) + 1/36000)*10/2)
-        self.assertAlmostEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0.0001444056626166553, places=16)
-        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').comments, 
-            'Set to the median value because it could not be determined from data')
-
+        self.assertEqual(model.parameters.get_one(id='k_cat_transcription_elongation_trans5').value, 0)
+        
     def test_global_vars(self):
 
         self.model.distribution_init_concentrations.get_one(species=self.model.species.get_one(id='utp[m]')).mean = 0.

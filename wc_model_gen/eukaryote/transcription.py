@@ -1263,7 +1263,7 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 else:
                     undetermined_model_kcat.append(model_kcat)    
             else:
-                undetermined_model_kcat.append(model_kcat)
+                model_kcat.value = 0.
         
         median_kcat = numpy.median(determined_kcat)
         for model_kcat in undetermined_model_kcat:
