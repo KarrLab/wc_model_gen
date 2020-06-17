@@ -40,7 +40,8 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
     * ph (:obj:`float`): pH at which species will be protonated and reactions will be balanced; default is 7.4
     * media (:obj:`dict`): a dictionary with species type ids as keys and tuples of concentration (M) in the 
         media (extracellular space), `list` of `wc_lang.Reference`, and comments as values
-    * rna_input_seq (:obj:`dict`, optional): a dictionary with RNA ids as keys and sequence strings as values     
+    * rna_input_seq (:obj:`dict`, optional): a dictionary with RNA ids as keys and sequence strings as values
+    * smiles_input (:obj:`dict`, optional): a dictionary with metabolite ids as keys and smiles strings as values     
     * check_reaction (:obj:`bool`): if True, reactions will be checked and corrected for proton and charge balance;
         default is True
     * gen_dna (:obj:`bool`): if True, DNA species types and species will be generated; 
@@ -160,6 +161,10 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         rna_input_seq = options.get('rna_input_seq', {})
         assert(isinstance(rna_input_seq, dict))
         options['rna_input_seq'] = rna_input_seq
+
+        smiles_input = options.get('smiles_input', {})
+        assert(isinstance(smiles_input, dict))
+        options['smiles_input'] = smiles_input
 
         check_reaction = options.get('check_reaction', True)
         assert(isinstance(check_reaction, bool))
@@ -457,7 +462,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 inchi_str = kb_species_type.properties.get_one(property='structure')
                 if inchi_str:
                     smiles, formula, charge, mol_wt = self.structure_to_smiles_and_props(
-                        inchi_str.get_value(), ph)
+                        kb_species_type.id, inchi_str.get_value(), ph)
                     model_species_type.structure.value = smiles
                     model_species_type.structure.format = wc_lang.ChemicalStructureFormat.SMILES
                 else:
@@ -581,7 +586,7 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                     inchi_str = subunit.species_type.properties.get_one(property='structure')
                     if inchi_str:
                         _, sub_formula, sub_charge, sub_mol_wt = self.structure_to_smiles_and_props(
-                            inchi_str.get_value(), ph)
+                            subunit.species_type.id, inchi_str.get_value(), ph)
                     else:
                         sub_formula = subunit.species_type.get_empirical_formula()
                         sub_charge = subunit.species_type.get_charge()
@@ -891,12 +896,13 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
                 temp=environment['temperature'],
                 comments=environment['comments'])
 
-    def structure_to_smiles_and_props(self, structure, ph):
+    def structure_to_smiles_and_props(self, met_id, structure, ph):
         """ Convert InChI or SMILES string in the knowledge base 
             to a SMILES string at specific pH and calculate properties such
             as empirical formula, charge and molecular weight 
 
         Args:
+            met_id (:obj:`str`): id of metabolite
             structure (:obj:`str`): InChI or SMILES string
             ph (:obj:`float`): pH at which the properties should be determined
 
@@ -906,8 +912,14 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
             :obj:`int`: charge
             :obj:`float`: molecular weight    
         """
-        structure_type = 'inchi' if 'InChI=' in structure else 'smiles'
-        smiles = get_major_micro_species(structure, structure_type, 'smiles', ph=ph)        
+        smiles_input = self.options['smiles_input']
+        
+        if met_id in smiles_input:
+            smiles = smiles_input[met_id]
+        else:    
+            structure_type = 'inchi' if 'InChI=' in structure else 'smiles'
+            smiles = get_major_micro_species(structure, structure_type, 'smiles', ph=ph)        
+        
         mol = openbabel.OBMol()
         conv = openbabel.OBConversion()
         conv.SetInFormat('smi')
