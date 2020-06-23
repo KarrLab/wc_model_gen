@@ -783,6 +783,9 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         flux_range = gen.flux_variability_analysis(conv_model, fraction_of_objective=0.8, target_reactions=['r1', 'r2', 'biomass_reaction'])
         self.assertEqual(flux_range, {'r1': (0., 1.), 'r2': (3., 3.), 'biomass_reaction': (8., 8.)})
 
+        flux_range = gen.flux_variability_analysis(conv_model, fraction_of_objective=0.8, fixed_values={'r2':3.}, target_reactions=['r1', 'r2', 'biomass_reaction'])
+        self.assertEqual(flux_range, {'r1': (0., 1.), 'r2': (3., 3.), 'biomass_reaction': (8., 8.)})
+
     def test_impute_kinetic_constant(self): 
         
         model = self.model

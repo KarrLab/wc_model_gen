@@ -519,16 +519,19 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             while (measured_growth - growth)/measured_growth > tolerance:
                 target = {'biomass_reaction': measured_growth}
                 lower, upper = self.relax_bounds(target, lb_adjustable, ub_adjustable)
+                fixed_values = {}
                 for reaction_id, adjustment in lower.items():
                     conv_variables[reaction_id].lower_bound -= adjustment*scale_factor
+                    fixed_values[reaction_id] = conv_variables[reaction_id].lower_bound
                 for reaction_id, adjustment in upper.items():
                     conv_variables[reaction_id].upper_bound += adjustment*scale_factor
+                    fixed_values[reaction_id] = conv_variables[reaction_id].upper_bound
                 # Impute kinetic constants with no measured values based on range values from Flux Variability Analysis
                 if any(numpy.isnan(i) for i in lower.values()) or any(numpy.isnan(i) for i in upper.values()):
                     print('No solution is found during model calibration')
                     break
                 else:
-                    flux_range = self.flux_variability_analysis(conv_model)
+                    flux_range = self.flux_variability_analysis(conv_model, fixed_values=fixed_values)
                     self.impute_kinetic_constant(flux_range)
                     conv_model, conv_variables, lb_adjustable, ub_adjustable = self.conv_for_optim()
                     result = conv_model.solve()
@@ -843,7 +846,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         return alpha_lower, alpha_upper
 
     def flux_variability_analysis(self, conv_model, fraction_of_objective=1.0, 
-            target_reactions=None):
+            fixed_values=None, target_reactions=None):
         """ Conduct flux variability analysis by:
             1) Optimizing the model by maximizing the objective function
             2) Setting the objective function to the optimal value
@@ -855,6 +858,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             fraction_of_objective (:obj:`float`, optional): network state with respect 
                 to the optimal solution, e.g. 0.9 maximal possible biomass production rate 
                 (allowable range: 0.0-1.0, default = 1.0)
+            fixed_values (:obj:`dict`, optional): a dictionary of reaction IDs as keys
+                and the values at which the reaction fluxes are to be set
             target_reactions (:obj:`list`, optional): a list of reaction IDs where FVA 
                 will be conducted (the default is to conduct FVA on all reactions in the model)                                                 
             
@@ -894,6 +899,11 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         cplex_model.set_results_stream(None)
         cplex_model.variables.set_lower_bounds(cplex_model.objective.get_linear().index(1), fva_target)
         cplex_model.variables.set_upper_bounds(cplex_model.objective.get_linear().index(1), fva_target)
+
+        if fixed_values:
+            for reaction, flux in fixed_values.items():
+                cplex_model.variables.set_lower_bounds(reaction, flux)
+                cplex_model.variables.set_upper_bounds(reaction, flux)
 
         if target_reactions:
             reaction_list = target_reactions
