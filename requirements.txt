@@ -1,5 +1,10 @@
+biopython
 conv_opt
-setuptools
+ete3
+mendeleev
+numpy
+openbabel
+scipy
 wc_kb
 wc_lang
 wc_onto

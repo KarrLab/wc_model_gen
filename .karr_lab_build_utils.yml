@@ -7,3 +7,8 @@ email_notifications:
   - balazs.szigeti@mssm.edu
   - ashwins9999@gmail.com
   - bilal.shaikh@columbia.edu
+
+static_analyses:
+  ignore_unused_requirements: []
+  ignore_missing_requirements:
+    - configobj
