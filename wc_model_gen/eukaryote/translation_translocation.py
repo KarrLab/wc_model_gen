@@ -878,7 +878,14 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 codon_id = codon_table[mrna_kb.protein.id]
             coding_rna_seq, _, _ = mrna_kb.protein.get_seq_and_start_codon(table=codon_id, cds=cds)
             codon_seq = str(coding_rna_seq).upper().replace('U','T')
-            all_codons = sorted(set([codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )][1:]))
+            non_processed_all_codons = [codon_seq[i * 3:(i + 1) * 3] for i in range((len(codon_seq) + 3 - 1) // 3 )]
+            start_codon_index = 0            
+            for codon in non_processed_all_codons:
+                if codon != start_codon:
+                    start_codon_index += 1
+                else:
+                    break
+            all_codons = sorted(set(non_processed_all_codons[start_codon_index + 1:]))
             for i in all_codons:
                 if len(i)==3:
                     if i in UNCONDITIONAL_STOP_CODON:
