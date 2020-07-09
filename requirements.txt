@@ -3,7 +3,7 @@ conv_opt
 ete3
 mendeleev
 numpy
-openbabel
+openbabel < 3
 scipy
 wc_kb
 wc_lang
