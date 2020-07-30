@@ -135,32 +135,32 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                         model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
         # Create biomass reaction
-        biomass_rxn = model.reactions.create(
+        biomass_rxn = model.dfba_obj_reactions.create(
             submodel=submodel,
             id='biomass_reaction',
             name='Biomass reaction',
-            reversible=False,
-            comments='Pseudo-reaction for use as dFBA objective function')
+            units=unit_registry.parse_units('s^-1'),
+            cell_size_units=unit_registry.parse_units('l'))
 
         # Add metabolites in the free pool to the LHS of biomass reaction
         for conc in model.distribution_init_concentrations:
             if conc.species.species_type.type == wc_ontology['WC:metabolite'] and \
                 conc.species.compartment.id!='e': 
-                biomass_rxn.participants.add(
-                    conc.species.species_coefficients.get_or_create(coefficient=-conc.mean))
+                biomass_rxn.dfba_obj_species.add(
+                    conc.species.dfba_obj_species.get_or_create(value=-conc.mean))
         
         # Add metabolites to be recycled to the RHS of biomass reaction
         for met_id, amount in self.options['recycled_metabolites'].items():            
             model_species = model.species.get_one(id=met_id)
-            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.coefficient
-                biomass_rxn.participants.remove(model_species_coefficient)
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=old_coef + amount))
+                old_coef = model_species_coefficient.value
+                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=old_coef + amount))
             else:	
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=amount))
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=amount))
 
         # Add carbohydrate components to the LHS of biomass reaction and create carbohydrate formation reaction        
         carbohydrate_st = model.species_types.create(id='carbohydrate', name='carbohydrate', 
@@ -206,15 +206,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             carb_rxn.participants.add(model_species.species_coefficients.create(coefficient=-amount))
             
-            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.coefficient
-                biomass_rxn.participants.remove(model_species_coefficient)
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
+                old_coef = model_species_coefficient.value
+                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=old_coef - amount))
             else:   
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=-amount))
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=-amount))
             
         carbohydrate_st.structure.molecular_weight = weight + water_weight
         carbohydrate_st.structure.charge = round(charge)
@@ -223,15 +223,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         water_species = water_st.species.get_one(compartment=cytosol)
         carb_rxn.participants.add(water_species.species_coefficients.get_or_create(
             coefficient=monomer_no - 1))
-        water_species_coefficient = biomass_rxn.participants.get_one(species=water_species)
+        water_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=water_species)
         if water_species_coefficient:
-            old_coef = water_species_coefficient.coefficient
-            biomass_rxn.participants.remove(water_species_coefficient)
-            biomass_rxn.participants.add(
-                water_species.species_coefficients.get_or_create(coefficient=old_coef + monomer_no - 1))
+            old_coef = water_species_coefficient.value
+            biomass_rxn.dfba_obj_species.remove(water_species_coefficient)
+            biomass_rxn.dfba_obj_species.add(
+                water_species.dfba_obj_species.get_or_create(value=old_coef + monomer_no - 1))
         else:   
-            biomass_rxn.participants.add(
-                water_species.species_coefficients.get_or_create(coefficient=monomer_no - 1))
+            biomass_rxn.dfba_obj_species.add(
+                water_species.dfba_obj_species.get_or_create(value=monomer_no - 1))
 
         # Add lipid components to the LHS of biomass reaction and create lipid formation reaction
         lipid_st = model.species_types.create(id='lipid', name='lipid', 
@@ -270,15 +270,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             lipid_rxn.participants.add(model_species.species_coefficients.create(coefficient=-amount))
             
-            model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+            model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.coefficient
-                biomass_rxn.participants.remove(model_species_coefficient)
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
+                old_coef = model_species_coefficient.value
+                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=old_coef - amount))
             else:   
-                biomass_rxn.participants.add(
-                    model_species.species_coefficients.get_or_create(coefficient=-amount))
+                biomass_rxn.dfba_obj_species.add(
+                    model_species.dfba_obj_species.get_or_create(value=-amount))
             
         lipid_st.structure.molecular_weight = weight
         lipid_st.structure.charge = round(charge)
@@ -414,22 +414,22 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
         for met_id, amount in met_requirement.items():
             if amount:
                 model_species = model.species.get_one(id=met_id)
-                model_species_coefficient = biomass_rxn.participants.get_one(species=model_species)
+                model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
                 if model_species_coefficient:
-                    old_coef = model_species_coefficient.coefficient
-                    biomass_rxn.participants.remove(model_species_coefficient)
-                    biomass_rxn.participants.add(
-                        model_species.species_coefficients.get_or_create(coefficient=old_coef - amount))
+                    old_coef = model_species_coefficient.value
+                    biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
+                    biomass_rxn.dfba_obj_species.add(
+                        model_species.dfba_obj_species.get_or_create(value=old_coef - amount))
                 else:
-                    biomass_rxn.participants.add(
-                        model_species.species_coefficients.get_or_create(coefficient=-amount))
+                    biomass_rxn.dfba_obj_species.add(
+                        model_species.dfba_obj_species.get_or_create(value=-amount))
 
         # Add biomass reaction as objective function
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
         submodel.dfba_obj.id = submodel.dfba_obj.gen_id()
         obj_expression = biomass_rxn.id
         dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
-            obj_expression, {wc_lang.Reaction: {biomass_rxn.id: biomass_rxn}})
+            obj_expression, {wc_lang.DfbaObjReaction: {biomass_rxn.id: biomass_rxn}})
         assert error is None, str(error)
         submodel.dfba_obj.expression = dfba_obj_expression
 
@@ -659,14 +659,18 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 upper_bound=self._reaction_bounds[reaction.id][1])
             conv_model.variables.append(conv_variables[reaction.id])
             for part in reaction.participants:
-                if reaction.id == 'biomass_reaction':
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient*coef_scale_factor))
-                else:
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient))  
+                conv_metabolite_matrices[part.species.id].append(
+                    conv_opt.LinearTerm(conv_variables[reaction.id], 
+                        part.coefficient))
+
+        biomass_reaction = submodel.dfba_obj_reactions[0]
+        conv_variables[biomass_reaction.id] = conv_opt.Variable(
+            name=biomass_reaction.id, type=conv_opt.VariableType.continuous, lower_bound=0)
+        conv_model.variables.append(conv_variables[biomass_reaction.id])
+        for part in biomass_reaction.dfba_obj_species:
+            conv_metabolite_matrices[part.species.id].append(
+                conv_opt.LinearTerm(conv_variables[biomass_reaction.id], 
+                    part.value*coef_scale_factor))                       
 
         for met_id, expression in conv_metabolite_matrices.items():
             conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
@@ -674,10 +678,10 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         if optimization_type:
             conv_model.objective_terms = [conv_opt.LinearTerm(
-                conv_variables['biomass_reaction'], 1.),]
+                conv_variables[biomass_reaction.id], 1.),]
         else:
             conv_model.objective_terms.append(conv_opt.QuadraticTerm(
-                conv_variables['biomass_reaction'], conv_variables['biomass_reaction'], 1.))     
+                conv_variables[biomass_reaction.id], conv_variables[biomass_reaction.id], 1.))     
         
         conv_model.objective_direction = conv_opt.ObjectiveDirection.maximize
 
@@ -782,14 +786,18 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             conv_model.variables.append(conv_fluxes[reaction.id])
 
             for part in reaction.participants:
-                if reaction.id == 'biomass_reaction':
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_fluxes[reaction.id], 
-                            part.coefficient*coef_scale_factor))
-                else:
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_fluxes[reaction.id], 
-                            part.coefficient))	
+                conv_metabolite_matrices[part.species.id].append(
+                    conv_opt.LinearTerm(conv_fluxes[reaction.id], 
+                        part.coefficient))
+
+        biomass_reaction = submodel.dfba_obj_reactions[0]
+        conv_fluxes[biomass_reaction.id] = conv_opt.Variable(
+            name=biomass_reaction.id, type=conv_opt.VariableType.continuous, lower_bound=0)
+        conv_model.variables.append(conv_fluxes[biomass_reaction.id])
+        for part in biomass_reaction.dfba_obj_species:
+            conv_metabolite_matrices[part.species.id].append(
+                conv_opt.LinearTerm(conv_fluxes[biomass_reaction.id], 
+                    part.value*coef_scale_factor))                    	
 
         for met_id, expression in conv_metabolite_matrices.items():
             conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 

@@ -133,9 +133,6 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         r4.participants.append(model.species.get_one(id='m2[c]').species_coefficients.get_or_create(coefficient=-2))
         r4.participants.append(model.species.get_one(id='m3[c]').species_coefficients.get_or_create(coefficient=1))
 
-        biomass_rxn = submodel.reactions.create(id='biomass_reaction', reversible=False, model=model)           
-        biomass_rxn.participants.append(model.species.get_one(id='m3[c]').species_coefficients.get_or_create(coefficient=-1))
-
     def tearDown(self):
         shutil.rmtree(self.tmp_dirname)
 
@@ -486,8 +483,11 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').comments, 'random comments')
 
-        self.assertEqual(model.reactions.get_one(id='biomass_reaction').reversible, False)
-        self.assertEqual({i.species.id: i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants},
+        self.assertEqual(gen.submodel.dfba_obj.expression.expression, 'biomass_reaction')
+        self.assertEqual(len(gen.submodel.dfba_obj.expression.dfba_obj_reactions), 1)
+
+        biomass_reaction = gen.submodel.dfba_obj.expression.dfba_obj_reactions[0]
+        self.assertEqual({i.species.id: i.value for i in biomass_reaction.dfba_obj_species},
             {'pool[c]': -25, 'rec[m]': 100, 'datp[n]': -26, 'dttp[n]': -26, 'dctp[n]': -12, 'dgtp[n]': -12,
             'g6p[c]': -10*scipy.constants.Avogadro, 'chsterol[c]': -2*scipy.constants.Avogadro, 'pail_hs[c]': -8*scipy.constants.Avogadro, 
             'atp[n]': -180, 'ctp[n]': -120, 'gtp[n]': -124, 'utp[n]': -120, 'ppi[n]': 492, 'amp[n]': 120, 'cmp[n]': 120, 'gmp[n]': 120, 
@@ -671,7 +671,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen.clean_and_validate_options()
         gen.gen_reactions()
         
-        self.assertEqual([i.coefficient for i in model.reactions.get_one(id='biomass_reaction').participants if i.species.id=='atp[c]'], [-2000])
+        biomass_reaction = gen.submodel.dfba_obj.expression.dfba_obj_reactions[0]
+        self.assertEqual([i.value for i in biomass_reaction.dfba_obj_species if i.species.id=='atp[c]'], [-2000])
 
     def test_calibrate_submodel(self):
         
@@ -698,6 +699,9 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             reaction=r4,
             direction=wc_lang.RateLawDirection['forward'])
         r4_model_rate_law.id = r4_model_rate_law.gen_id()
+
+        biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
+        biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
 
         gen.options['scale_factor'] = 1e2
         gen.options['coef_scale_factor'] = 10
@@ -726,16 +730,20 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             exchange_reactions, media_fluxes, 10.)
 
         self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15., None), 'ex_m3': (0., 0.), 
-            'r1': (0, 0), 'r2': (None, None), 'r3': (0, 20.), 'r4': (0, None), 'biomass_reaction': (0., None)})
+            'r1': (0, 0), 'r2': (None, None), 'r3': (0, 20.), 'r4': (0, None)})
         self.assertEqual(sorted(lower_bound_adjustable), [])
         self.assertEqual(sorted(upper_bound_adjustable), ['r3'])
 
     def test_relax_bounds(self):
         
+        model = self.model
         gen = self.gen
         gen.clean_and_validate_options()
+
+        biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
+        biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
         
-        gen._reaction_bounds = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 2), 'r4': (0, None), 'biomass_reaction': (0, None)}        
+        gen._reaction_bounds = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 2), 'r4': (0, None)}        
         lower_bound_adjustable = ['r2']
         upper_bound_adjustable = ['r1', 'r2', 'r3']
         target = {'biomass_reaction': 10}
@@ -747,10 +755,14 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
     
     def test_flux_variability_analysis(self):
         
+        model = self.model
         gen = self.gen
         gen.clean_and_validate_options()
 
-        bounds = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
+        biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
+
+        bounds = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 3), 'r4': (0, None)}
         submodel = gen.submodel
         conv_model = conv_opt.Model(name='test_model')
         conv_variables = {}
@@ -762,14 +774,18 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 upper_bound=bounds[reaction.id][1])
             conv_model.variables.append(conv_variables[reaction.id])
             for part in reaction.participants:
-                if reaction.id == 'biomass_reaction':
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient))
-                else:
-                    conv_metabolite_matrices[part.species.id].append(
-                        conv_opt.LinearTerm(conv_variables[reaction.id], 
-                            part.coefficient))  
+                conv_metabolite_matrices[part.species.id].append(
+                    conv_opt.LinearTerm(conv_variables[reaction.id], 
+                        part.coefficient)) 
+
+        biomass_reaction = submodel.dfba_obj_reactions[0]
+        conv_variables[biomass_reaction.id] = conv_opt.Variable(
+            name=biomass_reaction.id, type=conv_opt.VariableType.continuous, lower_bound=0)
+        conv_model.variables.append(conv_variables[biomass_reaction.id])
+        for part in biomass_reaction.dfba_obj_species:
+            conv_metabolite_matrices[part.species.id].append(
+                conv_opt.LinearTerm(conv_variables[biomass_reaction.id], 
+                    part.value))                     
 
         for met_id, expression in conv_metabolite_matrices.items():
             conv_model.constraints.append(conv_opt.Constraint(expression, name=met_id, 
@@ -792,7 +808,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen = self.gen
         gen.clean_and_validate_options()        
 
-        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 3), 'r4': (0, None)}
         gen.options['kcat_adjustment_factor'] = 2.
         gen.impute_kinetic_constant(bound_values)
 
@@ -822,7 +838,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').comments, 
             'Measured value adjusted to relax bound')      
 
-        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (1, 1), 'r2': (-2, -2), 'r3': (1, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (1, 1), 'r2': (-2, -2), 'r3': (1, 3), 'r4': (0, None)}
         gen.options['kcat_adjustment_factor'] = 1.
         gen.impute_kinetic_constant(bound_values)
 
@@ -832,7 +848,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r2-backward')], 2)
         self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r3-forward')], 3)
 
-        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 0), 'r2': (-4, -2), 'r3': (3, 3), 'r4': (0, None), 'biomass_reaction': (0, None)}
+        bound_values = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 0), 'r2': (-4, -2), 'r3': (3, 3), 'r4': (0, None)}
         gen.impute_kinetic_constant(bound_values)
 
         self.assertEqual(gen._law_bound_pairs[model.rate_laws.get_one(id='r1-forward')], 0)
