@@ -31,6 +31,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model = wc_lang.Model()
 
         model.parameters.create(id='mean_doubling_time', value=math.log(2)/12)
+        model.parameters.create(id='cell_volume', value=0.1)
 
         c = model.compartments.create(id='c')
 
@@ -195,6 +196,22 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         ala_L_coef = wc_kb.core.SpeciesCoefficient(species=ala_L_species, 
                         coefficient=-1)            
         exchange_rxn_kb.participants.append(ala_L_coef)
+
+        met_L = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='met_L')
+        met_L_species = wc_kb.core.Species(species_type=met_L, compartment=extracellular)
+        exchange_rxn_kb = cell.reactions.create(id='EX_met_L_e', name='exchange met_L', 
+            reversible=True, comments='random comments')
+        met_L_coef = wc_kb.core.SpeciesCoefficient(species=met_L_species, 
+                        coefficient=-1)            
+        exchange_rxn_kb.participants.append(met_L_coef)
+
+        g6p = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='g6p')
+        g6p_species = wc_kb.core.Species(species_type=g6p, compartment=extracellular)
+        exchange_rxn_kb = cell.reactions.create(id='EX_g6p_e', name='exchange g6p', 
+            reversible=True, comments='random comments')
+        g6p_coef = wc_kb.core.SpeciesCoefficient(species=g6p_species, 
+                        coefficient=-1)            
+        exchange_rxn_kb.participants.append(g6p_coef)
        
         # Create initial model content
         model = wc_lang.Model()
@@ -269,7 +286,12 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             for j in ['n', 'm', 'c']:
                 model_compartment = model.compartments.get_one(id=j)
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
-                model_species.id = model_species.gen_id()                        	
+                model_species.id = model_species.gen_id() 
+
+        g6p_exc = model.reactions.create(id='EX_g6p_e_kb', participants=[
+            model.species.get_one(id='g6p[e]').species_coefficients.get_or_create(coefficient=-1)])
+        met_L_exc = model.reactions.create(id='EX_met_L_e_kb', participants=[
+            model.species.get_one(id='met_L[e]').species_coefficients.get_or_create(coefficient=-1)])                              	
 
         # Create transcription submodel
         transcription_submodel = model.submodels.create(id='transcription')        
@@ -472,8 +494,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'carbohydrate_components': {'g6p[c]': 1.},
             'lipid_components': {'chsterol[c]': 0.2, 'pail_hs[c]': 0.8},
             'amino_acid_ids': ['ala_L', 'met_L'],
-            'media_fluxes': {'EX_ala_L_e': 20.}
+            'media_fluxes': {'EX_ala_L_e': (None, 20.)},
+            'exchange_reactions': ['EX_ala_L_e', 'EX_met_L_e', 'EX_g6p_e'],
             })
+
+        g6p_exc.submodel = gen.submodel
+        met_L_exc.submodel = gen.submodel
+
         gen.clean_and_validate_options()
         gen.gen_reactions()
         gen.gen_rate_laws()
@@ -482,6 +509,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').name, 'exchange ala_L')
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').reversible, True)
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').comments, 'random comments')
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.min, None)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.max, 20.)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.units, unit_registry.parse_units('M s^-1'))
+        self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.min, 0.)
+        self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.max, 0.)
+        self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.min, None)
+        self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.max, None)
 
         self.assertEqual(gen.submodel.dfba_obj.expression.expression, 'biomass_reaction')
         self.assertEqual(len(gen.submodel.dfba_obj.expression.dfba_obj_reactions), 1)
@@ -703,10 +737,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
         biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
 
+        Av = scipy.constants.Avogadro
+        model.reactions.get_one(id='ex_m1').flux_bounds = wc_lang.FluxBounds(min=100./Av, max=120./Av)
+        model.reactions.get_one(id='ex_m2').flux_bounds = wc_lang.FluxBounds(min=100./Av, max=120./Av)
+        model.reactions.get_one(id='ex_m3').flux_bounds = wc_lang.FluxBounds(min=0., max=0.)
+
         gen.options['scale_factor'] = 1e2
         gen.options['coef_scale_factor'] = 10
-        gen.options['media_fluxes'] = {'ex_m1': (10., 12.), 'ex_m2': (10., 12.)}
-        gen.options['exchange_reactions'] = ['ex_m1', 'ex_m2', 'ex_m3']
         gen.calibrate_submodel()
 
         self.assertEqual(model.parameters.get_one(id='k_cat_r3_forward_enzyme2').value, 500.) 
@@ -719,18 +756,16 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         model = self.model        
         gen = self.gen
         gen.clean_and_validate_options()
-
-        m1_c = model.species.get_one(id='m1[c]')
-        conc_model = model.distribution_init_concentrations.create(species=m1_c, mean=10.)
-            
-        exchange_reactions = ['ex_m1', 'ex_m2', 'ex_m3']
-        media_fluxes = {'ex_m2': (-1.5, None)}
         
-        reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = gen.determine_bounds(
-            exchange_reactions, media_fluxes, 10.)
+        model.reactions.get_one(id='ex_m1').flux_bounds = wc_lang.FluxBounds(min=None, max=None)
+        model.reactions.get_one(id='ex_m2').flux_bounds = wc_lang.FluxBounds(min=-15., max=None)
+        model.reactions.get_one(id='ex_m3').flux_bounds = wc_lang.FluxBounds(min=0., max=0.)
+        gen.options['scale_factor'] = 10.
+        
+        reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = gen.determine_bounds()
 
-        self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15., None), 'ex_m3': (0., 0.), 
-            'r1': (0, 0), 'r2': (None, None), 'r3': (0, 20.), 'r4': (0, None)})
+        self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15.*10.*scipy.constants.Avogadro*0.1, None), 'ex_m3': (0., 0.), 
+            'r1': (0., 0.), 'r2': (None, None), 'r3': (0., 20.), 'r4': (0., None)})
         self.assertEqual(sorted(lower_bound_adjustable), [])
         self.assertEqual(sorted(upper_bound_adjustable), ['r3'])
 
