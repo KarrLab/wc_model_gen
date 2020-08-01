@@ -132,7 +132,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                     kb_species = participant.species
                     model_species_type = model.species_types.get_one(id=kb_species.species_type.id)
                     model_compartment = model.compartments.get_one(id=kb_species.compartment.id)
-                    model_species = model_species_type.species.get_or_create(compartment=model_compartment)                    
+                    model_species = model.species.get_or_create(
+                        species_type=model_species_type, compartment=model_compartment)                    
                     model_rxn.participants.add(
                         model_species.species_coefficients.get_or_create(coefficient=participant.coefficient))
 
