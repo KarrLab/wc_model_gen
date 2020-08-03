@@ -175,10 +175,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             model_species = model.species.get_one(id=met_id)
             model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.value
-                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
-                biomass_rxn.dfba_obj_species.add(
-                    model_species.dfba_obj_species.get_or_create(model=model, value=old_coef + amount))
+                model_species_coefficient.value += amount
             else:	
                 biomass_rxn.dfba_obj_species.add(
                     model_species.dfba_obj_species.get_or_create(model=model, value=amount))
@@ -229,10 +226,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.value
-                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
-                biomass_rxn.dfba_obj_species.add(
-                    model_species.dfba_obj_species.get_or_create(model=model, value=old_coef - amount))
+                model_species_coefficient.value -= amount
             else:   
                 biomass_rxn.dfba_obj_species.add(
                     model_species.dfba_obj_species.get_or_create(model=model, value=-amount))
@@ -246,10 +240,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             coefficient=monomer_no - 1))
         water_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=water_species)
         if water_species_coefficient:
-            old_coef = water_species_coefficient.value
-            biomass_rxn.dfba_obj_species.remove(water_species_coefficient)
-            biomass_rxn.dfba_obj_species.add(
-                water_species.dfba_obj_species.get_or_create(model=model, value=old_coef + monomer_no - 1))
+            water_species_coefficient.value += monomer_no - 1
         else:   
             biomass_rxn.dfba_obj_species.add(
                 water_species.dfba_obj_species.get_or_create(model=model, value=monomer_no - 1))
@@ -293,10 +284,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             
             model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
             if model_species_coefficient:
-                old_coef = model_species_coefficient.value
-                biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
-                biomass_rxn.dfba_obj_species.add(
-                    model_species.dfba_obj_species.get_or_create(model=model, value=old_coef - amount))
+                model_species_coefficient.value -= amount
             else:   
                 biomass_rxn.dfba_obj_species.add(
                     model_species.dfba_obj_species.get_or_create(model=model, value=-amount))
@@ -437,13 +425,13 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 model_species = model.species.get_one(id=met_id)
                 model_species_coefficient = biomass_rxn.dfba_obj_species.get_one(species=model_species)
                 if model_species_coefficient:
-                    old_coef = model_species_coefficient.value
-                    biomass_rxn.dfba_obj_species.remove(model_species_coefficient)
-                    biomass_rxn.dfba_obj_species.add(
-                        model_species.dfba_obj_species.get_or_create(model=model, value=old_coef - amount))
+                    model_species_coefficient.value -= amount
                 else:
                     biomass_rxn.dfba_obj_species.add(
                         model_species.dfba_obj_species.get_or_create(model=model, value=-amount))
+
+        for species in biomass_rxn.dfba_obj_species:
+            species.id = species.gen_id()
 
         # Add biomass reaction as objective function
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
