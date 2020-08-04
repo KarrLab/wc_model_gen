@@ -154,6 +154,8 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 else:
                     reaction.flux_bounds.min = 0.
                     reaction.flux_bounds.max = 0.
+                if reaction.flux_bounds.min == 0.:
+                    reaction.reversible = False    
 
         # Create biomass reaction
         biomass_rxn = model.dfba_obj_reactions.create(

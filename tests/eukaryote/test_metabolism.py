@@ -514,6 +514,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.units, unit_registry.parse_units('M s^-1'))
         self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.min, 0.)
         self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.max, 0.)
+        self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').reversible, False)
         self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.min, None)
         self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.max, None)
 
