@@ -737,6 +737,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
         biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
+        gen.submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
+        gen.submodel.dfba_obj.id = gen.submodel.dfba_obj.gen_id()
+        obj_expression = biomass_rxn.id
+        dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
+            obj_expression, {wc_lang.DfbaObjReaction: {biomass_rxn.id: biomass_rxn}})
+        assert error is None, str(error)
+        gen.submodel.dfba_obj.expression = dfba_obj_expression
 
         Av = scipy.constants.Avogadro
         model.reactions.get_one(id='ex_m1').flux_bounds = wc_lang.FluxBounds(min=100./Av, max=120./Av)
@@ -778,6 +785,13 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         biomass_rxn = gen.submodel.dfba_obj_reactions.create(id='biomass_reaction', model=model)           
         biomass_rxn.dfba_obj_species.append(model.species.get_one(id='m3[c]').dfba_obj_species.get_or_create(value=-1))
+        gen.submodel.dfba_obj = wc_lang.DfbaObjective(model=model)
+        gen.submodel.dfba_obj.id = gen.submodel.dfba_obj.gen_id()
+        obj_expression = biomass_rxn.id
+        dfba_obj_expression, error = wc_lang.DfbaObjectiveExpression.deserialize(
+            obj_expression, {wc_lang.DfbaObjReaction: {biomass_rxn.id: biomass_rxn}})
+        assert error is None, str(error)
+        gen.submodel.dfba_obj.expression = dfba_obj_expression
         
         gen._reaction_bounds = {'ex_m1': (10, 10), 'ex_m2': (10, 10), 'ex_m3': (0, 0), 'r1': (0, 1), 'r2': (-2, 3), 'r3': (0, 2), 'r4': (0, None)}        
         lower_bound_adjustable = ['r2']
