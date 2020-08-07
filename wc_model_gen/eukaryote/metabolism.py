@@ -574,10 +574,16 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             # Set the bounds of exchange/demand/sink reactions        
             if reaction.flux_bounds:
                 rxn_bounds = reaction.flux_bounds
-                min_constr = rxn_bounds.min*cell_volume*scipy.constants.Avogadro*scale_factor if \
-                    rxn_bounds.min else rxn_bounds.min
-                max_constr = rxn_bounds.max*cell_volume*scipy.constants.Avogadro*scale_factor if \
-                    rxn_bounds.max else rxn_bounds.max                
+                if rxn_bounds.min:
+                    min_constr = 0. if math.isnan(rxn_bounds.min) else \
+                        rxn_bounds.min*cell_volume*scipy.constants.Avogadro*scale_factor
+                else:
+                    min_constr = rxn_bounds.min
+                if rxn_bounds.max:
+                    max_constr = 0. if math.isnan(rxn_bounds.max) else \
+                        rxn_bounds.max*cell_volume*scipy.constants.Avogadro*scale_factor
+                else:           
+                    max_constr = rxn_bounds.max                
             # Set the bounds of reactions with measured kinetic constants
             elif reaction.rate_laws:
                 

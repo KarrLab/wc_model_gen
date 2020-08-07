@@ -765,14 +765,14 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen = self.gen
         gen.clean_and_validate_options()
         
-        model.reactions.get_one(id='ex_m1').flux_bounds = wc_lang.FluxBounds(min=None, max=None)
+        model.reactions.get_one(id='ex_m1').flux_bounds = wc_lang.FluxBounds(min=math.nan, max=math.nan)
         model.reactions.get_one(id='ex_m2').flux_bounds = wc_lang.FluxBounds(min=-15., max=None)
         model.reactions.get_one(id='ex_m3').flux_bounds = wc_lang.FluxBounds(min=0., max=0.)
         gen.options['scale_factor'] = 10.
         
         reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = gen.determine_bounds()
 
-        self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15.*10.*scipy.constants.Avogadro*0.1, None), 'ex_m3': (0., 0.), 
+        self.assertEqual(reaction_bounds, {'ex_m1': (0., 0.), 'ex_m2': (-15.*10.*scipy.constants.Avogadro*0.1, None), 'ex_m3': (0., 0.), 
             'r1': (0., 0.), 'r2': (None, None), 'r3': (0., 20.), 'r4': (0., None)})
         self.assertEqual(sorted(lower_bound_adjustable), [])
         self.assertEqual(sorted(upper_bound_adjustable), ['r3'])
