@@ -191,7 +191,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
 
         ala_L = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='ala_L')
         ala_L_species = wc_kb.core.Species(species_type=ala_L, compartment=extracellular)
-        exchange_rxn_kb = cell.reactions.create(id='EX_ala_L_e', name='exchange ala_L', 
+        exchange_rxn_kb = cell.reactions.create(id='EX_ala_L_e_', name='exchange ala_L', 
             reversible=True, comments='random comments')
         ala_L_coef = wc_kb.core.SpeciesCoefficient(species=ala_L_species, 
                         coefficient=-1)            
@@ -288,9 +288,9 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
                 model_species.id = model_species.gen_id() 
 
-        g6p_exc = model.reactions.create(id='EX_g6p_e_kb', participants=[
+        g6p_exc = model.reactions.create(id='EX_g6p_e_kb', reversible=True, participants=[
             model.species.get_one(id='g6p[e]').species_coefficients.get_or_create(coefficient=-1)])
-        met_L_exc = model.reactions.create(id='EX_met_L_e_kb', participants=[
+        met_L_exc = model.reactions.create(id='EX_met_L_e_kb', reversible=True, participants=[
             model.species.get_one(id='met_L[e]').species_coefficients.get_or_create(coefficient=-1)])                              	
 
         # Create transcription submodel
@@ -494,8 +494,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'carbohydrate_components': {'g6p[c]': 1.},
             'lipid_components': {'chsterol[c]': 0.2, 'pail_hs[c]': 0.8},
             'amino_acid_ids': ['ala_L', 'met_L'],
-            'media_fluxes': {'EX_ala_L_e': (None, 20.)},
-            'exchange_reactions': ['EX_ala_L_e', 'EX_met_L_e', 'EX_g6p_e'],
+            'media_fluxes': {'EX_ala_L_e_': (None, 20.)},
+            'exchange_reactions': ['EX_ala_L_e_', 'EX_met_L_e', 'EX_g6p_e'],
             })
 
         g6p_exc.submodel = gen.submodel
@@ -505,18 +505,19 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         gen.gen_reactions()
         gen.gen_rate_laws()
 
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').submodel, gen.submodel)
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').name, 'exchange ala_L')
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').reversible, True)
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').comments, 'random comments')
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.min, None)
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.max, 20.)
-        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e_kb').flux_bounds.units, unit_registry.parse_units('M s^-1'))
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').submodel, gen.submodel)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').name, 'exchange ala_L')
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').reversible, True)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').comments, 'random comments')
+        self.assertEqual(numpy.isnan(model.reactions.get_one(id='EX_ala_L_e__kb').flux_bounds.min), True)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').flux_bounds.max, 20.)
+        self.assertEqual(model.reactions.get_one(id='EX_ala_L_e__kb').flux_bounds.units, unit_registry.parse_units('M s^-1'))
         self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.min, 0.)
         self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').flux_bounds.max, 0.)
         self.assertEqual(model.reactions.get_one(id='EX_met_L_e_kb').reversible, False)
-        self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.min, None)
-        self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.max, None)
+        self.assertEqual(numpy.isnan(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.min), True)
+        self.assertEqual(numpy.isnan(model.reactions.get_one(id='EX_g6p_e_kb').flux_bounds.max), True)
+        self.assertEqual(model.reactions.get_one(id='EX_g6p_e_kb').reversible, True)
 
         self.assertEqual(gen.submodel.dfba_obj.expression.expression, 'biomass_reaction')
         self.assertEqual(len(gen.submodel.dfba_obj.expression.dfba_obj_reactions), 1)
@@ -772,7 +773,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         
         reaction_bounds, lower_bound_adjustable, upper_bound_adjustable = gen.determine_bounds()
 
-        self.assertEqual(reaction_bounds, {'ex_m1': (0., 0.), 'ex_m2': (-15.*10.*scipy.constants.Avogadro*0.1, None), 'ex_m3': (0., 0.), 
+        self.assertEqual(reaction_bounds, {'ex_m1': (None, None), 'ex_m2': (-15.*10.*scipy.constants.Avogadro*0.1, None), 'ex_m3': (0., 0.), 
             'r1': (0., 0.), 'r2': (None, None), 'r3': (0., 20.), 'r4': (0., None)})
         self.assertEqual(sorted(lower_bound_adjustable), [])
         self.assertEqual(sorted(upper_bound_adjustable), ['r3'])

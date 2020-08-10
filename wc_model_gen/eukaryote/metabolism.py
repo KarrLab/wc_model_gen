@@ -139,17 +139,20 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         # Set the flux bounds of exchange/demand/sink reactions
         for reaction in submodel.reactions:
-            if reaction.id.rstrip('_kb') in exchange_reactions:
+            if reaction.id[:-3] in exchange_reactions:
                 reaction.flux_bounds = wc_lang.FluxBounds(units=unit_registry.parse_units('M s^-1'))
                 # Set the flux bounds of exchange reactions for media components to the measured fluxes
-                if reaction.id.rstrip('_kb') in media_fluxes:
-                    bounds = media_fluxes[reaction.id.rstrip('_kb')]
-                    reaction.flux_bounds.min = bounds[0]
-                    reaction.flux_bounds.max = bounds[1]
+                if reaction.id[:-3] in media_fluxes:
+                    bounds = media_fluxes[reaction.id[:-3]]
+                    reaction.flux_bounds.min = math.nan if bounds[0]==None else bounds[0]
+                    reaction.flux_bounds.max = math.nan if bounds[1]==None else bounds[1]
                 # Set the exchange reactions for other media components to be unbounded    
-                elif reaction.participants[0].species.distribution_init_concentration:
-                    reaction.flux_bounds.min = None
-                    reaction.flux_bounds.max = None
+                elif reaction.participants[0].species.distribution_init_concentration:                    
+                    reaction.flux_bounds.max = math.nan
+                    if reaction.reversible:
+                        reaction.flux_bounds.min = math.nan
+                    else:
+                        reaction.flux_bounds.min = 0.    
                 # Set the bounds of other exchange/demand/sink reactions to zero
                 else:
                     reaction.flux_bounds.min = 0.
@@ -575,12 +578,12 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if reaction.flux_bounds:
                 rxn_bounds = reaction.flux_bounds
                 if rxn_bounds.min:
-                    min_constr = 0. if math.isnan(rxn_bounds.min) else \
+                    min_constr = None if numpy.isnan(rxn_bounds.min) else \
                         rxn_bounds.min*cell_volume*scipy.constants.Avogadro*scale_factor
                 else:
                     min_constr = rxn_bounds.min
                 if rxn_bounds.max:
-                    max_constr = 0. if math.isnan(rxn_bounds.max) else \
+                    max_constr = None if numpy.isnan(rxn_bounds.max) else \
                         rxn_bounds.max*cell_volume*scipy.constants.Avogadro*scale_factor
                 else:           
                     max_constr = rxn_bounds.max                
