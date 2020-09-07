@@ -437,6 +437,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
         for species in biomass_rxn.dfba_obj_species:
             species.id = species.gen_id()
+            species.units = unit_registry.parse_units('molecule cell^-1')
 
         # Add biomass reaction as objective function
         submodel.dfba_obj = wc_lang.DfbaObjective(model=model)

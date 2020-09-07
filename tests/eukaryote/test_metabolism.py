@@ -533,6 +533,8 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'atp[c]': -48, 'gtp[c]': -60, 'amp[c]': 76, 'cmp[c]': 40, 'gmp[c]': 40, 'ump[c]': 40, 'h2o[c]': -240 + (10*scipy.constants.Avogadro - 1), 'h[c]': 216, 
             'adp[c]': 12, 'pi[c]': 144, 'gdp[c]': 60, 'ala_L[c]': -36, 'met_L[c]': -12, 'h2o[l]': -24, 'ala_L[l]': 24, 'met_L[l]': 8,
             })
+        for i in biomass_reaction.dfba_obj_species:
+            self.assertEqual(i.units, unit_registry.parse_units('molecule cell^-1'))
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro + 20.)
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.charge, 10*scipy.constants.Avogadro)
         self.assertEqual(model.species.get_one(id='carbohydrate[c]').distribution_init_concentration.mean, 1.)
