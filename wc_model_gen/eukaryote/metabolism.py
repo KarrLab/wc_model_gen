@@ -527,7 +527,15 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             if growth > measured_growth:
                 flux_range = self.flux_variability_analysis(
                     conv_model, fraction_of_objective=measured_growth / growth)
+                conv_model, _, _, _ = self.conv_for_optim()
+                result = conv_model.solve()
+                calibrated_growth = result.value/scale_factor*coef_scale_factor
+                self.options['kcat_adjustment_factor'] = measured_growth / calibrated_growth
                 self.impute_kinetic_constant(flux_range)
+                conv_model, _, _, _ = self.conv_for_optim()
+                result = conv_model.solve()
+                growth = result.value/scale_factor*coef_scale_factor
+                print('Optimized flux through biomass reaction after calibration is {}'.format(growth))
             
             # Relax bounds if overconstrained
             lower = upper = {}
@@ -548,7 +556,7 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                 else:
                     flux_range = self.flux_variability_analysis(conv_model, fixed_values=fixed_values)
                     self.impute_kinetic_constant(flux_range)
-                    conv_model, conv_variables, lb_adjustable, ub_adjustable = self.conv_for_optim()
+                    conv_model, _, _, _ = self.conv_for_optim()
                     result = conv_model.solve()
                     growth = result.value/scale_factor*coef_scale_factor
                     print('Optimized flux through biomass reaction after relaxation is {}'.format(growth))
