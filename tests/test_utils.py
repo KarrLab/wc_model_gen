@@ -193,33 +193,34 @@ class TestCase(unittest.TestCase):
         for i in range(1,7):
             Id = 's' + str(i)
             species_types[Id] = wc_lang.SpeciesType(id=Id)
-            species[Id + '_c'] = wc_lang.Species(species_type=species_types[Id], compartment=c)
-            wc_lang.DistributionInitConcentration(species=species[Id + '_c'], mean=0.5)
-
+            species[Id + '[c]'] = wc_lang.Species(species_type=species_types[Id], compartment=c)
+            species[Id + '[c]'].id = species[Id + '[c]'].gen_id()
+            wc_lang.DistributionInitConcentration(species=species[Id + '[c]'], mean=0.5)
+        
         ob_exp1, error = wc_lang.ObservableExpression.deserialize('s4[c] + s5[c]', {
-            wc_lang.Species:{species['s4_c'].gen_id(): species['s4_c'],
-                            species['s5_c'].gen_id(): species['s5_c']}})
+            wc_lang.Species:{species['s4[c]'].gen_id(): species['s4[c]'],
+                            species['s5[c]'].gen_id(): species['s5[c]']}})
         assert error is None, str(error)
         modifier1 = wc_lang.Observable(id='e1', expression=ob_exp1)
 
         ob_exp2, error = wc_lang.ObservableExpression.deserialize('2 * s6[c]', {
-            wc_lang.Species:{species['s6_c'].gen_id(): species['s6_c']}})
+            wc_lang.Species:{species['s6[c]'].gen_id(): species['s6[c]']}})
         assert error is None, str(error)
         modifier2 = wc_lang.Observable(id='e2', expression=ob_exp2)
 
-        participant1 = wc_lang.SpeciesCoefficient(species=species['s1_c'], coefficient=-1)
-        participant2 = wc_lang.SpeciesCoefficient(species=species['s2_c'], coefficient=-1)
-        participant3 = wc_lang.SpeciesCoefficient(species=species['s3_c'], coefficient=1)
-        participant4 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=-1)
-        participant5 = wc_lang.SpeciesCoefficient(species=species['s4_c'], coefficient=1)
-        participant6 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
-        participant7 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=-1)
-        participant8 = wc_lang.SpeciesCoefficient(species=species['s6_c'], coefficient=1)
+        participant1 = wc_lang.SpeciesCoefficient(species=species['s1[c]'], coefficient=-1)
+        participant2 = wc_lang.SpeciesCoefficient(species=species['s2[c]'], coefficient=-1)
+        participant3 = wc_lang.SpeciesCoefficient(species=species['s3[c]'], coefficient=1)
+        participant4 = wc_lang.SpeciesCoefficient(species=species['s4[c]'], coefficient=-1)
+        participant5 = wc_lang.SpeciesCoefficient(species=species['s4[c]'], coefficient=1)
+        participant6 = wc_lang.SpeciesCoefficient(species=species['s6[c]'], coefficient=-1)
+        participant7 = wc_lang.SpeciesCoefficient(species=species['s6[c]'], coefficient=-1)
+        participant8 = wc_lang.SpeciesCoefficient(species=species['s6[c]'], coefficient=1)
         reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant3,
             participant4, participant5, participant6, participant7, participant8])
 
         rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            model, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6_c']])
+            model, reaction, modifiers=[modifier1, modifier2], modifier_reactants=[species['s6[c]']])
 
         self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * e2 * '
             '(s1[c] / (s1[c] + K_m_r1_s1 * Avogadro * volume_c)) * '
@@ -248,19 +249,19 @@ class TestCase(unittest.TestCase):
 
         reaction = wc_lang.Reaction(id='r1', participants=[participant3, participant6])
         rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            model, reaction, modifiers=[modifier1, species['s6_c']])
+            model, reaction, modifiers=[modifier1, species['s6[c]']])
         self.assertEqual(rate_law.expression, 'k_cat_r1 * e1 * s6[c]')
 
         reaction = wc_lang.Reaction(id='r1', participants=[participant1, participant2, participant4, participant8])
         rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-            model, reaction, exclude_substrates=[species['s1_c']])
+            model, reaction, exclude_substrates=[species['s1[c]']])
         self.assertEqual(rate_law.expression, 'k_cat_r1 * '
             '(s2[c] / (s2[c] + K_m_r1_s2 * Avogadro * volume_c)) * '
             '(s4[c] / (s4[c] + K_m_r1_s4 * Avogadro * volume_c))')
 
         with self.assertRaises(TypeError) as ctx:
             rate_law, parameters = utils.gen_michaelis_menten_like_rate_law(
-                model, reaction, modifiers=['s6_c'])
+                model, reaction, modifiers=['s6[c]'])
         self.assertEqual('The modifiers contain element(s) that is not an observable or a species', str(ctx.exception))  
 
     def test_gen_michaelis_menten_like_propensity_function(self):
