@@ -353,7 +353,7 @@ class TranscriptionSubmodelGeneratorTestCase(unittest.TestCase):
 
         # initiation
         self.assertEqual(model.observables.get_one(id='subtotal_complex1_n_1').expression.expression,
-            'complex1_bound_gene1[n] + complex1[n] + complex1_bound_non_specific_site[n]')
+            '(complex1_bound_gene1[n] + complex1[n] + complex1_bound_non_specific_site[n])')
         self.assertEqual(model.observables.get_one(id='total_complex1_n').expression.expression,
             'subtotal_complex1_n_1')
         self.assertEqual(model.parameters.get_one(id='total_nuclear_genome_binding').value, 9)

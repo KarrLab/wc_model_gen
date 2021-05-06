@@ -713,10 +713,14 @@ class TranscriptionSubmodelGenerator(wc_model_gen.SubmodelGenerator):
             chunked_data = [chunked_data[i * size:(i + 1) * size] for i in range((len(chunked_data) + size - 1) // size )]
             
             all_subtotal_obs = {}
+            group = 10
             for ind, chunk in enumerate(chunked_data):
-                chunked_dict = {k:v for k,v in chunk}              
+                chunked_dict = {k:v for k,v in chunk}
+                expr = list(chunked_dict.keys())
+                expr = [expr[i * group:(i + 1) * group] for i in range((len(expr) + group - 1) // group )]
+                expr = ' + '.join(['('+' + '.join(i)+')' for i in expr])              
                 polr_subtotal_exp, error = wc_lang.ObservableExpression.deserialize(
-                    ' + '.join(chunked_dict.keys()),
+                    expr,
                     {wc_lang.Species: chunked_dict})            
                 assert error is None, str(error)                
                 polr_subtotal_obs = model.observables.create(
