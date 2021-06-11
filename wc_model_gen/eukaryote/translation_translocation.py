@@ -340,7 +340,7 @@ class TranslationTranslocationSubmodelGenerator(wc_model_gen.SubmodelGenerator):
 
             init_reaction = model.reactions.create(
                 submodel=self.submodel, id='translation_initiation_' + mrna_kb.id,
-                name='transcription initiation of ' + mrna_kb.name,
+                name='translation initiation of ' + mrna_kb.name,
                 reversible=False, comments='Set to irreversible to model only the net flux')
             
             # Adding participants to LHS 
