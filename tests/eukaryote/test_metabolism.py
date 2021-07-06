@@ -212,11 +212,50 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
         g6p_coef = wc_kb.core.SpeciesCoefficient(species=g6p_species, 
                         coefficient=-1)            
         exchange_rxn_kb.participants.append(g6p_coef)
+
+        met1 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='m1')
+        enzyme1 = wc_kb.core.ComplexSpeciesType(cell=cell, id='enzyme1')
+        enzyme1_species = wc_kb.core.Species(species_type=enzyme1, compartment=cytoplasm)
+        enzyme1.subunits.append(wc_kb.core.SpeciesTypeCoefficient(
+                                species_type=met1,
+                                coefficient=0))
+        
+        met2 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='m2')
+        enzyme2 = wc_kb.core.ComplexSpeciesType(cell=cell, id='enzyme2')
+        enzyme2_species = wc_kb.core.Species(species_type=enzyme2, compartment=cytoplasm)
+        enzyme2.subunits.append(wc_kb.core.SpeciesTypeCoefficient(
+                                species_type=met2,
+                                coefficient=2))
+        enzyme2.subunits.append(wc_kb.core.SpeciesTypeCoefficient(
+                                species_type=met1,
+                                coefficient=0))
+
+        met3 = wc_kb.core.MetaboliteSpeciesType(cell=cell, id='m3')
+        enzyme3 = wc_kb.core.ComplexSpeciesType(cell=cell, id='enzyme3')
+        enzyme3_species = wc_kb.core.Species(species_type=enzyme3, compartment=cytoplasm)
+        enzyme3.subunits.append(wc_kb.core.SpeciesTypeCoefficient(
+                                species_type=met3,
+                                coefficient=2))
        
         # Create initial model content
         model = wc_lang.Model()
        
         model.parameters.create(id='mean_doubling_time', value=20000)
+
+        for i in cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType):
+            model_species_type = model.species_types.create(id=i.id, type=wc_ontology['WC:pseudo_species'])
+            model_compartment = model.compartments.get_or_create(id=i.species[0].compartment.id)
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+            model_species.id = model_species.gen_id()
+            conc_model = model.distribution_init_concentrations.create(species=model_species, mean=10.)
+            conc_model.id = conc_model.gen_id()
+        model.species.get_one(id='enzyme3[c]').distribution_init_concentration.mean = 0.
+
+        for i in ['m1', 'm2', 'm3']: # cofactor for the enzymes above
+            model_species_type = model.species_types.create(id=i, type=wc_ontology['WC:metabolite'])
+            model_compartment = model.compartments.get_or_create(id='c')
+            model_species = model.species.get_or_create(species_type=model_species_type, compartment=model_compartment)
+            model_species.id = model_species.gen_id()    
 
         for i in cell.species_types.get(__type=wc_kb.eukaryote.TranscriptSpeciesType):
             model_species_type = model.species_types.create(id=i.id, type=wc_ontology['WC:RNA'])
@@ -488,7 +527,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
                 model_rxn.participants.add(model.species.get_one(id='ala_L[l]').species_coefficients.get_or_create(coefficient=3))        
                 model_rxn.participants.add(model.species.get_one(id='met_L[l]').species_coefficients.get_or_create(coefficient=1))
                 model_rxn.participants.add(model.species.get_one(id='h2o[l]').species_coefficients.get_or_create(coefficient=-3))
-                
+
         gen = metabolism.MetabolismSubmodelGenerator(kb, model, options={
             'recycled_metabolites': {'rec[m]': 100},
             'carbohydrate_components': {'g6p[c]': 1.},
@@ -532,7 +571,7 @@ class MetabolismSubmodelGeneratorTestCase(unittest.TestCase):
             'ump[m]': 160, 'h2o[m]': -340, 'h[m]': 332, 'adp[m]': 4, 'pi[m]': 48, 'gdp[m]': 20, 'ala_L[m]': -12, 'met_L[m]': -4,
             'atp[c]': -48, 'gtp[c]': -60, 'amp[c]': 76, 'cmp[c]': 40, 'gmp[c]': 40, 'ump[c]': 40, 'h2o[c]': -240 + (10*scipy.constants.Avogadro - 1), 'h[c]': 216, 
             'adp[c]': 12, 'pi[c]': 144, 'gdp[c]': 60, 'ala_L[c]': -36, 'met_L[c]': -12, 'h2o[l]': -24, 'ala_L[l]': 24, 'met_L[l]': 8,
-            })
+            'm1[c]': -20, 'm2[c]': -20})
         for i in biomass_reaction.dfba_obj_species:
             self.assertEqual(i.units, unit_registry.parse_units('molecule cell^-1'))
         self.assertEqual(model.species_types.get_one(id='carbohydrate').structure.molecular_weight, 2000.*scipy.constants.Avogadro + 20.)

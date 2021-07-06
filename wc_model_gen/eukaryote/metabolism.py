@@ -383,6 +383,26 @@ class MetabolismSubmodelGenerator(wc_model_gen.SubmodelGenerator):
                                 met_requirement[part.species.id] += -part.coefficient * prot_concentration * \
                                     doubling_time / prot_half_life
 
+        # Metabolite requirement as co-factor of complexes
+        complex_kb = cell.species_types.get(__type=wc_kb.core.ComplexSpeciesType)
+        for com in complex_kb:
+            for subunit in com.subunits:
+                if type(subunit.species_type)==wc_kb.MetaboliteSpeciesType:
+                    met_id = subunit.species_type.id
+                    coef = subunit.coefficient if subunit.coefficient else 1
+                    model_com = model.species_types.get_one(id=com.id)
+                    for sp in model_com.species:
+                        if sp.distribution_init_concentration:
+                            if sp.distribution_init_concentration.mean > 0.:
+                                compartment = sp.compartment
+                                model_met_id = met_id + f'[{compartment.id}]'
+                                if model_met_id in met_requirement:
+                                    met_requirement[model_met_id] += sp.distribution_init_concentration.mean * \
+                                        coef
+                                else:
+                                    met_requirement[model_met_id] = sp.distribution_init_concentration.mean * \
+                                        coef                                  
+
         # DNA replication
         chromosomes = cell.species_types.get(__type=wc_kb.core.DnaSpeciesType)
         for chrom in chromosomes:
