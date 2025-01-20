@@ -1,10 +1,10 @@
 biopython
 conv_opt
-ete3
 mendeleev
 numpy
 openbabel < 3
 scipy
+taxoniq
 wc_kb
 wc_lang
 wc_onto

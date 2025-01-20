@@ -12,12 +12,12 @@ from wc_onto import onto as wc_ontology
 from wc_utils.util.units import unit_registry
 from wc_utils.util import chem
 import wc_model_gen.global_vars as gvar
-import ete3
 import math
 import mendeleev
 import numpy
 import openbabel
 import scipy.constants
+import taxoniq
 import wc_kb
 import wc_lang
 import wc_model_gen
@@ -218,12 +218,12 @@ class InitializeModel(wc_model_gen.ModelComponentGenerator):
         """ Generate taxon for the model from knowledge base """
         kb = self.knowledge_base
         model = self.model
-
-        ncbi_taxa = ete3.NCBITaxa()
-        taxon_name = ncbi_taxa.get_taxid_translator([kb.cell.taxon])[kb.cell.taxon]
-        taxon_rank = ncbi_taxa.get_rank([kb.cell.taxon])[kb.cell.taxon]
-        model_taxon = wc_lang.core.Taxon(id='taxon', name=taxon_name, model=model, 
-            rank=wc_lang.core.TaxonRank[taxon_rank]) 
+        
+        ncbi_taxa = taxoniq.Taxon(kb.cell.taxon)
+        taxon_name = ncbi_taxa.scientific_name
+        taxon_rank = ncbi_taxa.rank.name
+        model_taxon = wc_lang.core.Taxon(id=str(kb.cell.taxon), name=taxon_name, 
+            model=model, rank=wc_lang.core.TaxonRank[taxon_rank])
 
     def gen_compartments(self):
         """ Generate compartments for the model from knowledge base """

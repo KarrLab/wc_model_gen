@@ -265,7 +265,7 @@ class TestCase(unittest.TestCase):
             component_generators=[initialize_model.InitializeModel],
             options={'component': {'InitializeModel': option}}).run()
 
-        self.assertEqual(model.taxon.id, 'taxon')
+        self.assertEqual(model.taxon.id, '9606')
         self.assertEqual(model.taxon.name, 'Homo sapiens')
         self.assertEqual(model.taxon.rank, wc_lang.TaxonRank.species)
 
